@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: gridsense-api
+    runtime: docker
+    plan: free
+    # Build context must be backend/ — the Dockerfile COPYs requirements.txt
+    # and app/ as top-level paths.
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/health
+    envVars:
+      # Set in the Render dashboard to the deployed Vercel URL, e.g.
+      # https://gridsense.vercel.app — without it, browser requests are
+      # blocked by CORS.
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: USE_LIVE_DATA
+        value: "false"
