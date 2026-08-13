@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.env
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+.env.local
+.env.*.local
+
+# Deploy
+.vercel/
+
+# Local tooling overrides
+.claude/settings.local.json
+
+# OS
+.DS_Store
