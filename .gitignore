@@ -11,6 +11,10 @@ dist/
 .env.local
 .env.*.local
 
+# ML — raw data is re-downloadable from Kaggle; artifacts/ is committed
+ml/data/
+ml/venv/
+
 # Deploy
 .vercel/
 
