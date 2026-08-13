@@ -1,0 +1,61 @@
+{
+  "accuracy": [
+    {
+      "model": "persistence (lag 24h)",
+      "mae": 44.319,
+      "rmse": 59.984
+    },
+    {
+      "model": "climatology (month x hour)",
+      "mae": 56.014,
+      "rmse": 68.491
+    },
+    {
+      "model": "shipped synthetic curve",
+      "mae": 97.197,
+      "rmse": 124.64
+    },
+    {
+      "model": "ridge",
+      "mae": 28.272,
+      "rmse": 36.016
+    },
+    {
+      "model": "gradient boosting",
+      "mae": 28.51,
+      "rmse": 37.089
+    }
+  ],
+  "decision_regret": [
+    {
+      "model": "shipped synthetic curve",
+      "captured_pct": -26.8,
+      "captured_kg": -1964.9,
+      "achievable_kg": 7330.8
+    },
+    {
+      "model": "climatology",
+      "captured_pct": 16.43,
+      "captured_kg": 1204.3,
+      "achievable_kg": 7330.8
+    },
+    {
+      "model": "persistence",
+      "captured_pct": 12.83,
+      "captured_kg": 940.8,
+      "achievable_kg": 7330.8
+    },
+    {
+      "model": "ridge",
+      "captured_pct": 68.5,
+      "captured_kg": 5021.6,
+      "achievable_kg": 7330.8
+    },
+    {
+      "model": "gradient boosting",
+      "captured_pct": 67.51,
+      "captured_kg": 4949.0,
+      "achievable_kg": 7330.8
+    }
+  ]
+}
