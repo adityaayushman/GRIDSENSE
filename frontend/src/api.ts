@@ -35,11 +35,12 @@ export interface ScenarioResponse {
 }
 
 /**
- * Fire-and-forget ping to start the API container booting.
+ * Fire-and-forget ping to warm the API before the first real request.
  *
- * Render's free tier spins a service down after ~15 minutes idle, and a cold
- * boot costs roughly 50s. Calling this on mount means the container is waking
- * while the visitor is still reading the page, rather than after they hit Run.
+ * The API is a serverless function, so an idle deployment pays a cold start on
+ * its next invocation (~1-2s on Vercel; ~50s if hosted on a Render free-tier
+ * container, which spins down after ~15 minutes). Calling this on mount moves
+ * that cost into the window where the visitor is still reading the page.
  */
 export function warmUp(): void {
   fetch(`${API_BASE}/api/health`).catch(() => {

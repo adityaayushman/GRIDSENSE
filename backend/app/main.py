@@ -13,8 +13,7 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# Comma-separated list; set ALLOWED_ORIGINS to the deployed frontend URL in
-# production (e.g. https://gridsense.vercel.app). Defaults to local dev ports.
+# Comma-separated exact origins; defaults to the local dev ports.
 ALLOWED_ORIGINS = [
     origin.strip()
     for origin in os.getenv(
@@ -23,9 +22,18 @@ ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 
+# Vercel assigns the frontend a generated hostname per deployment (previews get
+# a fresh one every push), so an exact allowlist cannot cover them. This pattern
+# admits this project's own vercel.app subdomains and nothing else — note the
+# anchors, without which "https://gridsense.evil.com" would match.
+ALLOWED_ORIGIN_REGEX = os.getenv(
+    "ALLOWED_ORIGIN_REGEX", r"^https://gridsense[a-z0-9-]*\.vercel\.app$"
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=ALLOWED_ORIGIN_REGEX,
     allow_methods=["*"],
     allow_headers=["*"],
 )
