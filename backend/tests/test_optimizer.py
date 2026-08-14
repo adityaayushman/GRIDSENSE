@@ -107,12 +107,38 @@ def test_run_scenario_threads_price_into_cost_objective():
     assert result.cost_reduction_pct > 0
 
 
-def test_tou_price_curve_is_not_flat():
+def test_price_curve_is_not_flat():
     """A flat tariff would silently turn the cost objective back into a no-op."""
     price = data_sources.get_price()
     assert len(price) == 24
-    assert min(price) < max(price)
-    assert price[2] < price[18], "overnight off-peak should undercut the evening peak"
+    assert min(price) > 0, "prices include a positive flat access component"
+    assert max(price) - min(price) > 1e-4, "real day-ahead prices must vary by hour"
+
+
+def test_every_stored_day_is_well_formed():
+    """Guards the exported artifact: a short or NaN curve would break the LP."""
+    days = data_sources.available_days()
+    assert len(days) >= 24, f"expected a year-spanning sample of nights, got {len(days)}"
+    months = {d[5:7] for d in days}
+    assert len(months) == 12, f"sample must span all seasons, got months {sorted(months)}"
+    for d in days:
+        carbon = data_sources.get_carbon_intensity(day=d)
+        price = data_sources.get_price(day=d)
+        assert len(carbon) == 24 and len(price) == 24, d
+        assert all(c > 0 for c in carbon), d
+        assert all(p > 0 for p in price), d
+
+
+def test_default_day_is_available_and_stable():
+    default = data_sources.default_day()
+    assert default in data_sources.available_days()
+    assert data_sources.resolve_day(None) == default
+
+
+def test_unknown_day_is_rejected():
+    """The endpoint turns this into a 422 rather than serving a silent default."""
+    with pytest.raises(ValueError):
+        data_sources.resolve_day("1999-01-01")
 
 
 def test_infeasible_window_raises():

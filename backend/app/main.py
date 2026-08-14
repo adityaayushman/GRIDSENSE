@@ -44,6 +44,18 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/api/days")
+def days():
+    """Charging nights available to simulate, and which one is served by default."""
+    available = data_sources.available_days()
+    return {
+        "days": available,
+        "default": data_sources.default_day(),
+        "count": len(available),
+        "region": "ES",
+    }
+
+
 @app.post("/api/scenario", response_model=ScenarioResponse)
 def run_scenario_endpoint(req: ScenarioRequest):
     try:
@@ -58,8 +70,9 @@ def run_scenario_endpoint(req: ScenarioRequest):
             for i in range(req.ev_count)
         ]
 
-        carbon = data_sources.get_carbon_intensity(req.region)
-        price = data_sources.get_price(req.region)
+        day = data_sources.resolve_day(req.day)
+        carbon = data_sources.get_carbon_intensity(req.region, day)
+        price = data_sources.get_price(req.region, day)
         baseline = data_sources.get_residential_baseline_kw(household_count=req.ev_count)
 
         result = run_scenario(
@@ -79,6 +92,7 @@ def run_scenario_endpoint(req: ScenarioRequest):
             naive_kw=round(result.hourly_naive_load_kw[h], 2),
             optimized_kw=round(result.hourly_optimized_load_kw[h], 2),
             carbon_intensity=result.hourly_carbon_intensity[h],
+            price=price[h],
         )
         for h in range(24)
     ]
@@ -91,10 +105,12 @@ def run_scenario_endpoint(req: ScenarioRequest):
         emissions_naive_kg=round(result.emissions_naive_kg, 2),
         emissions_optimized_kg=round(result.emissions_optimized_kg, 2),
         emissions_reduction_pct=result.emissions_reduction_pct,
-        cost_naive_usd=round(result.cost_naive, 2),
-        cost_optimized_usd=round(result.cost_optimized, 2),
+        cost_naive=round(result.cost_naive, 2),
+        cost_optimized=round(result.cost_optimized, 2),
         cost_reduction_pct=result.cost_reduction_pct,
+        currency=data_sources.CURRENCY,
         energy_scheduled_kwh=round(req.ev_count * req.energy_per_vehicle_kwh, 1),
         ev_count=req.ev_count,
         region=req.region,
+        day=day,
     )

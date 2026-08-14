@@ -27,6 +27,10 @@ body { margin: 0; font-family: 'Inter', -apple-system, sans-serif; background: #
 .field label { font-size: 12px; color: #8B96A5; }
 .field input[type="range"] { accent-color: #4FD1C5; width: 100%; }
 .fieldValue { font-size: 13px; font-family: monospace; }
+.daySelect {
+  background: #0B0F14; color: #E8EDF2; border: 1px solid #1C232D; border-radius: 6px;
+  padding: 7px 8px; font-family: inherit; font-size: 13px; width: 100%;
+}
 .runBtn { background: #4FD1C5; color: #0B0F14; border: none; border-radius: 7px; padding: 10px 18px; font-weight: 600; font-size: 13px; cursor: pointer; height: 38px; }
 .runBtn:disabled { opacity: 0.6; cursor: default; }
 .errorText { color: #F2A65A; font-size: 12px; margin-top: 10px; }

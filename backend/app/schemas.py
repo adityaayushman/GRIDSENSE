@@ -8,7 +8,12 @@ class ScenarioRequest(BaseModel):
     deadline_hour: int = Field(7, ge=0, le=23, description="Hour by which charging must complete (next day)")
     energy_per_vehicle_kwh: float = Field(9.2, ge=1.0, le=100.0)
     objective: str = Field("emissions", pattern="^(emissions|cost|peak)$")
-    region: str = Field("CAISO")
+    region: str = Field("ES")
+    day: str | None = Field(
+        None,
+        description="ISO date of the measured charging night to simulate "
+                    "(18:00 that day to 07:00 the next). Defaults to the median-saving night.",
+    )
 
 
 class HourlySeries(BaseModel):
@@ -17,6 +22,7 @@ class HourlySeries(BaseModel):
     naive_kw: float
     optimized_kw: float
     carbon_intensity: float
+    price: float
 
 
 class ScenarioResponse(BaseModel):
@@ -27,9 +33,11 @@ class ScenarioResponse(BaseModel):
     emissions_naive_kg: float
     emissions_optimized_kg: float
     emissions_reduction_pct: float
-    cost_naive_usd: float
-    cost_optimized_usd: float
+    cost_naive: float
+    cost_optimized: float
     cost_reduction_pct: float
+    currency: str
     energy_scheduled_kwh: float
     ev_count: int
     region: str
+    day: str

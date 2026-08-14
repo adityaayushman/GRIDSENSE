@@ -1,56 +1,98 @@
 """
 Grid data providers.
 
-For now this returns a realistic synthetic 24h curve so the system runs
-end-to-end without API keys. Swap `get_carbon_intensity` for a real
-WattTime / ElectricityMaps call once you have credentials — see README.
+Serves *measured* Spanish grid data: hourly carbon intensity derived from the
+ENTSO-E generation mix, and hourly day-ahead market prices. Both come from
+`app/data/grid_days.json`, built by `ml/export_grid_days.py` — see `ml/README.md`
+for the derivation and its validation.
 
-WattTime docs:        https://www.watttime.org/api-documentation/
-ElectricityMaps docs: https://docs.electricitymaps.com/
+Each stored day is a 18:00->07:00 *charging night*, so indices 0-7 hold the
+early hours of the following calendar day. That is the window an EV is actually
+plugged in for, and it spans two dates.
+
+Why Spain: it is one of the few countries where ordinary households are billed
+at genuinely hourly-varying prices (the regulated PVPC tariff), which is the
+premise the cost objective depends on.
+
+ENTSO-E docs: https://transparency.entsoe.eu/
 """
 
-import math
+import json
 import os
+from functools import lru_cache
+from pathlib import Path
 
 import httpx
 
 USE_LIVE_DATA = os.getenv("USE_LIVE_DATA", "false").lower() == "true"
 WATTTIME_TOKEN = os.getenv("WATTTIME_TOKEN")
 
+DATA_FILE = Path(__file__).parent / "data" / "grid_days.json"
 
-def get_carbon_intensity(region: str = "CAISO") -> list[float]:
-    """Returns gCO2/kWh for each hour 0-23."""
+# Spain's PVPC bill is an hourly energy term plus access tolls, levies and
+# supplier margin that do not vary by hour. Charging can only shift the hourly
+# part, so omitting this flat component would materially overstate the bill
+# saving. Approximate 2018 residential value, EUR/kWh. Being flat, it does not
+# change which hours the optimizer picks — only the reported percentage.
+PVPC_FIXED_EUR_PER_KWH = 0.062
+
+CURRENCY = "EUR"
+
+
+@lru_cache(maxsize=1)
+def _grid_data() -> dict:
+    with DATA_FILE.open(encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def available_days() -> list[str]:
+    """Sorted ISO dates for which a complete charging night is available."""
+    return sorted(_grid_data()["days"])
+
+
+def default_day() -> str:
+    """The median-saving night, so the default view is representative."""
+    return _grid_data()["default_day"]
+
+
+def resolve_day(day: str | None) -> str:
+    """Validate a requested day, falling back to the representative default."""
+    if day is None:
+        return default_day()
+    if day not in _grid_data()["days"]:
+        raise ValueError(
+            f"No grid data for {day}. Available: {available_days()[0]}..{available_days()[-1]}"
+        )
+    return day
+
+
+def get_carbon_intensity(region: str = "ES", day: str | None = None) -> list[float]:
+    """Measured grid carbon intensity, gCO2eq/kWh, for each hour 0-23."""
     if USE_LIVE_DATA and WATTTIME_TOKEN:
         return _fetch_watttime(region)
-    return _synthetic_carbon_curve()
+    return list(_grid_data()["days"][resolve_day(day)]["carbon"])
 
 
-def get_price(region: str = "CAISO") -> list[float]:
-    """Returns retail price ($/kWh) for each hour 0-23.
+def get_price(region: str = "ES", day: str | None = None) -> list[float]:
+    """Retail price in EUR/kWh for each hour 0-23.
 
-    Modeled on PG&E's EV2-A time-of-use rate (the tariff most California EV
-    owners are on), which is a step function rather than a smooth curve:
-
-        00:00-15:00  off-peak
-        15:00-16:00  part-peak
-        16:00-21:00  peak
-        21:00-24:00  part-peak
-
-    Note this peaks at 16-21h, overlapping but not identical to the marginal
-    emissions peak — which is why "min cost" and "min emissions" produce
-    different schedules.
+    Day-ahead wholesale price plus the flat PVPC access component — see
+    `PVPC_FIXED_EUR_PER_KWH`.
     """
-    off_peak, part_peak, peak = 0.31, 0.51, 0.62
-    return [
-        peak if 16 <= h < 21 else part_peak if h == 15 or h >= 21 else off_peak
-        for h in range(24)
-    ]
+    hourly = _grid_data()["days"][resolve_day(day)]["price"]
+    return [round(p + PVPC_FIXED_EUR_PER_KWH, 5) for p in hourly]
 
 
 def get_residential_baseline_kw(household_count: int = 1) -> list[float]:
     """Synthetic residential demand curve (kW), scaled per household.
-    Replace with real utility load data (e.g. EIA, local utility open data)
-    when available."""
+
+    Still synthetic: the ENTSO-E feed reports system-wide load, not the
+    residential share behind a single distribution feeder, so it cannot be
+    scaled down to a neighbourhood without an assumption. Shaped as a morning
+    and an evening peak, which is the standard residential profile.
+    """
+    import math
+
     return [
         round(
             household_count
@@ -61,15 +103,13 @@ def get_residential_baseline_kw(household_count: int = 1) -> list[float]:
     ]
 
 
-def _synthetic_carbon_curve() -> list[float]:
-    return [
-        round(320 + 180 * math.exp(-((h - 19) ** 2) / 6) - 90 * math.exp(-((h - 13) ** 2) / 10), 1)
-        for h in range(24)
-    ]
-
-
 def _fetch_watttime(region: str) -> list[float]:  # pragma: no cover - network call
-    """Example live fetch — adapt to WattTime's forecast endpoint & auth flow."""
+    """Example live fetch — adapt to WattTime's forecast endpoint & auth flow.
+
+    Note WattTime covers North American balancing authorities; pointing this at
+    the Spanish data above would mix regions. Wire in ENTSO-E's own API or
+    ElectricityMaps for live ES data.
+    """
     headers = {"Authorization": f"Bearer {WATTTIME_TOKEN}"}
     resp = httpx.get(
         "https://api.watttime.org/v3/forecast",

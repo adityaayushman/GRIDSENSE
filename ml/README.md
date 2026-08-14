@@ -85,6 +85,22 @@ Two results worth dwelling on:
 data, no API key, no model at serve time, and the numbers reproduce the backtest
 exactly.
 
+## Shipping it
+
+`export_grid_days.py` writes `backend/app/data/grid_days.json`, which is what the
+live API now serves. Two details there are load-bearing:
+
+- **Nights are stitched, not calendar days.** A charging night runs 18:00→07:00
+  and spans two dates, so indices 0-7 come from the *following* morning. Slicing
+  a single calendar day instead would splice an evening onto its own morning and
+  the API's figures would stop matching this backtest.
+- **The shipped subset is sampled along the saving distribution, not by date.**
+  Taking every Nth calendar date pulled the retained median to 1.0% against the
+  true 3.3%, because saving is not evenly spread through the year. Sampling
+  systematically along the sorted distribution preserves the median and both
+  tails by construction. Nothing is dropped for looking bad — and the default
+  night is the median, not the best.
+
 ## Running
 
 ```bash
