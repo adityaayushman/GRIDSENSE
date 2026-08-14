@@ -3,7 +3,9 @@
     "allow": [
       "Bash(git --version)",
       "Bash(git config *)",
-      "Bash(echo \"exit:$?\")"
+      "Bash(echo \"exit:$?\")",
+      "Bash(./../../venv/Scripts/python.exe -c ' *)",
+      "Bash(curl -s -i -X OPTIONS https://gridsense-api-es.vercel.app/api/scenario -H 'Origin: https://gridsense-es.vercel.app' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: content-type' --max-time 60)"
     ]
   }
 }

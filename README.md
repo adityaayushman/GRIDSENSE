@@ -1,18 +1,27 @@
 # GridSense
 
-**Live demo:** https://gridsense-dashboard.vercel.app
-**API:** https://gridsense-api-py.vercel.app ([health](https://gridsense-api-py.vercel.app/api/health))
+**Live demo:** https://gridsense-es.vercel.app
+**API:** https://gridsense-api-es.vercel.app ([health](https://gridsense-api-es.vercel.app/api/health) · [days](https://gridsense-api-es.vercel.app/api/days))
 
 Carbon-aware EV charging optimization — a full-stack system that schedules
-residential EV charging against real marginal-emissions data instead of
-naive arrival-time charging, and quantifies the reduction in peak grid load
-and CO₂ emissions.
+residential EV charging against **measured** grid carbon-intensity and price
+data instead of naive arrival-time charging, and quantifies what that actually
+saves.
 
 **Problem:** most EVs charge the moment their owner gets home (5–9pm),
-overlapping the grid's existing demand peak — the exact window when utilities
-lean on carbon-intensive peaker plants. GridSense reschedules that load using
-a linear-programming optimizer, and shows the before/after impact on a live
+overlapping the grid's existing demand peak — the window when utilities lean on
+carbon-intensive peaker plants. GridSense reschedules that load using a
+linear-programming optimizer, and shows the before/after impact on a live
 dashboard.
+
+**What the data says.** Backtested over every complete overnight window in
+ENTSO-E's 2018 Spanish record, the median night saves **3.3%** of charging
+emissions and the fleet-wide total is **10.4%** — not the flat 30%+ a smooth
+synthetic curve suggests. The saving is long-tailed: 38% of nights save under
+1%, while 17% save over 20%. The objectives genuinely conflict, too — the
+cheapest hour and the cleanest hour coincide on only 14% of nights, so
+minimizing cost can *raise* emissions. The dashboard shows those as increases
+rather than hiding them. See [`ml/README.md`](ml/README.md) for the analysis.
 
 ## Architecture
 
@@ -25,13 +34,26 @@ frontend/    React + TypeScript dashboard (Vite)
   emissions, cost, or peak load, subject to each vehicle's energy requirement,
   charger power limit, and arrival/deadline window.
 - **API** (`backend/app/main.py`) — `POST /api/scenario` runs a full
-  naive-vs-optimized comparison and returns hourly series + summary stats.
-  Interactive docs at `/docs` once running.
-- **Data** (`backend/app/data_sources.py`) — synthetic 24h carbon-intensity,
-  time-of-use price, and residential-load curves by default; swap in a real
-  WattTime or ElectricityMaps API call by setting `USE_LIVE_DATA=true` and
-  `WATTTIME_TOKEN` in `.env`. The price curve models PG&E's EV2-A residential
-  EV tariff (off-peak / part-peak / peak steps).
+  naive-vs-optimized comparison for one measured grid night and returns hourly
+  series + summary stats; `GET /api/days` lists the nights available to
+  simulate. Interactive docs at `/docs` once running.
+- **Data** (`backend/app/data_sources.py`) — serves measured Spanish grid days
+  from `backend/app/data/grid_days.json`: carbon intensity derived from the
+  ENTSO-E generation mix weighted by IPCC AR5 lifecycle emission factors, and
+  day-ahead market price plus Spain's flat PVPC access component. Each stored
+  day is an 18:00→07:00 charging night, so indices 0-7 are the following
+  morning. Only the residential baseline load remains synthetic — ENTSO-E
+  reports system-wide load, which cannot be scaled to one feeder without an
+  assumption.
+
+  > Spain rather than California because it is one of the few countries where
+  > ordinary households are billed at genuinely hourly-varying prices (PVPC),
+  > which is the premise the cost objective depends on.
+
+  > The derived series is *average* carbon intensity, not *marginal*. Load
+  > shifting responds to the marginal rate; closing that gap needs MOER data
+  > this dataset does not carry. `ml/src/carbon.py` estimates a system marginal
+  > rate (228 vs 267 gCO2eq/kWh average) but the served series is the average.
 
 ## Running locally
 
@@ -65,8 +87,8 @@ Both tiers currently run on Vercel as two projects:
 
 | Project | Serves | URL |
 | --- | --- | --- |
-| `gridsense-dashboard` | Vite static build of `frontend/` | https://gridsense-dashboard.vercel.app |
-| `gridsense-api-py` | `backend/` as a Python serverless function | https://gridsense-api-py.vercel.app |
+| `gridsense-es` | Vite static build of `frontend/` | https://gridsense-es.vercel.app |
+| `gridsense-api-es` | `backend/` as a Python serverless function | https://gridsense-api-es.vercel.app |
 
 **Deploy the backend first.** Vite inlines `VITE_API_BASE` at build time, so the
 frontend must know the API URL before it is built.

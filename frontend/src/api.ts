@@ -8,6 +8,8 @@ export interface ScenarioRequest {
   energy_per_vehicle_kwh: number;
   objective: "emissions" | "cost" | "peak";
   region: string;
+  /** ISO date of the measured charging night; omit for the representative default. */
+  day?: string;
 }
 
 export interface HourlyPoint {
@@ -16,6 +18,14 @@ export interface HourlyPoint {
   naive_kw: number;
   optimized_kw: number;
   carbon_intensity: number;
+  price: number;
+}
+
+export interface DaysResponse {
+  days: string[];
+  default: string;
+  count: number;
+  region: string;
 }
 
 export interface ScenarioResponse {
@@ -26,12 +36,14 @@ export interface ScenarioResponse {
   emissions_naive_kg: number;
   emissions_optimized_kg: number;
   emissions_reduction_pct: number;
-  cost_naive_usd: number;
-  cost_optimized_usd: number;
+  cost_naive: number;
+  cost_optimized: number;
   cost_reduction_pct: number;
+  currency: string;
   energy_scheduled_kwh: number;
   ev_count: number;
   region: string;
+  day: string;
 }
 
 /**
@@ -46,6 +58,12 @@ export function warmUp(): void {
   fetch(`${API_BASE}/api/health`).catch(() => {
     /* best-effort only; a failure here is surfaced on the real request */
   });
+}
+
+export async function fetchDays(): Promise<DaysResponse> {
+  const res = await fetch(`${API_BASE}/api/days`);
+  if (!res.ok) throw new Error(`Could not load available days (${res.status})`);
+  return res.json();
 }
 
 export async function runScenario(req: ScenarioRequest): Promise<ScenarioResponse> {
