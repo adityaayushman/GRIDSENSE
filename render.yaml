@@ -1,6 +1,12 @@
+# NOTE: onrender.com hostnames are globally unique, not per-account.
+# "gridsense-api" is already taken by an unrelated FastAPI service, which
+# would have left this one on a suffixed hostname instead. Check a name is
+# free before claiming it:
+#   curl -sI https://<name>.onrender.com | grep x-render-routing
+# "x-render-routing: no-server" means nothing is bound to that name.
 services:
   - type: web
-    name: gridsense-api
+    name: gridsense-api-es
     runtime: docker
     plan: free
 
