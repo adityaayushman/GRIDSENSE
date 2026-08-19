@@ -1,72 +1,139 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AreaChart, Area, LineChart, Line, ReferenceLine,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { ChevronDown, Zap, TrendingDown, Leaf, Battery, Euro, Github, AlertTriangle } from "lucide-react";
+import { ChevronDown, Zap, Github, AlertTriangle } from "lucide-react";
 import { runScenario, fetchDays, warmUp, ScenarioResponse } from "./api";
 import "./index.css";
 
 type Objective = "emissions" | "cost" | "peak";
 
-/** A reduction can be negative — optimizing one objective often worsens another
- *  on real grid data. Render that as an increase rather than a minus sign. */
-function Delta({ pct }: { pct: number }) {
-  const improved = pct >= 0;
+const OPT = "#3987e5";
+const NAIVE = "#d95926";
+const GRID = "#202A36";
+const INK3 = "#5F6C7B";
+
+const OBJECTIVES: { key: Objective; label: string }[] = [
+  { key: "emissions", label: "Min. CO₂" },
+  { key: "cost", label: "Min. Cost" },
+  { key: "peak", label: "Min. Peak" },
+];
+
+/** A reduction can be negative: optimizing one objective often worsens another
+ *  on real grid data. Show that as an increase rather than a bare minus sign. */
+function signed(pct: number) {
+  return pct >= 0 ? `${pct}%` : `+${Math.abs(pct)}%`;
+}
+function deltaColor(pct: number) {
+  return pct >= 0 ? "var(--ink)" : NAIVE;
+}
+
+/** The headline follows whatever is being optimized, so the hero number is
+ *  always the metric the user actually asked the scheduler to improve. */
+function headline(r: ScenarioResponse, objective: Objective) {
+  if (objective === "cost") {
+    return {
+      pct: r.cost_reduction_pct,
+      label: "lower charging cost",
+      sub: `€${r.cost_naive} → €${r.cost_optimized} · ${r.ev_count} vehicles`,
+    };
+  }
+  if (objective === "peak") {
+    return {
+      pct: r.peak_reduction_pct,
+      label: "lower peak grid load",
+      sub: `${r.peak_naive_kw} kW → ${r.peak_optimized_kw} kW`,
+    };
+  }
+  return {
+    pct: r.emissions_reduction_pct,
+    label: "less CO₂ than charging on arrival",
+    sub: `${r.emissions_naive_kg} kg → ${r.emissions_optimized_kg} kg · ${r.ev_count} vehicles`,
+  };
+}
+
+function ChartTip({ active, payload, label, unit, digits = 1 }: any) {
+  if (!active || !payload?.length) return null;
   return (
-    <span style={{ color: improved ? "#4FD1C5" : "#F2A65A" }}>
-      {improved ? `${pct}%` : `+${Math.abs(pct)}%`}
-    </span>
+    <div className="tip">
+      <div className="tipHour">{label}</div>
+      {payload.map((p: any) => (
+        <div className="tipRow" key={p.dataKey}>
+          <span className="legendSwatch" style={{ background: p.stroke }} />
+          {p.name}
+          <b>{Number(p.value).toFixed(digits)} {unit}</b>
+        </div>
+      ))}
+    </div>
   );
 }
 
 export default function App() {
   const [evCount, setEvCount] = useState(80);
   const [chargerKw, setChargerKw] = useState(7);
+  const [feederKw, setFeederKw] = useState(0); // 0 = unconstrained
   const [objective, setObjective] = useState<Objective>("emissions");
   const [methodOpen, setMethodOpen] = useState(false);
   const [result, setResult] = useState<ScenarioResponse | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [days, setDays] = useState<string[]>([]);
   const [day, setDay] = useState<string>("");
-  // 0 means "unconstrained feeder" — the slider's leftmost position.
-  const [feederKw, setFeederKw] = useState(0);
 
+  // Keep the latest control values addressable from the mount effect without
+  // making it re-run (and re-fire a request) on every slider nudge.
+  const latest = useRef({ evCount, chargerKw, feederKw, objective, day });
+  latest.current = { evCount, chargerKw, feederKw, objective, day };
+
+  const run = useCallback(async (overrideDay?: string) => {
+    setLoading(true);
+    setError(null);
+    const c = latest.current;
+    const chosenDay = overrideDay ?? c.day;
+    try {
+      setResult(
+        await runScenario({
+          ev_count: c.evCount,
+          charger_kw: c.chargerKw,
+          arrival_hour: 18,
+          deadline_hour: 7,
+          energy_per_vehicle_kwh: 9.2,
+          objective: c.objective,
+          region: "ES",
+          ...(chosenDay ? { day: chosenDay } : {}),
+          ...(c.feederKw > 0 ? { feeder_capacity_kw: c.feederKw } : {}),
+        }),
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+      setResult(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Land on a populated page. An empty dashboard behind a "Run" button is a
+  // dead first impression, and the default night is already representative.
   useEffect(() => {
     warmUp();
     fetchDays()
       .then((d) => {
         setDays(d.days);
         setDay(d.default);
+        return run(d.default);
       })
-      .catch(() => {
-        /* day picker stays empty; the API then serves its own default */
-      });
-  }, []);
+      .catch(() => run());
+  }, [run]);
 
-  async function handleRun() {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await runScenario({
-        ev_count: evCount,
-        charger_kw: chargerKw,
-        arrival_hour: 18,
-        deadline_hour: 7,
-        energy_per_vehicle_kwh: 9.2,
-        objective,
-        region: "ES",
-        ...(day ? { day } : {}),
-        ...(feederKw > 0 ? { feeder_capacity_kw: feederKw } : {}),
-      });
-      setResult(res);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const head = result ? headline(result, objective) : null;
+
+  // Plot the charging night in the order it actually happens: 18:00 -> 07:00.
+  // Indexed 0-23 the night is split, so the evening arrival spike lands on the
+  // far right while the hours it shifts into sit on the far left — which reads
+  // as if the optimizer acted before anyone got home. Hours 08-17 are outside
+  // the window and carry no EV load, so they are dropped rather than reordered.
+  const night = result ? [...result.hourly.slice(18), ...result.hourly.slice(0, 8)] : [];
 
   return (
     <div className="page">
@@ -74,20 +141,22 @@ export default function App() {
 
       <header className="header">
         <div className="brand">
-          <div className="brandMark"><Zap size={16} color="#0B0F14" strokeWidth={2.5} /></div>
+          <div className="brandMark">
+            <Zap size={17} color="#fff" strokeWidth={2.4} />
+          </div>
           <div>
             <div className="brandName">GridSense</div>
-            <div className="brandTag">carbon-aware charge scheduling · ES grid</div>
+            <div className="brandTag">carbon-aware charge scheduling · Spanish grid</div>
           </div>
         </div>
         <div className="objectiveToggle">
-          {(["emissions", "cost", "peak"] as Objective[]).map((key) => (
+          {OBJECTIVES.map((o) => (
             <button
-              key={key}
-              onClick={() => setObjective(key)}
-              className={`objectiveBtn ${objective === key ? "active" : ""}`}
+              key={o.key}
+              onClick={() => setObjective(o.key)}
+              className={`objectiveBtn ${objective === o.key ? "active" : ""}`}
             >
-              {key === "emissions" ? "Min. Emissions" : key === "cost" ? "Min. Cost" : "Min. Peak Load"}
+              {o.label}
             </button>
           ))}
         </div>
@@ -95,176 +164,221 @@ export default function App() {
 
       <main className="main">
         <section className="card">
-          <div className="eyebrow">SCENARIO</div>
-          <div className="scenarioGrid">
+          <div className="eyebrow" style={{ marginBottom: 14 }}>Scenario</div>
+          <div className="controls">
             <div className="field">
-              <label>EVs in neighborhood</label>
-              <input type="range" min={10} max={200} value={evCount} onChange={(e) => setEvCount(+e.target.value)} />
+              <label>EVs in neighbourhood</label>
+              <input type="range" min={10} max={200} value={evCount}
+                onChange={(e) => setEvCount(+e.target.value)} />
               <div className="fieldValue">{evCount} vehicles</div>
             </div>
             <div className="field">
               <label>Charger rating</label>
-              <input type="range" min={1.4} max={11} step={0.1} value={chargerKw} onChange={(e) => setChargerKw(+e.target.value)} />
+              <input type="range" min={1.4} max={11} step={0.1} value={chargerKw}
+                onChange={(e) => setChargerKw(+e.target.value)} />
               <div className="fieldValue">{chargerKw.toFixed(1)} kW</div>
-            </div>
-            <div className="field">
-              <label>Grid night (measured)</label>
-              <select className="daySelect" value={day} onChange={(e) => setDay(e.target.value)}>
-                {days.map((d) => (
-                  <option key={d} value={d}>{d}</option>
-                ))}
-              </select>
-              <div className="fieldValue">{days.length} nights of real ES data</div>
             </div>
             <div className="field">
               <label>Feeder capacity</label>
               <input type="range" min={0} max={1200} step={25} value={feederKw}
                 onChange={(e) => setFeederKw(+e.target.value)} />
               <div className="fieldValue">
-                {feederKw === 0 ? "unconstrained" : `${feederKw} kW transformer`}
+                {feederKw === 0 ? <em>unconstrained</em> : `${feederKw} kW transformer`}
               </div>
             </div>
-            <button className="runBtn" onClick={handleRun} disabled={loading}>
-              {loading ? "Running…" : "Run simulation"}
+            <div className="field">
+              <label>Measured grid night</label>
+              <select className="daySelect" value={day} onChange={(e) => setDay(e.target.value)}>
+                {days.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+              <div className="fieldValue"><em>{days.length} real nights</em></div>
+            </div>
+            <button className="runBtn" onClick={() => run()} disabled={loading}>
+              {loading ? "Solving…" : "Run simulation"}
             </button>
           </div>
           {error && <div className="errorText">{error}</div>}
         </section>
 
-        {result && (
+        {result && head && (
           <>
+            <section className="hero">
+              <div className="heroMain">
+                <div className="eyebrow">Night of {result.day}</div>
+                <div className="heroValue" style={{ color: deltaColor(head.pct) }}>
+                  {signed(head.pct)}
+                </div>
+                <div className="heroLabel">{head.label}</div>
+                <div className="heroSub">{head.sub}</div>
+              </div>
+              <div className="heroNote">
+                This is the <strong>median</strong> night of 2018, not the best one. Across the
+                full year the median saving is <strong>3.3%</strong> and the fleet-wide total{" "}
+                <strong>10.4%</strong> — but <strong>38% of nights save under 1%</strong> while
+                17% save over 20%. Pick a different night above to see the spread.
+              </div>
+            </section>
+
             {result.feeder_capacity_kw !== null && result.naive_overload_hours > 0 && (
               <div className="strainBanner">
-                <AlertTriangle size={16} color="#F2A65A" />
+                <AlertTriangle size={16} color={NAIVE} style={{ flex: "none", marginTop: 1 }} />
                 <span>
-                  Naive charging overloads the {result.feeder_capacity_kw} kW transformer for{" "}
+                  Charging on arrival overloads the {result.feeder_capacity_kw} kW transformer for{" "}
                   <strong>{result.naive_overload_hours}h</strong>, peaking{" "}
-                  <strong>{result.naive_overload_peak_kw} kW</strong> over its limit. The
-                  optimized schedule stays within it.
+                  <strong>{result.naive_overload_peak_kw} kW</strong> above its limit. The optimized
+                  schedule stays inside it — this shared limit is the only constraint that couples
+                  vehicles, and the only reason the schedule needs a solver at all.
                 </span>
               </div>
             )}
 
             <section className="statsGrid">
-              <StatCard icon={<TrendingDown size={18} color="#4FD1C5" />} label="Peak load reduction"
-                value={<Delta pct={result.peak_reduction_pct} />}
-                sub={`${result.peak_naive_kw} kW → ${result.peak_optimized_kw} kW`} />
-              <StatCard icon={<Leaf size={18} color="#4FD1C5" />} label="Grid CO₂ reduction"
-                value={<Delta pct={result.emissions_reduction_pct} />}
-                sub={`${result.emissions_naive_kg} kg → ${result.emissions_optimized_kg} kg`} />
-              <StatCard icon={<Euro size={18} color="#4FD1C5" />} label="Charging cost reduction"
-                value={<Delta pct={result.cost_reduction_pct} />}
-                sub={`€${result.cost_naive} → €${result.cost_optimized}`} />
-              <StatCard icon={<Battery size={18} color="#4FD1C5" />} label="Energy scheduled"
-                value={<>{result.energy_scheduled_kwh} kWh</>}
-                sub={`${result.ev_count} vehicles · night of ${result.day}`} />
+              {objective !== "emissions" && (
+                <div className="statCard">
+                  <div className="statLabel">Grid CO₂</div>
+                  <div className="statValue" style={{ color: deltaColor(result.emissions_reduction_pct) }}>
+                    {signed(result.emissions_reduction_pct)}
+                  </div>
+                  <div className="statSub">{result.emissions_naive_kg} → {result.emissions_optimized_kg} kg</div>
+                </div>
+              )}
+              {objective !== "cost" && (
+                <div className="statCard">
+                  <div className="statLabel">Charging cost</div>
+                  <div className="statValue" style={{ color: deltaColor(result.cost_reduction_pct) }}>
+                    {signed(result.cost_reduction_pct)}
+                  </div>
+                  <div className="statSub">€{result.cost_naive} → €{result.cost_optimized}</div>
+                </div>
+              )}
+              {objective !== "peak" && (
+                <div className="statCard">
+                  <div className="statLabel">Peak grid load</div>
+                  <div className="statValue" style={{ color: deltaColor(result.peak_reduction_pct) }}>
+                    {signed(result.peak_reduction_pct)}
+                  </div>
+                  <div className="statSub">{result.peak_naive_kw} → {result.peak_optimized_kw} kW</div>
+                </div>
+              )}
+              <div className="statCard">
+                <div className="statLabel">Energy scheduled</div>
+                <div className="statValue">{result.energy_scheduled_kwh} kWh</div>
+                <div className="statSub">{result.ev_count} vehicles · {result.region}</div>
+              </div>
             </section>
 
             <section className="card">
               <div className="chartHeader">
-                <div className="eyebrow">GRID LOAD — 24H</div>
-                <Legend payload={[
-                  { value: "Naive charging", type: "line", color: "#F2A65A" },
-                  { value: "Optimized charging", type: "line", color: "#4FD1C5" },
-                ]} />
+                <div>
+                  <div className="chartTitle">Neighbourhood grid load</div>
+                  <div className="chartMeta">kW · 18:00 → 07:00, the hours a car is plugged in · 00–07 is the next morning</div>
+                </div>
+                <div className="legend">
+                  <span className="legendItem">
+                    <span className="legendSwatch" style={{ background: NAIVE }} />
+                    Charging on arrival
+                  </span>
+                  <span className="legendItem">
+                    <span className="legendSwatch" style={{ background: OPT }} />
+                    Optimized
+                  </span>
+                </div>
               </div>
-              <ResponsiveContainer width="100%" height={280}>
-                <AreaChart data={result.hourly} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="2 6" stroke="#232B36" vertical={false} />
-                  <XAxis dataKey="label" interval={2} tick={{ fill: "#8B96A5", fontSize: 11 }} axisLine={{ stroke: "#232B36" }} tickLine={false} />
-                  <YAxis tick={{ fill: "#8B96A5", fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ background: "#0B0F14", border: "1px solid #232B36" }} />
-                  <Area type="monotone" dataKey="naive_kw" stroke="#F2A65A" fill="#F2A65A" fillOpacity={0.08} strokeWidth={2} />
-                  <Area type="monotone" dataKey="optimized_kw" stroke="#4FD1C5" fill="#4FD1C5" fillOpacity={0.12} strokeWidth={2.5} />
+              <ResponsiveContainer width="100%" height={290}>
+                <AreaChart data={night} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke={GRID} vertical={false} />
+                  <XAxis dataKey="label" interval={1} tick={{ fill: INK3, fontSize: 11 }}
+                    axisLine={{ stroke: GRID }} tickLine={false} />
+                  <YAxis tick={{ fill: INK3, fontSize: 11 }} axisLine={false} tickLine={false}
+                    width={54} tickFormatter={(v: number) => v.toLocaleString()} />
+                  <Tooltip content={<ChartTip unit="kW" />} cursor={{ stroke: GRID }} />
+                  <Area type="stepAfter" dataKey="naive_kw" name="On arrival" stroke={NAIVE}
+                    fill={NAIVE} fillOpacity={0.1} strokeWidth={2} dot={false} />
+                  <Area type="stepAfter" dataKey="optimized_kw" name="Optimized" stroke={OPT}
+                    fill={OPT} fillOpacity={0.1} strokeWidth={2} dot={false} />
                   {result.feeder_capacity_kw !== null && (
-                    <ReferenceLine
-                      y={result.feeder_capacity_kw}
-                      stroke="#F2A65A"
-                      strokeDasharray="6 4"
+                    <ReferenceLine y={result.feeder_capacity_kw} stroke={NAIVE} strokeWidth={1.5}
+                      strokeDasharray="5 4"
                       label={{ value: `feeder limit ${result.feeder_capacity_kw} kW`,
-                               position: "insideTopRight", fill: "#F2A65A", fontSize: 11 }}
-                    />
+                        position: "insideTopRight", fill: NAIVE, fontSize: 10.5 }} />
                   )}
                 </AreaChart>
               </ResponsiveContainer>
             </section>
 
             <section className="card">
-              <div className="eyebrow">AVERAGE GRID CARBON INTENSITY — 24H</div>
-              <ResponsiveContainer width="100%" height={180}>
-                <LineChart data={result.hourly} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="2 6" stroke="#232B36" vertical={false} />
-                  <XAxis dataKey="label" interval={2} tick={{ fill: "#8B96A5", fontSize: 11 }} axisLine={{ stroke: "#232B36" }} tickLine={false} />
-                  <YAxis tick={{ fill: "#8B96A5", fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ background: "#0B0F14", border: "1px solid #232B36" }} />
-                  <Line type="monotone" dataKey="carbon_intensity" stroke="#F2A65A" strokeWidth={2} dot={false} />
+              <div className="chartHeader">
+                <div>
+                  <div className="chartTitle">Grid carbon intensity</div>
+                  <div className="chartMeta">
+                    gCO₂/kWh · measured from the ENTSO-E generation mix · average, not marginal
+                  </div>
+                </div>
+              </div>
+              <ResponsiveContainer width="100%" height={170}>
+                <LineChart data={night} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke={GRID} vertical={false} />
+                  <XAxis dataKey="label" interval={1} tick={{ fill: INK3, fontSize: 11 }}
+                    axisLine={{ stroke: GRID }} tickLine={false} />
+                  <YAxis tick={{ fill: INK3, fontSize: 11 }} axisLine={false} tickLine={false}
+                    width={54} tickCount={4}
+                    domain={[
+                      (min: number) => Math.floor((min - 10) / 25) * 25,
+                      (max: number) => Math.ceil((max + 10) / 25) * 25,
+                    ]} />
+                  <Tooltip content={<ChartTip unit="gCO₂/kWh" digits={0} />} cursor={{ stroke: GRID }} />
+                  <Line type="linear" dataKey="carbon_intensity" name="Carbon intensity"
+                    stroke={OPT} strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </section>
           </>
         )}
 
-        {!result && !loading && (
-          <div className="emptyState">Set your scenario above and run a simulation to see results.</div>
-        )}
-
         <section className="card">
           <button className="methodToggle" onClick={() => setMethodOpen(!methodOpen)}>
-            <span className="eyebrow">METHODOLOGY</span>
-            <ChevronDown size={16} color="#8B96A5" style={{ transform: methodOpen ? "rotate(180deg)" : "none" }} />
+            <span className="eyebrow">Methodology &amp; limitations</span>
+            <ChevronDown size={16} color={INK3}
+              style={{ transform: methodOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }} />
           </button>
           {methodOpen && (
             <>
-            <p className="methodText">
-              Each vehicle's charge requirement is scheduled by a linear program minimizing the selected
-              objective, subject to (1) total energy delivered by the deadline, (2) per-session power ≤ charger
-              rating. Every curve shown is measured, not modelled: carbon intensity is derived from the
-              ENTSO-E Spanish generation mix weighted by IPCC AR5 lifecycle emission factors, and price is the
-              day-ahead market clearing price plus the flat PVPC access component. A night runs 18:00→07:00,
-              so hours 00:00–07:00 on the chart are the following morning. This is <em>average</em> grid
-              intensity, not marginal — the emissions of the average kWh rather than of the next one. Load
-              shifting really responds to the marginal rate, which needs data this dataset does not carry.
-            </p>
-            <p className="methodText">
-              The default night is the <em>median</em> night by achievable CO₂ saving — not the best one, and
-              the picker offers a 46-night sample drawn to preserve the full year's distribution. Savings are
-              long-tailed: across all 361 nights of 2018 the median is 3.3% and the fleet-wide total 10.4%,
-              but 38% of nights save under 1% while 17% save over 20%. Objectives genuinely conflict — the
-              cheapest hour and the cleanest hour coincide on only 14% of nights — so optimizing for cost can
-              raise emissions, and optimizing for emissions can raise peak. Those are shown as increases
-              rather than hidden.
-            </p>
-            <p className="methodText">
-              The feeder limit models a shared street transformer, and it is the only constraint
-              that couples vehicles to one another. Without it the problem separates: each vehicle
-              independently fills its own cleanest hours, and a greedy loop matches the linear
-              program exactly. Set a limit and greedy breaches it — in testing, by 485 kW against a
-              180 kW transformer — while the LP schedules around it. That is where the optimizer
-              stops being decorative.
-            </p>
+              <p className="methodText">
+                Each vehicle's charge requirement is scheduled by a linear program minimizing the
+                selected objective, subject to total energy delivered by the deadline and per-session
+                power staying under the charger rating. Every curve shown is measured, not modelled:
+                carbon intensity is derived from the ENTSO-E Spanish generation mix weighted by IPCC
+                AR5 lifecycle emission factors, and price is the day-ahead market clearing price plus
+                the flat PVPC access component.
+              </p>
+              <p className="methodText">
+                The feeder limit models a shared street transformer, and it is the only constraint
+                coupling vehicles to one another. Without it the problem separates — each vehicle
+                independently fills its own cleanest hours, and a greedy loop matches the linear
+                program to within 1e-6. Set a limit and greedy breaches it, by 485 kW against a
+                180 kW transformer in testing, while the LP schedules around it.
+              </p>
+              <p className="methodText">
+                <em>Limitations.</em> This is average carbon intensity, not marginal — the emissions
+                of the average kWh rather than the next one, which is what load shifting actually
+                moves. The residential baseline is the one remaining synthetic input, since ENTSO-E
+                reports system-wide load that cannot be scaled to a single feeder without an
+                assumption. Objectives genuinely conflict: the cheapest hour and the cleanest hour
+                coincide on only 14% of nights, so optimizing cost can raise emissions. Those are
+                shown as increases rather than hidden.
+              </p>
             </>
           )}
         </section>
       </main>
 
       <footer className="footer">
-        <span>Data: ENTSO-E Spain 2018 (generation mix + day-ahead prices) · emission factors IPCC AR5</span>
+        <span>ENTSO-E Spain 2018 · generation mix + day-ahead prices · emission factors IPCC AR5</span>
         <a href="https://github.com/adityaayushman/GRIDSENSE" className="footerLink"
-           target="_blank" rel="noreferrer"><Github size={14} /> Source</a>
+          target="_blank" rel="noreferrer">
+          <Github size={14} /> Source
+        </a>
       </footer>
-    </div>
-  );
-}
-
-function StatCard({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: React.ReactNode; sub: string }) {
-  return (
-    <div className="statCard">
-      <div>{icon}</div>
-      <div>
-        <div className="statLabel">{label}</div>
-        <div className="statValue">{value}</div>
-        <div className="statSub">{sub}</div>
-      </div>
     </div>
   );
 }
