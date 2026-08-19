@@ -83,15 +83,19 @@ Dashboard now running at http://localhost:5173
 
 ## Deploying
 
-Both tiers currently run on Vercel as two projects:
+Both tiers ship from **one** Vercel project, built from this repo on every push
+to `main`. The root `vercel.json` routes `/api/*` to the Python function and
+everything else to the static Vite output, so the dashboard and the API share an
+origin.
 
-| Project | Serves | URL |
-| --- | --- | --- |
-| `gridsense-es` | Vite static build of `frontend/` | https://gridsense-es.vercel.app |
-| `gridsense-api-es` | `backend/` as a Python serverless function | https://gridsense-api-es.vercel.app |
+That removes two moving parts: requests are same-origin so CORS is not
+load-bearing in production, and the frontend no longer needs the API hostname
+baked in at build time.
 
-**Deploy the backend first.** Vite inlines `VITE_API_BASE` at build time, so the
-frontend must know the API URL before it is built.
+> `.vercel.app` hostnames are globally unique, not per-account. `gridsense`,
+> `gridsense-app` and `gridsense-api` are all taken by unrelated projects, so
+> confirm the alias a deploy actually returns rather than assuming it from the
+> project name.
 
 ### Backend → Vercel
 
