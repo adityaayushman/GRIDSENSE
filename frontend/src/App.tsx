@@ -209,7 +209,7 @@ export default function App() {
 
       <footer className="footer">
         <span>Data: ENTSO-E Spain 2018 (generation mix + day-ahead prices) · emission factors IPCC AR5</span>
-        <a href="https://github.com/adityaasahoo/gridsense" className="footerLink"
+        <a href="https://github.com/adityaayushman/GRIDSENSE" className="footerLink"
            target="_blank" rel="noreferrer"><Github size={14} /> Source</a>
       </footer>
     </div>
