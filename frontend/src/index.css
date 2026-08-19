@@ -211,3 +211,14 @@ body {
 .calloutText em { color: var(--ink); font-style: italic; }
 .provenance { font-size: 11px; color: var(--ink-3); text-align: center; margin: 4px 0 0; }
 .provenance code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; }
+
+/* Transformer rating picker */
+.ratingPicker { display: flex; align-items: center; gap: 6px; margin: 0 0 14px; flex-wrap: wrap; }
+.ratingLabel { font-size: 11px; color: var(--ink-3); margin-right: 4px; font-weight: 500; }
+.ratingBtn {
+  background: var(--bg); border: 1px solid var(--line); color: var(--ink-2);
+  border-radius: 6px; padding: 5px 11px; font-size: 11.5px; cursor: pointer;
+  font-family: inherit; transition: color .12s, border-color .12s;
+}
+.ratingBtn:hover { color: var(--ink); }
+.ratingBtn.active { color: var(--ink); border-color: var(--accent); background: rgba(57,135,229,.1); }

@@ -6,10 +6,11 @@ import {
 import { ChevronDown, Zap, Github, AlertTriangle } from "lucide-react";
 import { runScenario, fetchDays, warmUp, ScenarioResponse } from "./api";
 import Comparison from "./Comparison";
+import Hosting from "./Hosting";
 import "./index.css";
 
 type Objective = "emissions" | "cost" | "peak";
-type Tab = "simulator" | "comparison";
+type Tab = "simulator" | "comparison" | "hosting";
 
 const OPT = "#3987e5";
 const NAIVE = "#d95926";
@@ -80,7 +81,10 @@ export default function App() {
   // Tab lives in the URL hash so a pane can be linked to directly, and so a
   // reload keeps you where you were.
   const [tab, setTab] = useState<Tab>(
-    () => (window.location.hash.replace("#", "") === "comparison" ? "comparison" : "simulator"),
+    () => {
+      const h = window.location.hash.replace("#", "");
+      return h === "comparison" || h === "hosting" ? (h as Tab) : "simulator";
+    },
   );
   const selectTab = (t: Tab) => {
     setTab(t);
@@ -180,10 +184,13 @@ export default function App() {
           onClick={() => selectTab("simulator")}>Simulator</button>
         <button className={`tab ${tab === "comparison" ? "active" : ""}`}
           onClick={() => selectTab("comparison")}>Existing vs GridSense</button>
+        <button className={`tab ${tab === "hosting" ? "active" : ""}`}
+          onClick={() => selectTab("hosting")}>Grid headroom</button>
       </nav>
 
       <main className="main">
         {tab === "comparison" && <Comparison />}
+        {tab === "hosting" && <Hosting />}
 
         {tab === "simulator" && (
         <>

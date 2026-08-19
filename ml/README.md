@@ -130,7 +130,36 @@ python train.py            # refresh artifacts/metrics.json
 python backtest.py         # refresh data/backtest_nightly.csv
 python export_grid_days.py # refresh the days the API serves
 python export_evidence.py  # push all of it into the dashboard
+python export_hosting_capacity.py  # refresh the Grid headroom pane
 ```
 
 Nothing in the comparison pane is hand-typed, so the UI cannot silently drift
 from the analysis behind it.
+
+## Hosting capacity
+
+`export_hosting_capacity.py` answers the question a distribution planner asks:
+how much EV adoption can one transformer absorb before it needs replacing?
+
+EVs are swept into a **fixed** neighbourhood — the homes already exist, so the
+residential baseline does not scale with adoption. An earlier version scaled both
+together, which made the comparison scale-invariant and hid the effect entirely.
+
+| 1,250 kW transformer | EVs hosted |
+| --- | --- |
+| Charging on arrival | 70 |
+| Uncoordinated carbon-aware | 100 |
+| **Coordinated** | **988** |
+
+A hypothesis that did *not* survive: uncoordinated carbon-aware charging was
+expected to be *worse* than dumb charging, on the theory that every household
+targets the same cleanest hour and synchronises into a new peak. It raises the
+peak on only 3 of 46 nights, and by 1.03x — the cleanest hours are usually
+overnight, away from the 19:00 residential peak, so selfish optimisation
+normally helps. The synchronisation effect is real but small; the coordination
+gap is the large one.
+
+Coordinated ceilings are found analytically with `max_deliverable_kwh` rather
+than by sweeping, so the number is where the night physically runs out of
+headroom and not where the sweep stopped, then confirmed against the solver at
+the boundary in both directions.

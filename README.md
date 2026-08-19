@@ -14,6 +14,15 @@ carbon-intensive peaker plants. GridSense reschedules that load using a
 linear-programming optimizer, and shows the before/after impact on a live
 dashboard.
 
+**Hosting capacity.** The finding with money attached: on a 1,250 kW street
+transformer, charging on arrival supports **70 EVs** before the median night
+exceeds the rating. Every household independently optimising for carbon — a
+fleet of uncoordinated charging apps — buys 30 more. Coordinating the street
+against the transformer supports **988**, a **14×** gain, because the binding
+constraint moves from instantaneous power to energy: dumb charging uses one or
+two hours of a thirteen-hour window and leaves the rest empty. That is a
+deferred capital upgrade, not a rounding error. See the **Grid headroom** pane.
+
 **What the data says.** Backtested over every complete overnight window in
 ENTSO-E's 2018 Spanish record, the median night saves **3.3%** of charging
 emissions and the fleet-wide total is **10.4%** — not the flat 30%+ a smooth
