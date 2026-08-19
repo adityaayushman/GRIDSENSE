@@ -61,7 +61,7 @@ frontend/    React + TypeScript dashboard (Vite)
 ```bash
 cd backend
 python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt   # requirements.txt is runtime-only
 cp .env.example .env
 uvicorn app.main:app --reload
 ```
@@ -126,12 +126,35 @@ The pattern exists because Vercel mints a fresh hostname for every preview
 deployment, which an exact list can't cover. Both anchors matter — without `$`,
 `https://gridsense.evil.com` would be admitted.
 
-### Alternative: backend on Render
+### Backend on Render (container)
 
-`render.yaml` and `backend/Dockerfile` are still maintained, so the API can run
-as a container instead. Blueprint-deploy the repo on Render; the container binds
-the injected `$PORT` and health checks hit `/api/health`. Set `ALLOWED_ORIGINS`
-to the frontend URL.
+The API also runs as a Docker container, which is the better fit if you want a
+warm process rather than a serverless function — the LP solver benefits from not
+re-initialising per request.
+
+Deploy: Render dashboard -> **New -> Blueprint** -> pick this repo. `render.yaml`
+at the repo root describes the whole service, so there is nothing to fill in:
+
+- Build context is `backend/`, which is required — the Dockerfile `COPY`s
+  `requirements.txt` and `app/` as top-level paths.
+- `app/data/grid_days.json` lives inside `app/`, so the measured grid data is
+  baked into the image. No volume, no fetch-on-boot, no external dependency at
+  runtime.
+- The container binds Render's injected `$PORT`. The `CMD` is in **shell form**
+  deliberately: the exec form does no variable expansion, so `${PORT}` would be
+  passed to uvicorn as a literal string and the service would fail its health
+  check.
+- Health checks hit `/api/health`.
+- **CORS needs no dashboard input.** The app's `ALLOWED_ORIGIN_REGEX` default
+  already admits this project's `*.vercel.app` frontends, including the fresh
+  hostname Vercel mints for every preview deploy. Set `ALLOWED_ORIGINS` only for
+  an origin outside that pattern, such as a custom domain.
+
+Then point the frontend at it by setting `VITE_API_BASE` to the Render URL and
+rebuilding (see the gotcha below — a restart is not enough).
+
+Note the free instance sleeps after ~15 minutes idle and takes ~50s to wake. The
+dashboard's `warmUp()` ping covers some of that, but not a fully cold start.
 
 ### Gotchas
 
@@ -139,24 +162,36 @@ to the frontend URL.
   Vite bakes the value into the bundle at build time.
 - **`<project>.vercel.app` is globally unique, not per-account.** `gridsense`
   was already taken by an unrelated project, which is why the frontend is
-  `gridsense-dashboard`. Always confirm the alias a deploy actually returns
-  rather than assuming it from the project name.
+  `gridsense-es`. Always confirm the alias a deploy actually returns rather
+  than assuming it from the project name.
 - **Cold starts.** The dashboard fires a `/api/health` ping on mount
   (`warmUp()` in `frontend/src/api.ts`) so the function is warm by the time the
   visitor hits Run. On Vercel that saves ~1-2s; on a Render free-tier container,
   which spins down after ~15 minutes idle, it saves ~50s.
-- `sqlalchemy` and `psycopg2-binary` are in `requirements.txt` but currently
-  unused (they are there for the Postgres roadmap item). The Vercel deployment
-  installs a trimmed set without them.
+- **`requirements.txt` is runtime-only** — it is what both the container image
+  and the Vercel function install, so anything added there ships to production.
+  Tests install `requirements-dev.txt`, which layers `pytest` on top.
+  `python-dotenv`, `sqlalchemy` and `psycopg2-binary` were dropped: nothing
+  imports them, and they cost build time on every deploy.
 
 ## Roadmap
-- [ ] Forecasting layer (predict next-day marginal emissions) feeding the optimizer
+- [x] Forecasting layer — day-ahead carbon-intensity model trained and evaluated
+      (`ml/`); the demo currently serves measured curves rather than forecasts
 - [ ] Multi-region comparison (e.g. coal-heavy vs. renewables-heavy grid)
 - [ ] Persist simulation runs to Postgres
 - [ ] Feeder-capacity constraint UI (grid-strain visualization)
 - [ ] V2G scenario mode
 
 ## Data sources
-- [WattTime API](https://www.watttime.org/api-documentation/) — marginal emissions
-- [ElectricityMaps](https://docs.electricitymaps.com/) — alternative carbon intensity source
-- [ACN-Data (Caltech)](https://ev.caltech.edu/dataset) — real EV charging session data
+
+In use:
+- [ENTSO-E via Kaggle](https://www.kaggle.com/datasets/nicholasjhana/energy-consumption-generation-prices-and-weather)
+  (CC0) — hourly Spanish generation mix and day-ahead prices, 2015-2018
+- IPCC AR5 WG3 Annex III — lifecycle emission factors per fuel
+
+Not yet wired in:
+- [WattTime API](https://www.watttime.org/api-documentation/) — true marginal
+  emissions (MOER), which would close the average-vs-marginal gap
+- [ElectricityMaps](https://docs.electricitymaps.com/) — live carbon intensity
+- [ACN-Data (Caltech)](https://ev.caltech.edu/dataset) — real EV charging
+  sessions, to replace the assumed arrival/energy distributions

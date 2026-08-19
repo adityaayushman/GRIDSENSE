@@ -1,11 +1,16 @@
+# Runtime dependencies — this is what the container image and the Vercel
+# function install. Keep it minimal: everything here ships to production.
 fastapi==0.115.0
-uvicorn[standard]==0.30.6
+uvicorn[standard]==0.30.6   # not imported; it is the container's entrypoint
 pydantic==2.9.2
 pulp==2.8.0
 httpx==0.27.2
-python-dotenv==1.0.1
-pytest==8.3.3
 
-# optional, for real Postgres persistence of simulation runs
-sqlalchemy==2.0.35
-psycopg2-binary==2.9.9
+# Deliberately absent, neither imported anywhere:
+#   sqlalchemy       — for the "persist simulation runs to Postgres" roadmap
+#   psycopg2-binary    item; both add build time to every deploy for code
+#                      that does not exist yet
+#
+# python-dotenv is NOT listed but IS installed, transitively, by the uvicorn
+# [standard] extra (alongside uvloop, httptools and watchfiles). Nothing in
+# app/ imports it — config is read with os.getenv.

@@ -1,0 +1,4 @@
+# Test and development dependencies. CI installs this; the image does not.
+-r requirements.txt
+
+pytest==8.3.3

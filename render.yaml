@@ -3,16 +3,22 @@ services:
     name: gridsense-api
     runtime: docker
     plan: free
+
     # Build context must be backend/ — the Dockerfile COPYs requirements.txt
-    # and app/ as top-level paths.
+    # and app/ as top-level paths. app/ carries app/data/grid_days.json, the
+    # measured grid data the API serves, so no volume or fetch step is needed.
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
+
     healthCheckPath: /api/health
+
     envVars:
-      # Set in the Render dashboard to the deployed Vercel URL, e.g.
-      # https://gridsense.vercel.app — without it, browser requests are
-      # blocked by CORS.
+      # CORS needs no dashboard input: the app's ALLOWED_ORIGIN_REGEX default
+      # already admits this project's own *.vercel.app frontends, including
+      # the per-deploy preview hostnames an exact list cannot enumerate.
+      # Set ALLOWED_ORIGINS only to add an origin outside that pattern —
+      # a custom domain, say.
       - key: ALLOWED_ORIGINS
-        sync: false
+        value: "http://localhost:5173,http://localhost:3000"
       - key: USE_LIVE_DATA
         value: "false"
