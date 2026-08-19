@@ -1,6 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-
   "builds": [
     {
       "src": "frontend/package.json",
@@ -13,10 +12,9 @@
       "config": { "includeFiles": "backend/app/**" }
     }
   ],
-
   "routes": [
     { "src": "/api/(.*)", "dest": "/backend/api/index.py" },
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }
+    { "src": "/assets/(.*)", "dest": "/frontend/assets/$1" },
+    { "src": "/(.*)", "dest": "/frontend/index.html" }
   ]
 }
