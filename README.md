@@ -32,6 +32,13 @@ cheapest hour and the cleanest hour coincide on only 14% of nights, so
 minimizing cost can *raise* emissions. The dashboard shows those as increases
 rather than hiding them. See [`ml/README.md`](ml/README.md) for the analysis.
 
+## Documents
+
+- [FEATURES.md](FEATURES.md) — what is built, what is not, what is out of scope
+- [FINDINGS.md](FINDINGS.md) — every result with the script that reproduces it,
+  including the hypotheses that failed
+- [ml/README.md](ml/README.md) — the analysis and how to re-run it
+
 ## Architecture
 
 ```
