@@ -133,7 +133,8 @@ warm process rather than a serverless function — the LP solver benefits from n
 re-initialising per request.
 
 Deploy: Render dashboard -> **New -> Blueprint** -> pick this repo. `render.yaml`
-at the repo root describes the whole service, so there is nothing to fill in:
+at the repo root describes the whole service, so there is nothing to fill in.
+It comes up at `https://gridsense-api-es.onrender.com`:
 
 - Build context is `backend/`, which is required — the Dockerfile `COPY`s
   `requirements.txt` and `app/` as top-level paths.
@@ -145,6 +146,11 @@ at the repo root describes the whole service, so there is nothing to fill in:
   passed to uvicorn as a literal string and the service would fail its health
   check.
 - Health checks hit `/api/health`.
+- **The service name matters.** `onrender.com` hostnames are globally unique,
+  not per-account: `gridsense-api` is already an unrelated FastAPI service, and
+  claiming a taken name silently gets you a suffixed hostname instead. Check
+  first with `curl -sI https://<name>.onrender.com | grep x-render-routing` —
+  `no-server` means it is free.
 - **CORS needs no dashboard input.** The app's `ALLOWED_ORIGIN_REGEX` default
   already admits this project's `*.vercel.app` frontends, including the fresh
   hostname Vercel mints for every preview deploy. Set `ALLOWED_ORIGINS` only for
