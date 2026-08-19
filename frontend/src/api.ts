@@ -23,6 +23,8 @@ export interface ScenarioRequest {
   region: string;
   /** ISO date of the measured charging night; omit for the representative default. */
   day?: string;
+  /** Shared transformer limit in kW. Omit for an unconstrained feeder. */
+  feeder_capacity_kw?: number;
 }
 
 export interface HourlyPoint {
@@ -57,6 +59,9 @@ export interface ScenarioResponse {
   ev_count: number;
   region: string;
   day: string;
+  feeder_capacity_kw: number | null;
+  naive_overload_hours: number;
+  naive_overload_peak_kw: number;
 }
 
 /**

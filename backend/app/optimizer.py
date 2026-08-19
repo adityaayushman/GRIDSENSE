@@ -42,6 +42,9 @@ class ScenarioResult:
     peak_reduction_pct: float
     emissions_reduction_pct: float
     cost_reduction_pct: float
+    feeder_capacity_kw: float | None
+    naive_overload_hours: int
+    naive_overload_peak_kw: float
 
 
 def _available_hours(vehicle: Vehicle) -> list[int]:
@@ -51,6 +54,32 @@ def _available_hours(vehicle: Vehicle) -> list[int]:
         return list(range(vehicle.arrival_hour, vehicle.deadline_hour))
     # wraps past midnight
     return list(range(vehicle.arrival_hour, 24)) + list(range(0, vehicle.deadline_hour))
+
+
+def max_deliverable_kwh(
+    vehicles: list[Vehicle],
+    residential_baseline_kw: list[float],
+    feeder_capacity_kw: float,
+) -> float:
+    """Upper bound on energy deliverable under a feeder limit.
+
+    Per hour the fleet can draw at most the headroom the limit leaves after the
+    residential baseline, and at most the summed rating of the vehicles plugged
+    in that hour. Summing the lesser of the two bounds total energy.
+
+    This is a *necessary* condition only: exceeding it proves infeasibility,
+    while satisfying it does not prove feasibility, since individual vehicles'
+    windows may still not line up. That is enough to turn "Infeasible" into a
+    number the user can act on.
+    """
+    total = 0.0
+    for h in HOURS:
+        headroom = feeder_capacity_kw - residential_baseline_kw[h]
+        if headroom <= 0:
+            continue
+        plugged_in = sum(v.charger_kw for v in vehicles if h in set(_available_hours(v)))
+        total += min(headroom, plugged_in)
+    return total
 
 
 def naive_schedule(vehicles: list[Vehicle]) -> list[float]:
@@ -122,6 +151,17 @@ def optimize_schedule(
 
     status = prob.solve(pulp.PULP_CBC_CMD(msg=False))
     if pulp.LpStatus[status] != "Optimal":
+        needed = sum(v.energy_needed_kwh for v in vehicles)
+        if feeder_capacity_kw is not None:
+            available = max_deliverable_kwh(vehicles, residential_baseline_kw, feeder_capacity_kw)
+            if needed > available:
+                raise ValueError(
+                    f"A {feeder_capacity_kw:.0f} kW feeder cannot serve this fleet: "
+                    f"{needed:.0f} kWh is required by the deadline but at most "
+                    f"{available:.0f} kWh fits under the limit once the residential "
+                    f"baseline is subtracted. Raise the limit, reduce the fleet, or "
+                    f"widen the charging window."
+                )
         raise ValueError(f"Optimizer did not find an optimal solution: {pulp.LpStatus[status]}")
 
     return [sum(x[(v.id, h)].value() for v in vehicles) for h in HOURS]
@@ -162,6 +202,16 @@ def run_scenario(
     cost_naive = sum(naive_ev[h] * price[h] for h in HOURS)
     cost_optimized = sum(optimized_ev[h] * price[h] for h in HOURS)
 
+    # The naive schedule ignores the feeder limit by construction — that is the
+    # point of the comparison. Quantify how badly it breaches, since that is the
+    # grid-strain the optimizer is avoiding.
+    if feeder_capacity_kw is None:
+        overload_hours, overload_peak = 0, 0.0
+    else:
+        breaches = [naive_total[h] - feeder_capacity_kw for h in HOURS]
+        overload_hours = sum(1 for b in breaches if b > 1e-6)
+        overload_peak = max(max(breaches), 0.0)
+
     return ScenarioResult(
         hourly_naive_load_kw=naive_total,
         hourly_optimized_load_kw=optimized_total,
@@ -177,4 +227,7 @@ def run_scenario(
         if emissions_naive
         else 0.0,
         cost_reduction_pct=round((1 - cost_optimized / cost_naive) * 100, 1) if cost_naive else 0.0,
+        feeder_capacity_kw=feeder_capacity_kw,
+        naive_overload_hours=overload_hours,
+        naive_overload_peak_kw=round(overload_peak, 2),
     )

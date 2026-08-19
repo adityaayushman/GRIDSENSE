@@ -148,3 +148,109 @@ def test_infeasible_window_raises():
     carbon = flat_carbon(low_hours=[5])
     with pytest.raises(ValueError):
         optimize_schedule([v], carbon, objective="emissions")
+
+
+def _greedy(vehicles, carbon):
+    """Each vehicle independently fills its own cleanest available hours."""
+    from app.optimizer import _available_hours
+
+    load = [0.0] * 24
+    for v in vehicles:
+        need = v.energy_needed_kwh
+        for h in sorted(_available_hours(v), key=lambda x: carbon[x]):
+            if need <= 1e-9:
+                break
+            take = min(v.charger_kw, need)
+            load[h] += take
+            need -= take
+    return load
+
+
+def test_without_a_coupling_constraint_the_lp_only_matches_greedy():
+    """Documents why feeder capacity matters.
+
+    With no constraint linking vehicles, the problem separates per vehicle and a
+    greedy fill is already optimal — the LP earns nothing. If this ever starts
+    failing, some genuine coupling has been introduced and the claim in the
+    README needs revisiting.
+    """
+    carbon = flat_carbon(low_hours={1, 2, 3, 4})
+    vehicles = [
+        Vehicle(f"v{i}", 6.0 + i % 5, 7.0, 18 + i % 4, 6 + i % 3) for i in range(20)
+    ]
+    lp = optimize_schedule(vehicles, carbon, objective="emissions")
+    greedy = _greedy(vehicles, carbon)
+    e_lp = sum(lp[h] * carbon[h] for h in range(24))
+    e_greedy = sum(greedy[h] * carbon[h] for h in range(24))
+    assert e_lp == pytest.approx(e_greedy, rel=1e-6)
+
+
+def test_feeder_capacity_is_what_makes_the_lp_necessary():
+    """Greedy breaches a shared limit; the LP is what respects it."""
+    carbon = flat_carbon(low_hours={2, 3})
+    vehicles = [Vehicle(f"v{i}", 9.0, 7.0, 18, 7) for i in range(40)]
+    baseline = [5.0] * 24
+    cap = 120.0
+
+    greedy = _greedy(vehicles, carbon)
+    assert max(g + 5.0 for g in greedy) > cap, "greedy should overrun the limit"
+
+    lp = optimize_schedule(
+        vehicles, carbon, residential_baseline_kw=baseline, feeder_capacity_kw=cap
+    )
+    assert max(lp[h] + baseline[h] for h in range(24)) <= cap + 1e-6
+    assert sum(lp) == pytest.approx(sum(v.energy_needed_kwh for v in vehicles), rel=1e-4)
+
+
+def test_run_scenario_reports_how_far_naive_breaches_the_feeder():
+    vehicles = [Vehicle(f"v{i}", 9.2, 7.0, 18, 7) for i in range(80)]
+    carbon = flat_carbon(low_hours={2, 3, 4, 5})
+    baseline = [2.0] * 24
+    result = run_scenario(vehicles, carbon, baseline, objective="emissions",
+                          feeder_capacity_kw=400.0)
+    assert result.peak_optimized_kw <= 400.0 + 1e-6
+    assert result.naive_overload_hours > 0
+    assert result.naive_overload_peak_kw > 0
+    # Naive is the unconstrained "before" case, so it is expected to breach.
+    assert result.peak_naive_kw > 400.0
+
+
+def test_unconstrained_feeder_reports_no_overload():
+    vehicles = [Vehicle("v0", 9.2, 7.0, 18, 7)]
+    result = run_scenario(vehicles, flat_carbon(low_hours={3}), [1.0] * 24)
+    assert result.feeder_capacity_kw is None
+    assert result.naive_overload_hours == 0
+    assert result.naive_overload_peak_kw == 0.0
+
+
+def test_impossible_feeder_explains_itself_with_numbers():
+    """A tight limit should yield a planning answer, not a bare 'Infeasible'.
+
+    80 vehicles need 736 kWh across a 13-hour window. With a 2 kW baseline a
+    50 kW feeder leaves 48 kW of headroom, so at most 624 kWh can be delivered —
+    genuinely impossible. (60 kW would leave 754 kWh and *is* satisfiable, which
+    is exactly the sort of near-miss the message is meant to make legible.)
+    """
+    vehicles = [Vehicle(f"v{i}", 9.2, 7.0, 18, 7) for i in range(80)]
+    with pytest.raises(ValueError, match=r"cannot serve this fleet.*kWh is required"):
+        optimize_schedule(
+            vehicles,
+            flat_carbon(low_hours={3}),
+            residential_baseline_kw=[2.0] * 24,
+            feeder_capacity_kw=50.0,
+        )
+
+
+def test_feasibility_bound_is_a_true_upper_bound():
+    """max_deliverable_kwh must never claim less than the LP actually delivers."""
+    from app.optimizer import max_deliverable_kwh
+
+    vehicles = [Vehicle(f"v{i}", 9.2, 7.0, 18, 7) for i in range(80)]
+    baseline = [2.0] * 24
+    for cap in (60.0, 120.0, 300.0, 600.0):
+        bound = max_deliverable_kwh(vehicles, baseline, cap)
+        load = optimize_schedule(
+            vehicles, flat_carbon(low_hours={3}),
+            residential_baseline_kw=baseline, feeder_capacity_kw=cap,
+        )
+        assert sum(load) <= bound + 1e-6, f"bound {bound} under-counts at cap {cap}"

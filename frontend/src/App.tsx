@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import {
-  AreaChart, Area, LineChart, Line,
+  AreaChart, Area, LineChart, Line, ReferenceLine,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from "recharts";
-import { ChevronDown, Zap, TrendingDown, Leaf, Battery, Euro, Github } from "lucide-react";
+import { ChevronDown, Zap, TrendingDown, Leaf, Battery, Euro, Github, AlertTriangle } from "lucide-react";
 import { runScenario, fetchDays, warmUp, ScenarioResponse } from "./api";
 import "./index.css";
 
@@ -30,6 +30,8 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [days, setDays] = useState<string[]>([]);
   const [day, setDay] = useState<string>("");
+  // 0 means "unconstrained feeder" — the slider's leftmost position.
+  const [feederKw, setFeederKw] = useState(0);
 
   useEffect(() => {
     warmUp();
@@ -56,6 +58,7 @@ export default function App() {
         objective,
         region: "ES",
         ...(day ? { day } : {}),
+        ...(feederKw > 0 ? { feeder_capacity_kw: feederKw } : {}),
       });
       setResult(res);
     } catch (e) {
@@ -113,6 +116,14 @@ export default function App() {
               </select>
               <div className="fieldValue">{days.length} nights of real ES data</div>
             </div>
+            <div className="field">
+              <label>Feeder capacity</label>
+              <input type="range" min={0} max={1200} step={25} value={feederKw}
+                onChange={(e) => setFeederKw(+e.target.value)} />
+              <div className="fieldValue">
+                {feederKw === 0 ? "unconstrained" : `${feederKw} kW transformer`}
+              </div>
+            </div>
             <button className="runBtn" onClick={handleRun} disabled={loading}>
               {loading ? "Running…" : "Run simulation"}
             </button>
@@ -122,6 +133,18 @@ export default function App() {
 
         {result && (
           <>
+            {result.feeder_capacity_kw !== null && result.naive_overload_hours > 0 && (
+              <div className="strainBanner">
+                <AlertTriangle size={16} color="#F2A65A" />
+                <span>
+                  Naive charging overloads the {result.feeder_capacity_kw} kW transformer for{" "}
+                  <strong>{result.naive_overload_hours}h</strong>, peaking{" "}
+                  <strong>{result.naive_overload_peak_kw} kW</strong> over its limit. The
+                  optimized schedule stays within it.
+                </span>
+              </div>
+            )}
+
             <section className="statsGrid">
               <StatCard icon={<TrendingDown size={18} color="#4FD1C5" />} label="Peak load reduction"
                 value={<Delta pct={result.peak_reduction_pct} />}
@@ -153,6 +176,15 @@ export default function App() {
                   <Tooltip contentStyle={{ background: "#0B0F14", border: "1px solid #232B36" }} />
                   <Area type="monotone" dataKey="naive_kw" stroke="#F2A65A" fill="#F2A65A" fillOpacity={0.08} strokeWidth={2} />
                   <Area type="monotone" dataKey="optimized_kw" stroke="#4FD1C5" fill="#4FD1C5" fillOpacity={0.12} strokeWidth={2.5} />
+                  {result.feeder_capacity_kw !== null && (
+                    <ReferenceLine
+                      y={result.feeder_capacity_kw}
+                      stroke="#F2A65A"
+                      strokeDasharray="6 4"
+                      label={{ value: `feeder limit ${result.feeder_capacity_kw} kW`,
+                               position: "insideTopRight", fill: "#F2A65A", fontSize: 11 }}
+                    />
+                  )}
                 </AreaChart>
               </ResponsiveContainer>
             </section>
@@ -201,6 +233,14 @@ export default function App() {
               cheapest hour and the cleanest hour coincide on only 14% of nights — so optimizing for cost can
               raise emissions, and optimizing for emissions can raise peak. Those are shown as increases
               rather than hidden.
+            </p>
+            <p className="methodText">
+              The feeder limit models a shared street transformer, and it is the only constraint
+              that couples vehicles to one another. Without it the problem separates: each vehicle
+              independently fills its own cleanest hours, and a greedy loop matches the linear
+              program exactly. Set a limit and greedy breaches it — in testing, by 485 kW against a
+              180 kW transformer — while the LP schedules around it. That is where the optimizer
+              stops being decorative.
             </p>
             </>
           )}
