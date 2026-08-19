@@ -1,4 +1,17 @@
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+/**
+ * Where the API lives.
+ *
+ * In production the API is served from the same origin as this page (Vercel
+ * routes /api/* to the Python function), so the base is empty and requests go
+ * to a relative /api/... — no CORS, and no build-time coupling to a hostname.
+ * In dev the backend is a separate uvicorn on :8000. VITE_API_BASE still
+ * overrides both, for a split deployment such as the backend on Render.
+ *
+ * Note `??` rather than `||`: an intentionally empty VITE_API_BASE means
+ * same-origin, and `||` would discard it in favour of localhost.
+ */
+const API_BASE =
+  import.meta.env.VITE_API_BASE ?? (import.meta.env.DEV ? "http://localhost:8000" : "");
 
 export interface ScenarioRequest {
   ev_count: number;

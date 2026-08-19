@@ -1,0 +1,7 @@
+# Root requirements for Vercel's Python builder.
+#
+# @vercel/python resolves requirements relative to the entrypoint
+# (backend/api/index.py) and then the project root — it does not look in
+# backend/. This forwards to the real list rather than duplicating it, so the
+# pins stay in one place.
+-r backend/requirements.txt
