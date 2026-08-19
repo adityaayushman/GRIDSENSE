@@ -5,9 +5,11 @@ import {
 } from "recharts";
 import { ChevronDown, Zap, Github, AlertTriangle } from "lucide-react";
 import { runScenario, fetchDays, warmUp, ScenarioResponse } from "./api";
+import Comparison from "./Comparison";
 import "./index.css";
 
 type Objective = "emissions" | "cost" | "peak";
+type Tab = "simulator" | "comparison";
 
 const OPT = "#3987e5";
 const NAIVE = "#d95926";
@@ -75,6 +77,15 @@ export default function App() {
   const [feederKw, setFeederKw] = useState(0); // 0 = unconstrained
   const [objective, setObjective] = useState<Objective>("emissions");
   const [methodOpen, setMethodOpen] = useState(false);
+  // Tab lives in the URL hash so a pane can be linked to directly, and so a
+  // reload keeps you where you were.
+  const [tab, setTab] = useState<Tab>(
+    () => (window.location.hash.replace("#", "") === "comparison" ? "comparison" : "simulator"),
+  );
+  const selectTab = (t: Tab) => {
+    setTab(t);
+    window.history.replaceState(null, "", t === "simulator" ? "#" : `#${t}`);
+  };
   const [result, setResult] = useState<ScenarioResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -149,6 +160,7 @@ export default function App() {
             <div className="brandTag">carbon-aware charge scheduling · Spanish grid</div>
           </div>
         </div>
+        {tab === "simulator" && (
         <div className="objectiveToggle">
           {OBJECTIVES.map((o) => (
             <button
@@ -160,9 +172,21 @@ export default function App() {
             </button>
           ))}
         </div>
+        )}
       </header>
 
+      <nav className="tabs">
+        <button className={`tab ${tab === "simulator" ? "active" : ""}`}
+          onClick={() => selectTab("simulator")}>Simulator</button>
+        <button className={`tab ${tab === "comparison" ? "active" : ""}`}
+          onClick={() => selectTab("comparison")}>Existing vs GridSense</button>
+      </nav>
+
       <main className="main">
+        {tab === "comparison" && <Comparison />}
+
+        {tab === "simulator" && (
+        <>
         <section className="card">
           <div className="eyebrow" style={{ marginBottom: 14 }}>Scenario</div>
           <div className="controls">
@@ -335,6 +359,10 @@ export default function App() {
           </>
         )}
 
+        </>
+        )}
+
+        {tab === "simulator" && (
         <section className="card">
           <button className="methodToggle" onClick={() => setMethodOpen(!methodOpen)}>
             <span className="eyebrow">Methodology &amp; limitations</span>
@@ -370,6 +398,7 @@ export default function App() {
             </>
           )}
         </section>
+        )}
       </main>
 
       <footer className="footer">
