@@ -81,6 +81,7 @@ def run_scenario_endpoint(req: ScenarioRequest):
             residential_baseline_kw=baseline,
             price=price,
             objective=req.objective,  # type: ignore[arg-type]
+            feeder_capacity_kw=req.feeder_capacity_kw,
         )
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
@@ -113,4 +114,7 @@ def run_scenario_endpoint(req: ScenarioRequest):
         ev_count=req.ev_count,
         region=req.region,
         day=day,
+        feeder_capacity_kw=result.feeder_capacity_kw,
+        naive_overload_hours=result.naive_overload_hours,
+        naive_overload_peak_kw=result.naive_overload_peak_kw,
     )

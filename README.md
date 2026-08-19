@@ -30,9 +30,20 @@ backend/     FastAPI + PuLP optimization engine (Python)
 frontend/    React + TypeScript dashboard (Vite)
 ```
 
-- **Optimizer** (`backend/app/optimizer.py`) — LP model minimizing marginal
-  emissions, cost, or peak load, subject to each vehicle's energy requirement,
-  charger power limit, and arrival/deadline window.
+- **Optimizer** (`backend/app/optimizer.py`) — LP model minimizing carbon,
+  cost, or peak load, subject to each vehicle's energy requirement, charger
+  power limit, arrival/deadline window, and an optional shared feeder limit.
+
+  > **What the LP is actually for.** Without a constraint linking vehicles the
+  > problem is *separable*: each vehicle independently fills its own cleanest
+  > hours, and a greedy loop reproduces the LP's objective to within 1e-6.
+  > Vehicle heterogeneity does not change this — differing arrivals, energies and
+  > charger ratings still separate. The optimizer earns its keep only under a
+  > **coupling** constraint, of which this model has two: the `peak` objective,
+  > and the feeder-capacity limit. Given a 180 kW feeder, greedy peaks at 485 kW
+  > and simply breaks it; the LP lands on 180 kW exactly.
+  > `test_without_a_coupling_constraint_the_lp_only_matches_greedy` pins this
+  > down so the claim cannot silently rot.
 - **API** (`backend/app/main.py`) — `POST /api/scenario` runs a full
   naive-vs-optimized comparison for one measured grid night and returns hourly
   series + summary stats; `GET /api/days` lists the nights available to
@@ -189,7 +200,7 @@ dashboard's `warmUp()` ping covers some of that, but not a fully cold start.
       (`ml/`); the demo currently serves measured curves rather than forecasts
 - [ ] Multi-region comparison (e.g. coal-heavy vs. renewables-heavy grid)
 - [ ] Persist simulation runs to Postgres
-- [ ] Feeder-capacity constraint UI (grid-strain visualization)
+- [x] Feeder-capacity constraint UI (grid-strain visualization)
 - [ ] V2G scenario mode
 
 ## Data sources

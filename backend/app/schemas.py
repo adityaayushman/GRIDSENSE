@@ -14,6 +14,15 @@ class ScenarioRequest(BaseModel):
         description="ISO date of the measured charging night to simulate "
                     "(18:00 that day to 07:00 the next). Defaults to the median-saving night.",
     )
+    feeder_capacity_kw: float | None = Field(
+        None,
+        ge=10,
+        le=5000,
+        description="Shared distribution-transformer limit in kW, applied to EV load plus "
+                    "the residential baseline. Omit for an unconstrained feeder. This is the "
+                    "only constraint that couples vehicles to each other, so it is what makes "
+                    "the schedule a genuine optimisation rather than a per-vehicle greedy fill.",
+    )
 
 
 class HourlySeries(BaseModel):
@@ -41,3 +50,6 @@ class ScenarioResponse(BaseModel):
     ev_count: int
     region: str
     day: str
+    feeder_capacity_kw: float | None
+    naive_overload_hours: int
+    naive_overload_peak_kw: float
