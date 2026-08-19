@@ -173,3 +173,41 @@ body {
 }
 .footerLink { display: flex; align-items: center; gap: 6px; color: var(--ink-2); text-decoration: none; }
 .footerLink:hover { color: var(--ink); }
+
+/* Tabs */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); padding: 0 32px; position: relative; z-index: 1; }
+.tab {
+  background: none; border: none; cursor: pointer; font-family: inherit;
+  font-size: 13px; font-weight: 550; color: var(--ink-3); padding: 12px 14px;
+  border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color .12s;
+}
+.tab:hover { color: var(--ink-2); }
+.tab.active { color: var(--ink); border-bottom-color: var(--accent); }
+
+/* Comparison matrices */
+.matrixWrap { overflow-x: auto; margin: 0 -4px; }
+.matrix { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 640px; }
+.matrix th, .matrix td { text-align: left; padding: 11px 12px; vertical-align: top; border-bottom: 1px solid var(--line-soft); }
+.matrix thead th { font-size: 11px; color: var(--ink-3); font-weight: 600; letter-spacing: .03em; border-bottom: 1px solid var(--line); }
+.matrix thead th.mine { color: var(--accent); }
+.matrix tbody th[scope="row"] { color: var(--ink-2); font-weight: 500; width: 30%; }
+.matrix td { color: var(--ink-2); }
+.matrix td.mine { background: rgba(57, 135, 229, 0.06); }
+.matrix svg { vertical-align: -2px; margin-right: 5px; }
+.vYes { color: #3987e5; }
+.vNo  { color: #d03b3b; }
+.vNa  { color: var(--ink-3); }
+.matrixTotal td, .matrixTotal th { border-bottom: none; padding-top: 14px; }
+.claimBad { color: #d03b3b; font-weight: 600; display: block; }
+.claimGood { color: var(--ink); font-weight: 600; display: block; }
+.claimNote { display: block; color: var(--ink-3); font-size: 11px; margin-top: 3px; }
+
+.calloutText {
+  font-size: 12.5px; line-height: 1.75; color: var(--ink-2);
+  margin: 16px 0 0; padding-top: 14px; border-top: 1px solid var(--line-soft);
+}
+.calloutText strong { color: var(--ink); font-weight: 600; }
+.calloutText .negText { color: #d03b3b; }
+.calloutText em { color: var(--ink); font-style: italic; }
+.provenance { font-size: 11px; color: var(--ink-3); text-align: center; margin: 4px 0 0; }
+.provenance code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; }

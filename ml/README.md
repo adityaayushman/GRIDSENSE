@@ -114,3 +114,23 @@ python analyze_window.py  # how much shifting headroom exists overnight
 python backtest.py        # replay the optimizer over 1,444 real nights
 python train.py           # train, evaluate, export artifacts
 ```
+
+## Keeping the dashboard in sync
+
+`export_evidence.py` writes `frontend/src/data/evidence.json`, which the
+dashboard's **Existing vs GridSense** pane renders. Every figure there is
+*derived*, never transcribed: forecast scores come from `artifacts/metrics.json`,
+the savings distribution from the 1,444-night backtest, and the LP-vs-greedy
+comparison is recomputed on each run.
+
+So after changing the model, the optimizer, or the data, re-run in order:
+
+```bash
+python train.py            # refresh artifacts/metrics.json
+python backtest.py         # refresh data/backtest_nightly.csv
+python export_grid_days.py # refresh the days the API serves
+python export_evidence.py  # push all of it into the dashboard
+```
+
+Nothing in the comparison pane is hand-typed, so the UI cannot silently drift
+from the analysis behind it.
