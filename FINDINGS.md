@@ -120,6 +120,46 @@ dashboard shows those as increases rather than hiding them.
 
 ---
 
+## Datasets evaluated and rejected
+
+Screened with `screen_dataset.py`, which any candidate must pass before it is
+trained on. The decisive test is autocorrelation: every real physical series has
+hour-to-hour inertia, and values drawn independently do not, however plausible
+the column names look.
+
+| Candidate | Verdict |
+| --- | --- |
+| [EV Charging EDA Insights](https://www.kaggle.com/code/amitvkulkarni/ev-charging-eda-insights) | A Kaggle *notebook*, not a dataset — no data to train on |
+| [EV Charging Stations in India (OpenChargeMap)](https://www.kaggle.com/datasets/deepeshkansotia/ev-charging-stations-in-india-openchargemap) | 1,000 station locations. No time column and **no power-rating column**, so it cannot inform charger mix or scheduling |
+| [EV Charging Station Usage & Grid Load](https://www.kaggle.com/datasets/jayjoshi37/ev-charging-station-usage-and-grid-load-analysis) | **Independent random draws.** Fails the screen on every column |
+
+The third is worth spelling out, because it looks entirely usable — hourly
+timestamps, no gaps, realistic column names and ranges:
+
+| Series | lag-1 | lag-24 |
+| --- | --- | --- |
+| `grid_load_mw` (India) | −0.025 | −0.004 |
+| `vehicles_charged` (India) | +0.018 | +0.010 |
+| White-noise reference | −0.056 | +0.009 |
+| `carbon_intensity` (measured, Spain) | **+0.983** | +0.649 |
+| `total load actual` (measured, Spain) | **+0.951** | +0.700 |
+
+Grid load at 15:00 has no relationship to grid load at 14:00, which no real
+feeder does. A model fit to this learns the mean and reports a believable error
+figure while having learned nothing.
+
+Separately, all three are **India** and this project's carbon and price series
+are **Spain**. Even had the data been sound, mixing them into the carbon
+forecaster would have corrupted it — the grid mixes are not comparable.
+
+One earlier check of mine was the wrong test and is worth recording: variance
+explained by hour-of-day gave R² ≈ 0.008 for the India data, which looked
+damning until the same statistic came out at R² ≈ 0.0085 for *measured* Spanish
+carbon intensity. Four-year hourly means wash out the diurnal swing, so that
+statistic separates nothing. Autocorrelation does.
+
+---
+
 ## Hypotheses that did not survive
 
 Kept deliberately. A findings document that only lists confirmations is a
