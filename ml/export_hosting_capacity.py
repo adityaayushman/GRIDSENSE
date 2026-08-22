@@ -102,13 +102,28 @@ def realistic_fleet(n: int, seed: int = 0) -> list[Vehicle]:
     return out
 
 
-def solver_ceiling(builder, carbon, rating: float, hi: int = 4000) -> int:
+def energy_upper_bound(rating: float) -> int:
+    """A cheap ceiling on fleet size from energy alone, used to bound the search.
+
+    Bisecting from a blanket large number means solving LPs with tens of
+    thousands of columns just to prove they are infeasible — slow, and it writes
+    very large problem files. Total headroom under the rating divided by the mean
+    per-vehicle requirement bounds it in arithmetic; 1.5x leaves margin for the
+    bound being loose once windows stagger.
+    """
+    headroom = sum(max(rating - b, 0.0) for b in base_global)
+    return int(1.5 * headroom / ENERGY_KWH) + 50
+
+
+def solver_ceiling(builder, carbon, rating: float, hi: int | None = None) -> int:
     """Largest fleet the solver can actually schedule, by bisection.
 
     max_deliverable_kwh is only a bound for identical vehicles sharing a window;
     once arrivals stagger, per-vehicle windows differ and the bound is loose, so
     the ceiling has to come from the solver itself.
     """
+    if hi is None:
+        hi = energy_upper_bound(rating)
     bound = hi
     lo = 0
     while lo < hi:

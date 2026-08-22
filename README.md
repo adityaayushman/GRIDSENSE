@@ -1,7 +1,12 @@
 # GridSense
 
-**Live demo:** https://gridsense-es.vercel.app
-**API:** https://gridsense-api-es.vercel.app ([health](https://gridsense-api-es.vercel.app/api/health) · [days](https://gridsense-api-es.vercel.app/api/days))
+**Live:** https://gridsense-app-adityaasahoo-gmailcoms-projects.vercel.app
+· [Simulator](https://gridsense-app-adityaasahoo-gmailcoms-projects.vercel.app/) · [Existing vs GridSense](https://gridsense-app-adityaasahoo-gmailcoms-projects.vercel.app/#comparison) · [Grid headroom](https://gridsense-app-adityaasahoo-gmailcoms-projects.vercel.app/#hosting)
+· [API health](https://gridsense-app-adityaasahoo-gmailcoms-projects.vercel.app/api/health) · [days](https://gridsense-app-adityaasahoo-gmailcoms-projects.vercel.app/api/days)
+
+Both tiers run from one Vercel project, so the dashboard and the API share an
+origin. The split `gridsense-es` / `gridsense-api-es` pair this used to name has
+been superseded.
 
 Carbon-aware EV charging optimization — a full-stack system that schedules
 residential EV charging against **measured** grid carbon-intensity and price
@@ -15,13 +20,16 @@ linear-programming optimizer, and shows the before/after impact on a live
 dashboard.
 
 **Hosting capacity.** The finding with money attached: on a 1,250 kW street
-transformer, charging on arrival supports **70 EVs** before the median night
-exceeds the rating. Every household independently optimising for carbon — a
-fleet of uncoordinated charging apps — buys 30 more. Coordinating the street
-against the transformer supports **988**, a **14×** gain, because the binding
-constraint moves from instantaneous power to energy: dumb charging uses one or
-two hours of a thirteen-hour window and leaves the rest empty. That is a
-deferred capital upgrade, not a rounding error. See the **Grid headroom** pane.
+transformer serving 200 homes, charging on arrival supports **200 EVs** before
+the median night exceeds the rating. Coordinating the street against the
+transformer supports **1,254** — a **6.3×** gain — because the binding constraint
+moves from instantaneous power to energy: charging on arrival uses one or two
+hours of a thirteen-hour window and leaves the rest empty. That is a deferred
+capital upgrade, not a rounding error. See the **Grid headroom** pane.
+
+(An earlier version of this claimed 14×, on a fleet where every car arrived at
+exactly 18:00. That assumption inflates it: staggered arrivals triple what dumb
+charging can host. 6.3× is the defensible figure — see [FINDINGS.md](FINDINGS.md).)
 
 **What the data says.** Backtested over every complete overnight window in
 ENTSO-E's 2018 Spanish record, the median night saves **3.3%** of charging
@@ -197,10 +205,11 @@ dashboard's `warmUp()` ping covers some of that, but not a fully cold start.
 
 - **Changing `VITE_API_BASE` requires a Vercel *rebuild***, not just a restart —
   Vite bakes the value into the bundle at build time.
-- **`<project>.vercel.app` is globally unique, not per-account.** `gridsense`
-  was already taken by an unrelated project, which is why the frontend is
-  `gridsense-es`. Always confirm the alias a deploy actually returns rather
-  than assuming it from the project name.
+- **`<project>.vercel.app` is globally unique, not per-account.** `gridsense`,
+  `gridsense-app` and `gridsense-api` are each taken by unrelated projects,
+  which is why the live URL carries the account-scoped suffix rather than a
+  short name. Always confirm the alias a deploy actually returns rather than
+  assuming it from the project name.
 - **Cold starts.** The dashboard fires a `/api/health` ping on mount
   (`warmUp()` in `frontend/src/api.ts`) so the function is warm by the time the
   visitor hits Run. On Vercel that saves ~1-2s; on a Render free-tier container,

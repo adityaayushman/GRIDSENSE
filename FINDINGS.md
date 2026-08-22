@@ -18,18 +18,19 @@ python export_hosting_capacity.py # -> frontend/src/data/hosting.json
 
 ---
 
-## 1. Coordination buys 14× the hosting capacity of the same transformer
+## 1. Coordination buys 6× the hosting capacity of the same transformer
 
 `export_hosting_capacity.py` · **Grid headroom** pane
 
-200 existing homes (800 kW residential peak), EVs arriving into them, median
-across 46 measured nights:
+200 existing homes (800 kW residential peak), EVs arriving into them. Fleet has
+staggered arrivals and departures, mixed energy requirements and a 3.7/7/11 kW
+charger mix; median across 12 measured nights:
 
-| 1,250 kW transformer | EVs hosted before the median night exceeds the rating |
-| --- | --- |
-| Charging on arrival | 70 |
-| Uncoordinated carbon-aware | 100 |
-| **Coordinated** | **988** (14.1×) |
+| Transformer | Charging on arrival | Coordinated | Gain |
+| --- | --- | --- | --- |
+| 1,000 kW | 70 | 809 | 11.6× |
+| **1,250 kW** | **200** | **1,254** | **6.3×** |
+| 1,500 kW | 340 | 1,700 | 5.0× |
 
 The mechanism is that the binding constraint moves. Charging on arrival consumes
 one or two hours of a thirteen-hour window and hits the rating on *instantaneous
@@ -38,12 +39,22 @@ same energy across the window until *energy* binds instead.
 
 This is the finding with capital attached: it defers a physical upgrade.
 
-Coordinated ceilings are solved analytically (`max_deliverable_kwh`) rather than
-read off the end of the sweep — otherwise the answer is just where the sweep
-stopped — and confirmed against the solver at the boundary in both directions.
+> **This number was previously reported as 14.1×, and that was wrong.** The
+> earlier figure assumed every vehicle arrives at exactly 18:00. That is not a
+> harmless simplification — a synchronised arrival maximally penalises the
+> baseline it is measured against. Once arrivals stagger, the coordinated ceiling
+> rises about 27% but charge-on-arrival hosting **triples** (70 → 200 at
+> 1,250 kW), because the arrival spike spreads out on its own. Most of the
+> claimed 14× was the assumption, not the coordination. The identical-fleet
+> figures are kept in the pane as contrast.
 
-> **Caveat.** Every vehicle is identical and plugged in for the same window.
-> Staggered arrivals and cars that cannot wait both reduce this ceiling.
+Ceilings come from bisecting the solver, bounded above by an energy argument so
+the search can never report its own limit as the answer — an earlier version
+returned exactly 1,500 at the 1,500 kW rating, which was the bisection bound
+rather than a ceiling. `solver_ceiling` now raises instead of returning it.
+
+> **Remaining caveat.** Vehicles are still drawn from one distribution and every
+> car can wait until morning. A fleet with hard early deadlines would host fewer.
 
 ## 2. The emissions saving is real but small, and long-tailed
 

@@ -37,7 +37,11 @@ function Tip({ active, payload, label }: any) {
 
 export default function Hosting() {
   const [rating, setRating] = useState<number>(hosting.headline_rating_kw);
-  const caps: any = hosting.capacities.find((c: any) => c.rating_kw === rating);
+  // Headline figures come from the REALISTIC fleet. The identical-fleet numbers
+  // are kept only as contrast: making every car arrive at the same instant
+  // maximally penalises charge-on-arrival and roughly doubles the apparent gain.
+  const caps: any = (hosting as any).realistic.find((c: any) => c.rating_kw === rating);
+  const identical: any = hosting.capacities.find((c: any) => c.rating_kw === rating);
 
   // The stored curve carries one coordinated column per rating; project the
   // selected one onto a stable key so the chart does not re-map series.
@@ -54,7 +58,7 @@ export default function Hosting() {
     return hit ? hit.evs : null;
   };
 
-  const ratio = caps.dumb ? (caps.coordinated / caps.dumb).toFixed(1) : "—";
+  const ratio = caps.gain != null ? caps.gain.toFixed(1) : "—";
 
   return (
     <>
@@ -64,7 +68,8 @@ export default function Hosting() {
           <div className="heroValue" style={{ color: COORD }}>{ratio}×</div>
           <div className="heroLabel">more EVs on the same transformer</div>
           <div className="heroSub">
-            {caps.coordinated} coordinated vs {caps.dumb} charging on arrival
+            {caps.coordinated} coordinated vs {caps.dumb} charging on arrival ·
+            median of {caps.nights_sampled} nights
           </div>
         </div>
         <div className="heroNote">
@@ -84,7 +89,8 @@ export default function Hosting() {
             <div className="chartTitle">Peak load as EV adoption grows</div>
             <div className="chartMeta">
               kW · {hosting.homes} existing homes ({hosting.residential_peak_kw} kW residential
-              peak) · median across {hosting.nights} measured nights
+              peak) · median across {hosting.nights} nights · simplified fleet, all arriving
+              18:00 — the headline above uses staggered arrivals
             </div>
           </div>
           <div className="legend">
@@ -135,8 +141,9 @@ export default function Hosting() {
           transformer rating is only a matter of time. Coordination flattens the curve against
           the limit instead — the schedule absorbs the growth rather than the copper. Being
           carbon-aware but uncoordinated helps a little, buying{" "}
-          <strong>{caps.uncoordinated - caps.dumb} extra EVs</strong>; coordinating the street
-          buys <strong>{caps.coordinated - caps.dumb}</strong>.
+          <strong>{identical.uncoordinated - identical.dumb} extra EVs</strong> in this
+          simplified fleet; coordinating the street buys{" "}
+          <strong>{caps.coordinated - caps.dumb}</strong> once arrivals stagger realistically.
         </p>
       </section>
 
@@ -145,8 +152,8 @@ export default function Hosting() {
           <div>
             <div className="chartTitle">Hosting capacity by transformer rating</div>
             <div className="chartMeta">
-              EVs supported before the median night exceeds the rating · coordinated ceilings
-              solved analytically and confirmed against the solver
+              EVs supported before the median night exceeds the rating · realistic fleet:
+              staggered arrivals, mixed energy needs, 3.7/7/11 kW charger mix
             </div>
           </div>
         </div>
@@ -156,34 +163,41 @@ export default function Hosting() {
               <tr>
                 <th>Transformer</th>
                 <th>Charging on arrival</th>
-                <th>Uncoordinated carbon-aware</th>
                 <th className="mine">Coordinated</th>
                 <th>Gain</th>
+                <th>Same, identical fleet</th>
               </tr>
             </thead>
             <tbody>
-              {hosting.capacities.map((c: any) => (
-                <tr key={c.rating_kw}>
-                  <th scope="row">{c.rating_kw} kW</th>
-                  <td>{c.dumb} EVs</td>
-                  <td>{c.uncoordinated} EVs</td>
-                  <td className="mine">
-                    {c.coordinated} EVs
-                    {c.coordinated_verified && <span className="claimNote">solver-verified</span>}
-                  </td>
-                  <td><strong>{(c.coordinated / c.dumb).toFixed(1)}×</strong></td>
-                </tr>
-              ))}
+              {(hosting as any).realistic.map((c: any) => {
+                const id = hosting.capacities.find((k: any) => k.rating_kw === c.rating_kw)!;
+                return (
+                  <tr key={c.rating_kw}>
+                    <th scope="row">{c.rating_kw} kW</th>
+                    <td>{c.dumb} EVs</td>
+                    <td className="mine">
+                      {c.coordinated} EVs
+                      <span className="claimNote">solver-bisected</span>
+                    </td>
+                    <td><strong>{c.gain.toFixed(1)}×</strong></td>
+                    <td>
+                      {(id.coordinated / id.dumb).toFixed(1)}×
+                      <span className="claimNote">all arriving 18:00</span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
         <p className="calloutText">
           The coordinated ceiling is where the night physically runs out of headroom, not where
-          the sweep stopped — found by bounding the energy that fits under the rating once the
-          residential baseline is subtracted, then checked against the solver at the boundary in
-          both directions. <em>Caveat:</em> every vehicle here is identical and plugged in for the
-          same window. Real streets have staggered arrivals and some cars that cannot wait, both
-          of which cut the ceiling.
+          the sweep stopped — found by bisecting the solver itself, bounded by an energy
+          argument so the search can never report its own limit as a result. The last column is
+          what the same calculation claims when every car arrives at 18:00: roughly double,
+          because a synchronised arrival maximally penalises the baseline it is measured
+          against. That assumption was inflating this figure, which is why the realistic fleet
+          is the one quoted.
         </p>
       </section>
 
