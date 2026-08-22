@@ -111,6 +111,21 @@ export default function App() {
   // SMIL and rAF-driven motion sit outside the reach of the CSS media query,
   // so the preference is read in JS and threaded through.
   const prefersReduced = usePrefersReduced();
+  const stage = useRef<HTMLDivElement>(null);
+
+  const onStageMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (prefersReduced) return;
+    const el = stage.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    // -1..1 from the centre, so layers can lean either way.
+    el.style.setProperty("--px", String(((e.clientX - r.left) / r.width - 0.5) * 2));
+    el.style.setProperty("--py", String(((e.clientY - r.top) / r.height - 0.5) * 2));
+  };
+  const onStageLeave = () => {
+    stage.current?.style.setProperty("--px", "0");
+    stage.current?.style.setProperty("--py", "0");
+  };
   const [days, setDays] = useState<string[]>([]);
   const [day, setDay] = useState<string>("");
 
@@ -243,13 +258,16 @@ export default function App() {
               </div>
             </div>
           </div>
-          <HeroScene reduced={prefersReduced} />
+          <div className="heroStage" ref={stage}
+            onMouseMove={onStageMove} onMouseLeave={onStageLeave}>
+            <HeroScene reduced={prefersReduced} />
+          </div>
         </section>
       )}
 
       <main className="main">
-        {tab === "comparison" && <Comparison />}
-        {tab === "hosting" && <Hosting />}
+        {tab === "comparison" && <div key="cmp" className="paneEnter"><Comparison /></div>}
+        {tab === "hosting" && <div key="hst" className="paneEnter"><Hosting /></div>}
 
         {tab === "simulator" && (
         <>
@@ -409,6 +427,7 @@ export default function App() {
                   </span>
                 </div>
               </div>
+              <div className="chartWipe" key={`load-${result.day}-${result.used_forecast}-${objective}`}>
               <ResponsiveContainer width="100%" height={290}>
                 <AreaChart data={night} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
                   <CartesianGrid stroke={GRID} vertical={false} />
@@ -430,6 +449,7 @@ export default function App() {
                   )}
                 </AreaChart>
               </ResponsiveContainer>
+              </div>
             </section>
 
             <section className="card">

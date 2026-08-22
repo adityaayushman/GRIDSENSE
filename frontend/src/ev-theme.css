@@ -270,3 +270,53 @@
   .solvingCells i { animation: none; }
   .objectiveToggle::before, .segmented::before { transition: none; }
 }
+
+/* ── Parallax depth on the hero scene ─────────────────────────────────── */
+/* Layers move by different amounts against the pointer, so the scene has real
+   depth rather than a flat tilt. Driven by two CSS variables set once per
+   pointer move; the browser composites the transforms. */
+.heroStage { perspective: 900px; }
+.heroScene [data-depth] {
+  transition: transform .45s cubic-bezier(.2,.7,.3,1);
+  will-change: transform;
+}
+.heroScene [data-depth="1"] { transform: translate3d(calc(var(--px,0) * 5px),  calc(var(--py,0) * 3px),  0); }
+.heroScene [data-depth="2"] { transform: translate3d(calc(var(--px,0) * 11px), calc(var(--py,0) * 6px),  0); }
+.heroScene [data-depth="3"] { transform: translate3d(calc(var(--px,0) * 19px), calc(var(--py,0) * 10px), 0); }
+
+/* ── Tab panes arrive ─────────────────────────────────────────────────── */
+.paneEnter { animation: paneIn .42s cubic-bezier(.2,.7,.3,1) both; }
+@keyframes paneIn {
+  from { opacity: 0; transform: translateY(10px) scale(.995); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ── Charts trace themselves in ───────────────────────────────────────── */
+/* A left-to-right wipe reads as the series being plotted, which is what just
+   happened, rather than a generic fade. */
+.chartWipe { animation: wipeIn .85s cubic-bezier(.25,.8,.3,1) both; }
+@keyframes wipeIn {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0 0 0 0); }
+}
+
+/* ── Panels catch the light on hover ──────────────────────────────────── */
+.card, .hero { position: relative; }
+.card::after, .hero::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  padding: 1px; pointer-events: none; opacity: 0;
+  background: linear-gradient(115deg, transparent 28%, rgba(127,180,245,.55), transparent 72%);
+  background-size: 260% 100%;
+  /* Paint only the 1px ring, so the panel body is untouched. */
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  transition: opacity .25s;
+}
+.card:hover::after, .hero:hover::after { opacity: 1; animation: edgeSweep 1.15s ease-out; }
+@keyframes edgeSweep { from { background-position: 130% 0; } to { background-position: -30% 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .heroScene [data-depth] { transform: none !important; transition: none; }
+  .paneEnter, .chartWipe { animation: none; }
+  .card:hover::after, .hero:hover::after { animation: none; opacity: 0; }
+}
