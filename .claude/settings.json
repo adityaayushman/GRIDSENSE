@@ -5,7 +5,14 @@
       "Bash(git config *)",
       "Bash(echo \"exit:$?\")",
       "Bash(./../../venv/Scripts/python.exe -c ' *)",
-      "Bash(curl -s -i -X OPTIONS https://gridsense-api-es.vercel.app/api/scenario -H 'Origin: https://gridsense-es.vercel.app' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: content-type' --max-time 60)"
+      "Bash(curl -s -i -X OPTIONS https://gridsense-api-es.vercel.app/api/scenario -H 'Origin: https://gridsense-es.vercel.app' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: content-type' --max-time 60)",
+      "Bash(./venv/Scripts/python.exe export_hosting_capacity.py)",
+      "Bash(sed -n '/NO WEATHER/,$p' \"C:/Users/ADITYA/AppData/Local/Temp/claude/d--projects-gridsense/d98cfe30-cda4-4240-9de9-9cba2fefc51d/tasks/b1ybkmzrj.output\" 2>/dev/null | grep -vE \"searched, best CV\" )",
+      "Bash(./venv/Scripts/python.exe export_forecaster.py)",
+      "Bash(python -c ' *)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\ADITYA\\AppData\\Local\\Temp\\claude\\d--projects-gridsense\\d98cfe30-cda4-4240-9de9-9cba2fefc51d\\tasks"
     ]
   }
 }

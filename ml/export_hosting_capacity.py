@@ -15,8 +15,19 @@ already exist and EVs arrive into them:
                 which is what a fleet of independent charging apps produces)
   coordinated   one LP schedules the street against the transformer limit
 
-Peaks are the median across every measured night, so a single unusual evening
-cannot set the headline.
+Peaks are the median across measured nights, so a single unusual evening cannot
+set the headline.
+
+Two fleet models are reported, because the choice matters more than expected:
+
+  identical   every car arrives 18:00 and leaves 07:00, needing the same energy
+  realistic   arrivals and departures spread over the evening and morning, with
+              mixed energy requirements and a 3.7/7/11 kW charger mix
+
+The identical model inflates the coordination gain badly. It makes every car
+spike at the same instant, which maximally penalises charge-on-arrival — dumb
+hosting triples once arrivals spread out, while the coordinated ceiling rises
+only ~25%. The realistic model is the headline; identical is kept for contrast.
 """
 
 from __future__ import annotations
@@ -42,6 +53,12 @@ HOMES = 200
 ENERGY_KWH, CHARGER_KW = 9.2, 7.0
 ARRIVAL, DEADLINE = 18, 7
 ADOPTION = list(range(0, 201, 10))
+# Heterogeneous fleets cannot be aggregated into one variable, so each solve
+# carries n*24 columns. Sample nights for that model to keep the sweep tractable.
+REALISTIC_NIGHTS = 12
+ARRIVAL_MIX = ([16, 17, 18, 19, 20, 21, 22], [5, 12, 25, 22, 16, 12, 8])
+DEPART_MIX = ([5, 6, 7, 8, 9], [10, 25, 35, 20, 10])
+CHARGER_MIX = ([3.7, 7.0, 11.0], [25, 60, 15])
 RATINGS = [1000, 1250, 1500]        # typical street-transformer ratings, kW
 HEADLINE_RATING = 1250
 
@@ -68,8 +85,57 @@ def fleet(n: int) -> list[Vehicle]:
     return [Vehicle("agg", ENERGY_KWH * n, CHARGER_KW * n, ARRIVAL, DEADLINE)]
 
 
+def realistic_fleet(n: int, seed: int = 0) -> list[Vehicle]:
+    """Staggered arrivals and departures, mixed energy needs and charger ratings."""
+    import random
+
+    r = random.Random(seed)
+    out = []
+    for i in range(n):
+        out.append(Vehicle(
+            f"v{i}",
+            max(2.0, r.gauss(ENERGY_KWH, 4.0)),
+            r.choices(*CHARGER_MIX)[0],
+            r.choices(*ARRIVAL_MIX)[0],
+            r.choices(*DEPART_MIX)[0],
+        ))
+    return out
+
+
+def solver_ceiling(builder, carbon, rating: float, hi: int = 4000) -> int:
+    """Largest fleet the solver can actually schedule, by bisection.
+
+    max_deliverable_kwh is only a bound for identical vehicles sharing a window;
+    once arrivals stagger, per-vehicle windows differ and the bound is loose, so
+    the ceiling has to come from the solver itself.
+    """
+    bound = hi
+    lo = 0
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        try:
+            optimize_schedule(builder(mid), carbon,
+                              residential_baseline_kw=base_global, feeder_capacity_kw=rating)
+            lo = mid
+        except ValueError:
+            hi = mid - 1
+    if lo >= bound:
+        # Hitting the search bound means the ceiling was never found — reporting
+        # it would be the same error as reading a capacity off the end of a sweep.
+        raise RuntimeError(
+            f"bisection bound {bound} reached at {rating:.0f} kW; raise `hi` — "
+            f"the true ceiling is above the range searched"
+        )
+    return lo
+
+
+base_global: list[float] = []
+
+
 def main() -> None:
+    global base_global
     base = ds.get_residential_baseline_kw(HOMES)
+    base_global = base
     residential_peak = max(base)
     days = ds.available_days()
 
@@ -160,7 +226,33 @@ def main() -> None:
             "swept_to": ADOPTION[-1],
         })
 
-    head = next(c for c in capacities if c["rating_kw"] == HEADLINE_RATING)
+    # --- realistic fleet -------------------------------------------------
+    # Recomputed with staggered arrivals, mixed energy and a charger mix. This is
+    # the headline: the identical model triples the apparent gain by making every
+    # car spike at the same instant.
+    sample = days[:: max(1, len(days) // REALISTIC_NIGHTS)][:REALISTIC_NIGHTS]
+    realistic = []
+    for r in RATINGS:
+        dumb_ok, coord_vals = [], []
+        for day in sample:
+            carbon = ds.get_carbon_intensity(day=day)
+            best_dumb = 0
+            for n in range(10, 601, 10):
+                pk = max(naive_schedule(realistic_fleet(n))[h] + base[h] for h in range(24))
+                if pk <= r:
+                    best_dumb = n
+                else:
+                    break
+            dumb_ok.append(best_dumb)
+            coord_vals.append(solver_ceiling(realistic_fleet, carbon, float(r)))
+        d = int(statistics.median(dumb_ok))
+        c = int(statistics.median(coord_vals))
+        realistic.append({"rating_kw": r, "dumb": d, "coordinated": c,
+                          "gain": round(c / max(d, 1), 1), "nights_sampled": len(sample)})
+        print(f"  realistic @ {r} kW: dumb {d}, coordinated {c} ({c / max(d,1):.1f}x)", flush=True)
+
+    head = next(c for c in realistic if c["rating_kw"] == HEADLINE_RATING)
+    head_identical = next(c for c in capacities if c["rating_kw"] == HEADLINE_RATING)
     bundle = {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "git_rev": (subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=HERE,
@@ -172,6 +264,12 @@ def main() -> None:
         "ratings": RATINGS,
         "headline_rating_kw": HEADLINE_RATING,
         "headline": head,
+        "headline_identical": head_identical,
+        "realistic": realistic,
+        "fleet_note": "Headline figures use the realistic fleet: staggered arrivals "
+                      "and departures, mixed energy requirements, 3.7/7/11 kW charger "
+                      "mix. The identical-fleet figures are kept for contrast and "
+                      "overstate the gain roughly threefold.",
         "capacities": capacities,
         "curve": curve,
     }

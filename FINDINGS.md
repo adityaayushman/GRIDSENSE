@@ -9,7 +9,9 @@ Regenerate everything:
 ```bash
 cd ml
 python backtest.py                # 1,444-night replay      -> data/backtest_nightly.csv
-python train.py                   # forecaster + regret     -> artifacts/metrics.json
+python train.py                   # first-pass forecaster   -> artifacts/metrics.json
+python train_v2.py                # tuned sweep + weather   -> artifacts/metrics_v2.json
+python export_forecaster.py       # deployable ridge        -> artifacts/ridge_forecaster.json
 python export_evidence.py         # -> frontend/src/data/evidence.json
 python export_hosting_capacity.py # -> frontend/src/data/hosting.json
 ```
@@ -79,15 +81,23 @@ actually happened, compare to perfect foresight:
 | Persistence (lag 24h) | 44.32 | 12.8% |
 | Climatology (month × hour) | 56.01 | 16.4% |
 | Gradient boosting | 28.51 | 67.5% |
-| **Ridge** | **28.27** | **68.5%** |
+| **Ridge (deployed)** | **23.70** | **71.0%** |
+| Ridge + GBM blend (not shipped) | 22.61 | 72.8% |
 
 The synthetic curve scores **negative**: scheduling against it is worse than not
 optimizing at all. A demo driving real chargers that way would increase emissions.
 
-Ridge ties gradient boosting on accuracy, so the linear model wins on
-deployability — it exports as 15 coefficients scored with a dot product, needing
-no scikit-learn in the serverless bundle, and the export is verified bit-exact
-against sklearn.
+The blend is the strongest candidate but is **not** what ships: it needs
+scikit-learn at inference, while ridge exports as a coefficient vector scored
+with a dot product and keeps the serverless bundle free of ML dependencies.
+Ridge gives up 1.8pp of captured saving for that, which is the right trade for a
+function that already carries a CBC solver binary. The export is verified
+bit-exact against sklearn.
+
+`train_v2.py` improved ridge from MAE 28.27 / 68.5% to 23.70 / 71.0% — a 16% cut
+in error — through richer features (more lags, rolling min/max/std, week-over-week
+drift, renewable share) and a 48-config hyperparameter search under blocked
+time-series CV. No new data was involved.
 
 ## 4. The optimizer only earns its keep under a coupling constraint
 
@@ -171,6 +181,17 @@ hour, synchronises, and manufactures a new peak. It raises the peak on only 3 of
 46 nights, and by 1.03×. The cleanest hours are usually overnight, away from the
 19:00 residential peak, so selfish optimisation normally helps slightly. The
 synchronisation effect is real but small; the coordination gap is the large one.
+
+**Weather was expected to be the largest untapped signal.** The Kaggle download
+shipped `weather_features.csv` — hourly cloud cover, wind speed and temperature
+for five Spanish cities — unused by the first pass. Cloud cover drives solar and
+wind speed drives wind, so it looked like the obvious lever. Measured across a
+full re-run with 40 features instead of 25, it is worth **−0.19pp** of captured
+saving: very slightly *worse*. The reason is clean — the dataset already carries
+the TSO's day-ahead solar and wind forecasts, which are themselves produced from
+weather models, so the signal was already present and the raw columns added
+redundancy and dimensionality. Both variants are reported in
+`artifacts/metrics_v2.json`.
 
 **Vehicle heterogeneity was expected to make the LP necessary.** It does not —
 see finding 4. Differing arrivals, energies and charger ratings still separate.
