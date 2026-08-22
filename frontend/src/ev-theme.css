@@ -168,3 +168,47 @@
   }
   .statCard:hover { transform: none; }
 }
+
+/* ── Masthead ─────────────────────────────────────────────────────────── */
+.masthead {
+  position: relative; z-index: 1;
+  display: grid; grid-template-columns: minmax(340px, 1.05fr) minmax(320px, 1fr);
+  gap: 40px; align-items: center;
+  max-width: 1080px; margin: 0 auto; padding: 44px 24px 8px;
+}
+@media (max-width: 860px) { .masthead { grid-template-columns: 1fr; gap: 18px; padding-top: 30px; } }
+
+.mastKicker {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--ink-3);
+  border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px;
+  background: rgba(10,15,22,.6);
+}
+.mastKicker b { color: #7fb4f5; font-weight: 600; }
+.mastDot {
+  width: 6px; height: 6px; border-radius: 50%; background: #3987e5;
+  box-shadow: 0 0 10px rgba(57,135,229,.9);
+  animation: livePulse 2.2s ease-in-out infinite;
+}
+@keyframes livePulse { 0%,100% { opacity:.35; transform:scale(.85) } 50% { opacity:1; transform:scale(1) } }
+
+.mastTitle {
+  font-size: clamp(29px, 3.9vw, 46px); line-height: 1.06; letter-spacing: -0.035em;
+  text-wrap: balance;
+  font-weight: 700; margin: 18px 0 0;
+}
+.mastTitle .lit {
+  background: linear-gradient(100deg, #7fb4f5, #3987e5 55%, #2a6fc4);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.mastSub { font-size: 14px; line-height: 1.7; color: var(--ink-2); margin: 16px 0 0; max-width: 44ch; }
+.mastFacts { display: flex; gap: 26px; margin-top: 22px; flex-wrap: wrap; }
+.mastFact { display: flex; flex-direction: column; gap: 3px; }
+.mastFactVal { font-family: var(--mono); font-size: 21px; font-weight: 650; letter-spacing: -.02em; }
+.mastFactKey { font-size: 10.5px; color: var(--ink-3); font-family: var(--mono); }
+
+.heroScene { width: 100%; height: auto; display: block; overflow: visible; }
+.hsTick { fill: #64748A; font-size: 9.5px; font-family: var(--mono); letter-spacing: .06em; }
+
+@media (prefers-reduced-motion: reduce) { .mastDot { animation: none; } }
