@@ -22,10 +22,8 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
-import httpx
-
 USE_LIVE_DATA = os.getenv("USE_LIVE_DATA", "false").lower() == "true"
-WATTTIME_TOKEN = os.getenv("WATTTIME_TOKEN")
+ENTSOE_TOKEN = os.getenv("ENTSOE_TOKEN")
 
 DATA_FILE = Path(__file__).parent / "data" / "grid_days.json"
 
@@ -68,8 +66,8 @@ def resolve_day(day: str | None) -> str:
 
 def get_carbon_intensity(region: str = "ES", day: str | None = None) -> list[float]:
     """Measured grid carbon intensity, gCO2eq/kWh, for each hour 0-23."""
-    if USE_LIVE_DATA and WATTTIME_TOKEN:
-        return _fetch_watttime(region)
+    if USE_LIVE_DATA and ENTSOE_TOKEN:
+        return _fetch_live(region)
     return list(_grid_data()["days"][resolve_day(day)]["carbon"])
 
 
@@ -103,21 +101,14 @@ def get_residential_baseline_kw(household_count: int = 1) -> list[float]:
     ]
 
 
-def _fetch_watttime(region: str) -> list[float]:  # pragma: no cover - network call
-    """Example live fetch — adapt to WattTime's forecast endpoint & auth flow.
+def _fetch_live(region: str) -> list[float]:  # pragma: no cover - network call
+    """Live carbon intensity from ENTSO-E.
 
-    Note WattTime covers North American balancing authorities; pointing this at
-    the Spanish data above would mix regions. Wire in ENTSO-E's own API or
-    ElectricityMaps for live ES data.
+    Previously this called WattTime, which covers North American balancing
+    authorities — enabling it against a Spanish grid would have mixed
+    continents. ENTSO-E is the source the bundled data came from, so live and
+    offline series are derived identically. See app/entsoe.py.
     """
-    headers = {"Authorization": f"Bearer {WATTTIME_TOKEN}"}
-    resp = httpx.get(
-        "https://api.watttime.org/v3/forecast",
-        params={"region": region, "signal_type": "co2_moer"},
-        headers=headers,
-        timeout=10.0,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    # NOTE: reshape according to WattTime's actual response schema
-    return [point["value"] for point in data["data"]][:24]
+    from app.entsoe import fetch_carbon_intensity
+
+    return fetch_carbon_intensity(region)
