@@ -8,6 +8,8 @@ import { runScenario, fetchDays, warmUp, ScenarioResponse } from "./api";
 import Comparison from "./Comparison";
 import Hosting from "./Hosting";
 import HeroScene from "./HeroScene";
+import Segmented from "./Segmented";
+import { usePrefersReduced, useCountUp, useReveal } from "./motion";
 import "./index.css";
 import "./ev-theme.css";
 
@@ -29,6 +31,14 @@ const OBJECTIVES: { key: Objective; label: string }[] = [
  *  on real grid data. Show that as an increase rather than a bare minus sign. */
 function signed(pct: number) {
   return pct >= 0 ? `${pct}%` : `+${Math.abs(pct)}%`;
+}
+
+/** The same, counted up. Sign is taken from the target so the label never
+ *  flickers between "increase" and "reduction" while the number travels. */
+function CountPct({ pct, reduced }: { pct: number; reduced: boolean }) {
+  const shown = useCountUp(pct, reduced);
+  const v = Math.abs(shown).toFixed(1);
+  return <>{pct >= 0 ? `${v}%` : `+${v}%`}</>;
 }
 function deltaColor(pct: number) {
   return pct >= 0 ? "var(--ink)" : NAIVE;
@@ -98,11 +108,9 @@ export default function App() {
   const [result, setResult] = useState<ScenarioResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // SMIL animations inside the SVG are not reachable by the CSS media query,
-  // so the preference has to be read in JS and passed down.
-  const prefersReduced =
-    typeof window !== "undefined" &&
-    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  // SMIL and rAF-driven motion sit outside the reach of the CSS media query,
+  // so the preference is read in JS and threaded through.
+  const prefersReduced = usePrefersReduced();
   const [days, setDays] = useState<string[]>([]);
   const [day, setDay] = useState<string>("");
 
@@ -186,17 +194,12 @@ export default function App() {
           </div>
         </div>
         {tab === "simulator" && (
-        <div className="objectiveToggle">
-          {OBJECTIVES.map((o) => (
-            <button
-              key={o.key}
-              onClick={() => setObjective(o.key)}
-              className={`objectiveBtn ${objective === o.key ? "active" : ""}`}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
+          <Segmented
+            className="objectiveToggle"
+            options={OBJECTIVES.map((o) => ({ key: o.key, label: o.label }))}
+            value={objective}
+            onChange={setObjective}
+          />
         )}
       </header>
 
@@ -282,18 +285,27 @@ export default function App() {
             </div>
             <div className="field fieldWide">
               <label>Carbon signal the scheduler sees</label>
-              <div className="segmented">
-                <button className={!useForecast ? "active" : ""}
-                  onClick={() => setUseForecast(false)}>Perfect foresight</button>
-                <button className={useForecast ? "active" : ""}
-                  onClick={() => setUseForecast(true)}>Day-ahead forecast</button>
-              </div>
+              <Segmented
+                options={[
+                  { key: "actual", label: "Perfect foresight" },
+                  { key: "forecast", label: "Day-ahead forecast" },
+                ]}
+                value={useForecast ? "forecast" : "actual"}
+                onChange={(v) => setUseForecast(v === "forecast")}
+              />
               <div className="fieldValue">
                 <em>{useForecast ? "what a real scheduler sees" : "upper bound"}</em>
               </div>
             </div>
             <button className="runBtn" onClick={() => run()} disabled={loading}>
-              {loading ? "Solving…" : "Run simulation"}
+              {loading ? (
+                <span className="solving">
+                  <span className="solvingCells" aria-hidden="true">
+                    <i /><i /><i /><i />
+                  </span>
+                  Solving
+                </span>
+              ) : "Run simulation"}
             </button>
           </div>
           {error && <div className="errorText">{error}</div>}
@@ -305,7 +317,7 @@ export default function App() {
               <div className="heroMain">
                 <div className="eyebrow">Night of {result.day}</div>
                 <div className="heroValue" style={{ color: deltaColor(head.pct) }}>
-                  {signed(head.pct)}
+                  <CountPct pct={head.pct} reduced={prefersReduced} />
                 </div>
                 <div className="heroLabel">{head.label}</div>
                 <div className="heroSub">{head.sub}</div>
@@ -341,7 +353,7 @@ export default function App() {
                 <div className="statCard">
                   <div className="statLabel">Grid CO₂</div>
                   <div className="statValue" style={{ color: deltaColor(result.emissions_reduction_pct) }}>
-                    {signed(result.emissions_reduction_pct)}
+                    <CountPct pct={result.emissions_reduction_pct} reduced={prefersReduced} />
                   </div>
                   <div className="statSub">{result.emissions_naive_kg} → {result.emissions_optimized_kg} kg</div>
                 </div>
@@ -350,7 +362,7 @@ export default function App() {
                 <div className="statCard">
                   <div className="statLabel">Charging cost</div>
                   <div className="statValue" style={{ color: deltaColor(result.cost_reduction_pct) }}>
-                    {signed(result.cost_reduction_pct)}
+                    <CountPct pct={result.cost_reduction_pct} reduced={prefersReduced} />
                   </div>
                   <div className="statSub">€{result.cost_naive} → €{result.cost_optimized}</div>
                 </div>
@@ -359,7 +371,7 @@ export default function App() {
                 <div className="statCard">
                   <div className="statLabel">Peak grid load</div>
                   <div className="statValue" style={{ color: deltaColor(result.peak_reduction_pct) }}>
-                    {signed(result.peak_reduction_pct)}
+                    <CountPct pct={result.peak_reduction_pct} reduced={prefersReduced} />
                   </div>
                   <div className="statSub">{result.peak_naive_kw} → {result.peak_optimized_kw} kW</div>
                 </div>
@@ -408,7 +420,8 @@ export default function App() {
                   <Area type="stepAfter" dataKey="naive_kw" name="On arrival" stroke={NAIVE}
                     fill={NAIVE} fillOpacity={0.1} strokeWidth={2} dot={false} />
                   <Area type="stepAfter" dataKey="optimized_kw" name="Optimized" stroke={OPT}
-                    fill={OPT} fillOpacity={0.1} strokeWidth={2} dot={false} />
+                    fill={OPT} fillOpacity={0.1} strokeWidth={2} dot={false}
+                    className={prefersReduced ? undefined : "flowPath"} />
                   {result.feeder_capacity_kw !== null && (
                     <ReferenceLine y={result.feeder_capacity_kw} stroke={NAIVE} strokeWidth={1.5}
                       strokeDasharray="5 4"

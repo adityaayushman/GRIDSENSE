@@ -41,7 +41,10 @@
       "Bash(timeout 120 \"/c/Program Files/Google/Chrome/Application/chrome.exe\" --headless=new --disable-gpu --no-sandbox --hide-scrollbars --user-data-dir='D:\\\\tmp\\\\cp' --window-size=1400,900 --virtual-time-budget=20000 --screenshot=D:/tmp/shots/hero1.png \"http://localhost:5173/\")",
       "Bash(timeout 120 \"/c/Program Files/Google/Chrome/Application/chrome.exe\" --headless=new --disable-gpu --no-sandbox --hide-scrollbars --user-data-dir='D:\\\\tmp\\\\cp' --window-size=1400,620 --virtual-time-budget=20000 --screenshot=D:/tmp/shots/hero2.png \"http://localhost:5173/\")",
       "Bash(timeout 130 \"/c/Program Files/Google/Chrome/Application/chrome.exe\" --headless=new --disable-gpu --no-sandbox --hide-scrollbars --user-data-dir='D:\\\\tmp\\\\cp' --window-size=1400,2100 --virtual-time-budget=22000 --screenshot=D:/tmp/shots/full.png \"http://localhost:5173/\")",
-      "Bash(TMPDIR='D:\\\\tmp\\\\gs-solver' TEMP='D:\\\\tmp\\\\gs-solver' TMP='D:\\\\tmp\\\\gs-solver' ./venv/Scripts/python.exe -m pytest tests/ -q)"
+      "Bash(TMPDIR='D:\\\\tmp\\\\gs-solver' TEMP='D:\\\\tmp\\\\gs-solver' TMP='D:\\\\tmp\\\\gs-solver' ./venv/Scripts/python.exe -m pytest tests/ -q)",
+      "Bash(timeout 120 \"/c/Program Files/Google/Chrome/Application/chrome.exe\" --headless=new --disable-gpu --no-sandbox --hide-scrollbars --user-data-dir='D:\\\\tmp\\\\cp' --window-size=1400,1050 --virtual-time-budget=22000 --screenshot=D:/tmp/shots/m1.png \"http://localhost:5173/\")",
+      "Bash(timeout 120 \"/c/Program Files/Google/Chrome/Application/chrome.exe\" --headless=new --disable-gpu --no-sandbox --hide-scrollbars --user-data-dir='D:\\\\tmp\\\\cp' --window-size=1400,900 --virtual-time-budget=22000 --screenshot=D:/tmp/shots/m2.png \"http://localhost:5173/#hosting\")",
+      "Bash(timeout 120 \"/c/Program Files/Google/Chrome/Application/chrome.exe\" --headless=new --disable-gpu --no-sandbox --hide-scrollbars --user-data-dir='D:\\\\tmp\\\\cp' --window-size=1400,700 --virtual-time-budget=22000 --screenshot=D:/tmp/shots/m3.png \"http://localhost:5173/\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\ADITYA\\AppData\\Local\\Temp\\claude\\d--projects-gridsense\\d98cfe30-cda4-4240-9de9-9cba2fefc51d\\tasks"

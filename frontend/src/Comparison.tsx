@@ -4,6 +4,7 @@ import {
 } from "recharts";
 import { Check, X, Minus } from "lucide-react";
 import evidence from "./data/evidence.json";
+import { usePrefersReduced, useReveal } from "./motion";
 
 const OPT = "#3987e5";
 const NEG = "#d03b3b";
@@ -85,6 +86,17 @@ function BinTip({ active, payload }: any) {
   );
 }
 
+/** Sections lift in as they enter view; unobserved after the first hit. */
+function Panel({ children }: { children: React.ReactNode }) {
+  const reduced = usePrefersReduced();
+  const { ref, shown } = useReveal<HTMLElement>(reduced);
+  return (
+    <section ref={ref} className={`card reveal ${shown ? "isIn" : ""}`}>
+      {children}
+    </section>
+  );
+}
+
 export default function Comparison() {
   const s = evidence.savings;
   const forecast = evidence.forecast;
@@ -92,7 +104,7 @@ export default function Comparison() {
 
   return (
     <>
-      <section className="card">
+      <Panel>
         <div className="chartHeader">
           <div>
             <div className="chartTitle">How this differs from the usual approach</div>
@@ -138,9 +150,9 @@ export default function Comparison() {
             </tbody>
           </table>
         </div>
-      </section>
+      </Panel>
 
-      <section className="card">
+      <Panel>
         <div className="chartHeader">
           <div>
             <div className="chartTitle">Does the forecast pick the right hours?</div>
@@ -177,9 +189,9 @@ export default function Comparison() {
           <strong>{forecast[forecast.length - 1].captured_pct}%</strong> of what perfect
           foresight would.
         </p>
-      </section>
+      </Panel>
 
-      <section className="card">
+      <Panel>
         <div className="chartHeader">
           <div>
             <div className="chartTitle">The saving is long-tailed, not flat</div>
@@ -210,9 +222,9 @@ export default function Comparison() {
           <strong>{s.over_20pct_share}%</strong> save over 20%. A single headline percentage
           hides both facts, which is why this project reports the distribution instead.
         </p>
-      </section>
+      </Panel>
 
-      <section className="card">
+      <Panel>
         <div className="chartHeader">
           <div>
             <div className="chartTitle">When does the optimiser actually earn its keep?</div>
@@ -260,7 +272,7 @@ export default function Comparison() {
           <strong>{coupling[2].greedy_over_limit_kw} kW</strong>,
           while the LP lands on it exactly.
         </p>
-      </section>
+      </Panel>
 
       <p className="provenance">
         Generated from {evidence.source} · rebuilt by <code>ml/export_evidence.py</code>

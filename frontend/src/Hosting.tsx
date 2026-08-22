@@ -4,6 +4,7 @@ import {
   ResponsiveContainer, ReferenceLine, ReferenceDot,
 } from "recharts";
 import hosting from "./data/hosting.json";
+import { usePrefersReduced, useReveal, useCountUp } from "./motion";
 
 // Validated dark-band trio, all-pairs clean on this surface.
 const DUMB = "#d95926";
@@ -18,6 +19,11 @@ const SERIES = [
   { key: "uncoordinated_kw", name: "Uncoordinated carbon-aware", colour: UNCO, cap: "uncoordinated" },
   { key: "coordinated_kw", name: "Coordinated (this project)", colour: COORD, cap: "coordinated" },
 ] as const;
+
+function Ratio({ gain, reduced }: { gain: number; reduced: boolean }) {
+  const shown = useCountUp(gain, reduced);
+  return <>{shown.toFixed(1)}×</>;
+}
 
 function Tip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
@@ -35,7 +41,14 @@ function Tip({ active, payload, label }: any) {
   );
 }
 
+function Panel({ children }: { children: React.ReactNode }) {
+  const reduced = usePrefersReduced();
+  const { ref, shown } = useReveal<HTMLElement>(reduced);
+  return <section ref={ref} className={`card reveal ${shown ? "isIn" : ""}`}>{children}</section>;
+}
+
 export default function Hosting() {
+  const reduced = usePrefersReduced();
   const [rating, setRating] = useState<number>(hosting.headline_rating_kw);
   // Headline figures come from the REALISTIC fleet. The identical-fleet numbers
   // are kept only as contrast: making every car arrive at the same instant
@@ -65,7 +78,9 @@ export default function Hosting() {
       <section className="hero">
         <div className="heroMain">
           <div className="eyebrow">Hosting capacity · {rating} kW transformer</div>
-          <div className="heroValue" style={{ color: COORD }}>{ratio}×</div>
+          <div className="heroValue" style={{ color: COORD }}>
+            <Ratio gain={caps.gain ?? 0} reduced={reduced} />
+          </div>
           <div className="heroLabel">more EVs on the same transformer</div>
           <div className="heroSub">
             {caps.coordinated} coordinated vs {caps.dumb} charging on arrival ·
@@ -83,7 +98,7 @@ export default function Hosting() {
         </div>
       </section>
 
-      <section className="card">
+      <Panel>
         <div className="chartHeader">
           <div>
             <div className="chartTitle">Peak load as EV adoption grows</div>
@@ -145,9 +160,9 @@ export default function Hosting() {
           simplified fleet; coordinating the street buys{" "}
           <strong>{caps.coordinated - caps.dumb}</strong> once arrivals stagger realistically.
         </p>
-      </section>
+      </Panel>
 
-      <section className="card">
+      <Panel>
         <div className="chartHeader">
           <div>
             <div className="chartTitle">Hosting capacity by transformer rating</div>
@@ -199,7 +214,7 @@ export default function Hosting() {
           against. That assumption was inflating this figure, which is why the realistic fleet
           is the one quoted.
         </p>
-      </section>
+      </Panel>
 
       <p className="provenance">
         Rebuilt by <code>ml/export_hosting_capacity.py</code>
