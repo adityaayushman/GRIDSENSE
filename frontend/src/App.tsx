@@ -8,6 +8,7 @@ import { runScenario, fetchDays, warmUp, ScenarioResponse } from "./api";
 import Comparison from "./Comparison";
 import Hosting from "./Hosting";
 import "./index.css";
+import "./ev-theme.css";
 
 type Objective = "emissions" | "cost" | "peak";
 type Tab = "simulator" | "comparison" | "hosting";
@@ -166,6 +167,7 @@ export default function App() {
   return (
     <div className="page">
       <div className="gridOverlay" />
+      <div className="evFloor" aria-hidden="true" />
 
       <header className="header">
         <div className="brand">
@@ -325,6 +327,11 @@ export default function App() {
                 <div className="statLabel">Energy scheduled</div>
                 <div className="statValue">{result.energy_scheduled_kwh} kWh</div>
                 <div className="statSub">{result.ev_count} vehicles · {result.region}</div>
+                <div className="battery" aria-hidden="true">
+                  <div className="batteryCell"
+                    style={{ ["--soc" as any]: `${Math.min(100, (result.ev_count / 200) * 100)}%` }} />
+                  <div className="batteryTip" />
+                </div>
               </div>
             </section>
 
@@ -333,6 +340,10 @@ export default function App() {
                 <div>
                   <div className="chartTitle">Neighbourhood grid load</div>
                   <div className="chartMeta">kW · 18:00 → 07:00, the hours a car is plugged in · 00–07 is the next morning</div>
+                  <div className="shiftHint" style={{ marginTop: 6 }}>
+                    <span className="shiftTrack" aria-hidden="true"><span className="shiftDot" /></span>
+                    load moves off the arrival spike into cleaner hours
+                  </div>
                 </div>
                 <div className="legend">
                   <span className="legendItem">

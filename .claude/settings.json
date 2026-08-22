@@ -32,7 +32,12 @@
       "Bash(curl -s -i -X OPTIONS \"http://[::1]:8000/api/scenario\" -H \"Origin: http://localhost:5173\" -H \"Access-Control-Request-Method: POST\" -H \"Access-Control-Request-Headers: content-type\" --max-time 15)",
       "Bash(curl -s -i \"http://[::1]:8000/api/days\" -H \"Origin: http://localhost:5173\" --max-time 15)",
       "Bash(curl -s -o /dev/null -w \"  http=%{http_code}\\\\n\" -X POST \"http://[::1]:8000/api/scenario\" -H \"Origin: http://localhost:5173\" -H \"Content-Type: application/json\" -d '{\"objective\":\"emissions\",\"use_forecast\":true}' --max-time 15)",
-      "Bash(timeout 120 \"/c/Program Files/Google/Chrome/Application/chrome.exe\" --headless=new --disable-gpu --no-sandbox --hide-scrollbars --user-data-dir='D:\\\\tmp\\\\cp' --window-size=1400,1500 --virtual-time-budget=20000 --screenshot=D:/tmp/shots/fcB.png \"http://localhost:5173/\")"
+      "Bash(timeout 120 \"/c/Program Files/Google/Chrome/Application/chrome.exe\" --headless=new --disable-gpu --no-sandbox --hide-scrollbars --user-data-dir='D:\\\\tmp\\\\cp' --window-size=1400,1500 --virtual-time-budget=20000 --screenshot=D:/tmp/shots/fcB.png \"http://localhost:5173/\")",
+      "Bash(./venv/Scripts/python.exe screen_dataset.py data/de/de_lu_hourly.csv --time ts_utc --value fossil_gas --value wind_onshore_mw --value solar_mw --value load_mw --value price_eur_mwh)",
+      "Bash(sed -i 's/    loc = ci.tz_convert\\(tz\\); h = loc.hour/    loc = ci.index.tz_convert\\(tz\\); h = loc.hour/' /tmp/de_vs_es.py)",
+      "Bash(mkdir -p /d/tmp/gs-solver)",
+      "Bash(TMPDIR='D:\\\\tmp\\\\gs-solver' TEMP='D:\\\\tmp\\\\gs-solver' TMP='D:\\\\tmp\\\\gs-solver' ./venv/Scripts/python.exe /tmp/de_vs_es.py)",
+      "Bash(timeout 120 \"/c/Program Files/Google/Chrome/Application/chrome.exe\" --headless=new --disable-gpu --no-sandbox --hide-scrollbars --user-data-dir='D:\\\\tmp\\\\cp' --window-size=1400,820 --virtual-time-budget=20000 --screenshot=D:/tmp/shots/ev2.png \"http://localhost:5173/\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\ADITYA\\AppData\\Local\\Temp\\claude\\d--projects-gridsense\\d98cfe30-cda4-4240-9de9-9cba2fefc51d\\tasks"

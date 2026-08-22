@@ -1,0 +1,170 @@
+/* EV / charging visual language.
+   Everything here is real 3D — CSS `perspective` + `preserve-3d` + `rotateX`,
+   composited on the GPU — rather than a WebGL scene. A Three.js build would
+   roughly double a 564 KB bundle on what is fundamentally a data dashboard, and
+   these transforms animate on the compositor without touching layout.
+
+   Nothing in this file changes a data mark's hue. Series colours were chosen by
+   the palette validator; the theme lives in surfaces, depth and motion. */
+
+/* ── The road: a grid plane receding to a horizon ──────────────────────── */
+.evFloor {
+  position: fixed;
+  inset: auto 0 0 0;
+  height: 46vh;
+  pointer-events: none;
+  z-index: 0;
+  perspective: 340px;
+  perspective-origin: 50% 0%;
+  overflow: hidden;
+  opacity: 0.55;
+  mask-image: linear-gradient(to bottom, transparent, #000 45%, #000);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 45%, #000);
+}
+.evFloor::before {
+  content: "";
+  position: absolute;
+  left: -50%;
+  right: -50%;
+  top: 0;
+  height: 200%;
+  transform: rotateX(76deg);
+  transform-origin: 50% 0%;
+  background-image:
+    linear-gradient(to right, rgba(57, 135, 229, 0.30) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(57, 135, 229, 0.22) 1px, transparent 1px);
+  background-size: 62px 62px;
+  animation: floorRun 5.5s linear infinite;
+}
+@keyframes floorRun {
+  /* One full cell, so the loop is seamless — anything else visibly jumps. */
+  to { background-position: 0 62px; }
+}
+
+/* A charge front sweeping down the road. */
+.evFloor::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(
+    to bottom,
+    transparent 30%,
+    rgba(57, 135, 229, 0.13) 55%,
+    transparent 78%
+  );
+  animation: chargeSweep 7s ease-in-out infinite;
+}
+@keyframes chargeSweep {
+  0%, 100% { transform: translateY(-28%); opacity: 0; }
+  45%      { opacity: 1; }
+  100%     { transform: translateY(38%); }
+}
+
+/* ── Brand mark: a cell taking charge ─────────────────────────────────── */
+.brandMark { position: relative; overflow: hidden; }
+.brandMark::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(160deg, rgba(255,255,255,.5), transparent 55%);
+  opacity: 0;
+  animation: cellCharge 3.4s ease-in-out infinite;
+}
+@keyframes cellCharge {
+  0%, 70%, 100% { opacity: 0; transform: translateY(60%); }
+  20%, 45%      { opacity: .85; transform: translateY(0); }
+}
+
+/* ── Current flowing along the tab rail ───────────────────────────────── */
+.tabs { position: relative; }
+.tabs::after {
+  content: "";
+  position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
+  background: linear-gradient(90deg,
+    transparent, rgba(57,135,229,.85), rgba(120,190,255,.95), rgba(57,135,229,.85), transparent);
+  background-size: 42% 100%;
+  background-repeat: no-repeat;
+  animation: currentFlow 4.2s linear infinite;
+}
+@keyframes currentFlow {
+  from { background-position: -45% 0; }
+  to   { background-position: 145% 0; }
+}
+
+/* ── Panels lift toward the viewer ────────────────────────────────────── */
+.statCard {
+  transform-style: preserve-3d;
+  transition: transform .28s cubic-bezier(.2,.7,.3,1), border-color .2s, box-shadow .28s;
+  will-change: transform;
+}
+.statCard:hover {
+  transform: perspective(680px) rotateX(4.5deg) translateZ(14px);
+  border-color: rgba(57,135,229,.42);
+  box-shadow: 0 1px 0 rgba(255,255,255,.06) inset, 0 22px 46px rgba(0,0,0,.5),
+              0 0 34px rgba(57,135,229,.14);
+}
+
+/* ── Battery meter: state of charge, read as a cell ───────────────────── */
+.battery {
+  display: flex; align-items: center; gap: 8px; margin-top: 10px;
+}
+.batteryCell {
+  position: relative; flex: 1; height: 9px; border-radius: 3px;
+  border: 1px solid var(--line-bright);
+  background: rgba(8,12,18,.7);
+  overflow: hidden;
+}
+.batteryCell::after {
+  content: ""; position: absolute; inset: 0; width: var(--soc, 60%);
+  background: linear-gradient(90deg, #2a72c9, #4a94ea, #7fb4f5);
+  background-size: 200% 100%;
+  animation: socFlow 2.6s linear infinite;
+  box-shadow: 0 0 12px rgba(57,135,229,.55);
+}
+@keyframes socFlow { to { background-position: -200% 0; } }
+/* The nub, so it reads as a cell rather than a progress bar. */
+.batteryTip {
+  width: 3px; height: 5px; border-radius: 0 2px 2px 0;
+  background: var(--line-bright); flex: none;
+}
+
+/* ── The thesis, animated: load moving off the arrival spike ──────────── */
+.shiftHint {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--mono); font-size: 10.5px; color: var(--ink-3);
+}
+/* The dot travels inside its own track. Animating it inline let the transform
+   carry it over the label that follows. */
+.shiftTrack {
+  position: relative; display: inline-block; width: 34px; height: 5px; flex: none;
+}
+.shiftTrack::before {
+  content: ""; position: absolute; inset: 2px 0 2px 0; height: 1px;
+  background: linear-gradient(90deg, rgba(217,89,38,.35), rgba(57,135,229,.35));
+}
+.shiftDot {
+  position: absolute; top: 0; left: 0;
+  width: 5px; height: 5px; border-radius: 50%; background: var(--series-naive);
+  animation: shiftAcross 3.2s cubic-bezier(.5,0,.5,1) infinite;
+}
+@keyframes shiftAcross {
+  0%       { transform: translateX(0); background: #d95926; }
+  55%, 100%{ transform: translateX(29px); background: #3987e5; }
+}
+
+/* ── Run button: energising ───────────────────────────────────────────── */
+.runBtn { position: relative; overflow: hidden; }
+.runBtn::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 38%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.28), transparent);
+  transform: translateX(-140%);
+}
+.runBtn:hover:not(:disabled)::after { animation: sweep 780ms ease-out; }
+@keyframes sweep { to { transform: translateX(320%); } }
+
+/* Every animation here is decorative; none of it carries information. */
+@media (prefers-reduced-motion: reduce) {
+  .evFloor::before, .evFloor::after, .brandMark::after,
+  .tabs::after, .batteryCell::after, .shiftDot, .runBtn::after {
+    animation: none !important;
+  }
+  .statCard:hover { transform: none; }
+}
