@@ -212,3 +212,61 @@
 .hsTick { fill: #64748A; font-size: 9.5px; font-family: var(--mono); letter-spacing: .06em; }
 
 @media (prefers-reduced-motion: reduce) { .mastDot { animation: none; } }
+
+/* ── Scroll reveal ────────────────────────────────────────────────────── */
+.reveal {
+  opacity: 0; transform: translateY(16px);
+  transition: opacity .55s cubic-bezier(.2,.7,.3,1), transform .55s cubic-bezier(.2,.7,.3,1);
+}
+.reveal.isIn { opacity: 1; transform: none; }
+
+/* ── Current flowing along the optimized schedule ─────────────────────── */
+/* The optimized curve is the one carrying charge, so it is the one that
+   flows. The naive curve stays static — it is the thing being improved on. */
+.flowPath {
+  stroke-dasharray: 5 7;
+  animation: pathFlow 1.5s linear infinite;
+}
+@keyframes pathFlow { to { stroke-dashoffset: -24; } }
+
+/* ── Charging-themed busy state ───────────────────────────────────────── */
+.solving { display: inline-flex; align-items: center; gap: 7px; }
+.solvingCells { display: inline-flex; gap: 2px; }
+.solvingCells i {
+  width: 3px; height: 11px; border-radius: 1px; background: rgba(255,255,255,.35);
+  animation: cellFill 1.05s ease-in-out infinite;
+}
+.solvingCells i:nth-child(2) { animation-delay: .13s; }
+.solvingCells i:nth-child(3) { animation-delay: .26s; }
+.solvingCells i:nth-child(4) { animation-delay: .39s; }
+@keyframes cellFill {
+  0%, 100% { background: rgba(255,255,255,.25); transform: scaleY(.62); }
+  50%      { background: #fff; transform: scaleY(1); }
+}
+
+/* ── Segmented controls: a pill that slides ───────────────────────────── */
+.objectiveToggle, .segmented { position: relative; }
+.objectiveToggle::before, .segmented::before {
+  content: ""; position: absolute; z-index: 0;
+  top: 3px; bottom: 3px; left: 3px;
+  width: var(--pill-w, 0px);
+  transform: translateX(var(--pill-x, 0px));
+  border-radius: 6px;
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px rgba(57,135,229,.4);
+  transition: transform .3s cubic-bezier(.35,1.2,.4,1), width .3s cubic-bezier(.35,1.2,.4,1);
+  pointer-events: none;
+}
+.segmented::before { top: 0; bottom: 0; left: 0; border-radius: 7px; }
+/* The buttons keep their own hit area above the pill. */
+.objectiveBtn, .segmented button { position: relative; z-index: 1; }
+/* The pill now supplies the active surface, so the buttons must not repaint it. */
+.objectiveBtn.active { background: transparent; box-shadow: none; }
+.segmented button.active { background: transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .flowPath { animation: none; stroke-dasharray: none; }
+  .solvingCells i { animation: none; }
+  .objectiveToggle::before, .segmented::before { transition: none; }
+}
