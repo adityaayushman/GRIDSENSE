@@ -52,7 +52,9 @@
       "Bash(TMPDIR='D:\\\\tmp\\\\npm' TEMP='D:\\\\tmp\\\\npm' TMP='D:\\\\tmp\\\\npm' node node_modules/typescript/bin/tsc -b)",
       "Bash(echo \"tsc exit=$?\")",
       "Bash(timeout 120 \"/c/Program Files/Google/Chrome/Application/chrome.exe\" --headless=new --disable-gpu --no-sandbox --hide-scrollbars --user-data-dir='D:\\\\tmp\\\\cp' --window-size=1400,1400 --virtual-time-budget=22000 --screenshot=D:/tmp/shots/r1.png \"http://localhost:5173/#regions\")",
-      "Bash(PYTHONIOENCODING=utf-8 python -c ' *)"
+      "Bash(PYTHONIOENCODING=utf-8 python -c ' *)",
+      "Bash(mkdir -p /d/tmp/npm-cache /d/tmp/gs-solver)",
+      "Bash(npm config *)"
     ],
     "additionalDirectories": [
       "C:\\Users\\ADITYA\\AppData\\Local\\Temp\\claude\\d--projects-gridsense\\d98cfe30-cda4-4240-9de9-9cba2fefc51d\\tasks"
