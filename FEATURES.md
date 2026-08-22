@@ -15,6 +15,10 @@ Current state of the repo. Findings and their reproduction steps live in
 - Constraints: total energy delivered by the deadline, per-hour power ≤ charger
   rating, charging only inside the arrival→deadline window (overnight wraparound
   handled), and an optional **shared feeder-capacity limit**.
+- **Vehicle-to-grid**: vehicles may discharge back to the grid, with state of
+  charge tracked hour by hour along the plug-in window, an owner's reserve that
+  is never breached, round-trip losses charged to the export leg, and a cap on
+  nightly throughput standing in for battery wear.
 - An over-tight feeder limit returns a planning answer, not `Infeasible` —
   `max_deliverable_kwh` bounds what fits under the limit and the error reports
   both numbers.
@@ -149,7 +153,6 @@ carbon chart overlays the forecast the scheduler saw against the actual curve.
 - **Postgres persistence** of simulation runs. `sqlalchemy`/`psycopg2` were
   *removed* from requirements: nothing imported them and they cost build time on
   every deploy.
-- V2G mode.
 - Styled empty/error states — a cold API or a rejected night currently renders a
   bare text block.
 
