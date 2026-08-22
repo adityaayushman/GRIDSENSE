@@ -27,6 +27,8 @@ export interface ScenarioRequest {
   feeder_capacity_kw?: number;
   /** Schedule against the day-ahead forecast instead of the measured curve. */
   use_forecast?: boolean;
+  /** Let vehicles discharge back to the grid. */
+  allow_v2g?: boolean;
 }
 
 export interface HourlyPoint {
@@ -65,6 +67,8 @@ export interface ScenarioResponse {
   naive_overload_hours: number;
   naive_overload_peak_kw: number;
   used_forecast: boolean;
+  used_v2g: boolean;
+  exported_kwh: number;
   forecast_available: boolean;
   hourly_forecast: number[] | null;
 }

@@ -202,6 +202,47 @@ volatile the grid is. See the **Two grids** pane, which plots both shapes.
 The German data was screened with `screen_dataset.py` before use (lag-1
 autocorrelation 0.92-0.99 across generation, load and price).
 
+## 8. V2G is worth it for peak, not for carbon — and not at all for capacity
+
+`optimize_schedule(allow_v2g=True)` · **Simulator**, vehicle-to-grid toggle
+
+Letting vehicles discharge back to the grid improves whichever objective is
+selected and quietly damages the others. On the default night, 80 vehicles:
+
+| | CO₂ kg | Cost € | Peak kW | Exported |
+| --- | --- | --- | --- | --- |
+| Charge-only, min CO₂ | 216.1 | 98.93 | 782.8 | 0 |
+| **V2G, min CO₂** | **161.1** | 154.26 | 863.1 | 1,858 kWh |
+| Charge-only, min peak | 246.2 | 92.29 | 320.0 | 0 |
+| **V2G, min peak** | 258.6 | 91.19 | **277.7** | 93 kWh |
+| **V2G, min cost** | 349.5 | **83.61** | 741.1 | 936 kWh |
+
+Minimising carbon with V2G pushes peak back to the *naive* level and raises the
+bill 56%. Minimising cost raises emissions 31%.
+
+**Carbon abatement through V2G costs about €0.80–1.00 per kg CO₂**, against an
+EU ETS price around €0.06–0.09/kg — roughly ten times too expensive. As a way to
+cut carbon it is not economic; as a way to shave peak it works, cutting the peak
+a further 13% below the charge-only optimum at a slightly *lower* bill.
+
+**It does nothing for hosting capacity.** The 1,250 kW transformer supports 988
+vehicles whether V2G is on or off, capped or uncapped. Hosting capacity is bound
+by *energy* — the fleet must still net-import what it needs, and V2G adds no
+energy, it only moves import around and loses ~10% in the round trip. Peak and
+capacity are different constraints, and V2G addresses only the first.
+
+> **On the export cap.** Uncapped, the schedule cycles packs repeatedly: it
+> prices carbon and money but not battery wear, and a battery that costs nothing
+> to use is worth cycling until the arbitrage runs out. `max_export_kwh` caps
+> throughput, as real V2G programmes do. The default is 6 kWh per vehicle per
+> night. Degradation is out of scope for this project, so the cap stands in for
+> it rather than modelling it.
+
+> Round-trip loss (~10%) is charged entirely to the discharge leg. Splitting it
+> across both legs is more physically faithful but would move every previously
+> published figure by ~5% while changing nothing about V2G's economics, since
+> only the round trip matters.
+
 ---
 
 ## Datasets evaluated and rejected

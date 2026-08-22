@@ -303,3 +303,79 @@ def test_forecast_metadata_names_the_model():
     meta = data_sources.forecast_meta()
     assert meta.get("model"), "forecast provenance missing"
     assert meta["nights_with_forecast"] == len(data_sources.available_days())
+
+
+# --- vehicle-to-grid ---------------------------------------------------------
+
+def _v2g_fleet(n=10, discharge=7.0, cap=None, reserve=12.0, start=25.0):
+    return [
+        Vehicle(f"v{i}", 9.2, 7.0, 18, 7, discharge_kw=discharge, battery_kwh=60.0,
+                arrival_soc_kwh=start, reserve_kwh=reserve, max_export_kwh=cap)
+        for i in range(n)
+    ]
+
+
+def test_v2g_off_by_default_reproduces_charge_only():
+    """The V2G machinery must not perturb any existing result."""
+    carbon = flat_carbon(low_hours={2, 3})
+    fleet = _v2g_fleet(discharge=7.0)          # capable, but not permitted
+    with_flag = optimize_schedule(fleet, carbon, objective="emissions", allow_v2g=False)
+    plain = optimize_schedule(
+        [Vehicle(f"v{i}", 9.2, 7.0, 18, 7) for i in range(10)], carbon, objective="emissions")
+    assert sum(with_flag) == pytest.approx(sum(plain), rel=1e-6)
+    assert min(with_flag) >= -1e-9, "no export when V2G is off"
+
+
+def test_v2g_exports_into_dirty_hours():
+    carbon = flat_carbon(low_hours={2, 3}, low_val=50.0, high_val=900.0)
+    load = optimize_schedule(_v2g_fleet(), carbon, objective="emissions", allow_v2g=True)
+    assert min(load) < 0, "some hour should export"
+    # Export belongs in expensive-carbon hours, never in the cheap ones it is
+    # charging from.
+    assert load[2] > 0 and load[3] > 0
+
+
+def test_v2g_never_breaches_the_reserve():
+    """The owner's floor is not negotiable, whatever the carbon signal says."""
+    carbon = flat_carbon(low_hours={2}, low_val=10.0, high_val=990.0)
+    start, reserve = 25.0, 12.0
+    fleet = _v2g_fleet(n=1, start=start, reserve=reserve)
+    load = optimize_schedule(fleet, carbon, objective="emissions", allow_v2g=True)
+
+    from app.optimizer import DISCHARGE_DRAIN, _available_hours
+    soc = start
+    for h in _available_hours(fleet[0]):
+        # Net load is charge minus export, so a negative hour drains the pack.
+        soc += load[h] if load[h] >= 0 else load[h] * DISCHARGE_DRAIN
+        assert soc >= reserve - 1e-6, f"pack fell to {soc:.2f} at hour {h}"
+        assert soc <= fleet[0].battery_kwh + 1e-6
+
+
+def test_v2g_still_delivers_the_energy_the_driver_needs():
+    carbon = flat_carbon(low_hours={2, 3}, low_val=50.0, high_val=900.0)
+    fleet = _v2g_fleet(n=4)
+    load = optimize_schedule(fleet, carbon, objective="emissions", allow_v2g=True)
+
+    from app.optimizer import DISCHARGE_DRAIN
+    delivered = sum(v if v >= 0 else v * DISCHARGE_DRAIN for v in load)
+    assert delivered == pytest.approx(sum(v.energy_needed_kwh for v in fleet), rel=1e-3)
+
+
+def test_export_cap_is_binding():
+    """Without a cap the schedule cycles packs freely, because nothing prices wear."""
+    carbon = flat_carbon(low_hours={2, 3}, low_val=50.0, high_val=900.0)
+    capped = optimize_schedule(_v2g_fleet(cap=3.0), carbon, objective="emissions", allow_v2g=True)
+    uncapped = optimize_schedule(_v2g_fleet(cap=None), carbon, objective="emissions", allow_v2g=True)
+    exp_capped = -sum(min(0.0, v) for v in capped)
+    exp_uncapped = -sum(min(0.0, v) for v in uncapped)
+    assert exp_capped < exp_uncapped
+    assert exp_capped <= 10 * 3.0 + 1e-6
+
+
+def test_v2g_costs_more_energy_than_it_returns():
+    """Round-trip loss must be real: exporting cannot be free."""
+    carbon = flat_carbon(low_hours={2, 3}, low_val=50.0, high_val=900.0)
+    plain = optimize_schedule(_v2g_fleet(discharge=0.0), carbon, objective="emissions")
+    v2g = optimize_schedule(_v2g_fleet(), carbon, objective="emissions", allow_v2g=True)
+    # Gross import must rise: every exported kWh has to be bought back, plus losses.
+    assert sum(v for v in v2g if v > 0) > sum(plain) + 1e-6

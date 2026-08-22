@@ -92,6 +92,7 @@ export default function App() {
   // Off by default so the landing view is the theoretical best; switching it on
   // is what a real scheduler, which cannot see tomorrow, would actually get.
   const [useForecast, setUseForecast] = useState(false);
+  const [v2g, setV2g] = useState(false);
   const [objective, setObjective] = useState<Objective>("emissions");
   const [methodOpen, setMethodOpen] = useState(false);
   // Tab lives in the URL hash so a pane can be linked to directly, and so a
@@ -132,8 +133,8 @@ export default function App() {
 
   // Keep the latest control values addressable from the mount effect without
   // making it re-run (and re-fire a request) on every slider nudge.
-  const latest = useRef({ evCount, chargerKw, feederKw, objective, day, useForecast });
-  latest.current = { evCount, chargerKw, feederKw, objective, day, useForecast };
+  const latest = useRef({ evCount, chargerKw, feederKw, objective, day, useForecast, v2g });
+  latest.current = { evCount, chargerKw, feederKw, objective, day, useForecast, v2g };
 
   const run = useCallback(async (overrideDay?: string) => {
     setLoading(true);
@@ -153,6 +154,7 @@ export default function App() {
           ...(chosenDay ? { day: chosenDay } : {}),
           ...(c.feederKw > 0 ? { feeder_capacity_kw: c.feederKw } : {}),
         ...(c.useForecast ? { use_forecast: true } : {}),
+        ...(c.v2g ? { allow_v2g: true } : {}),
         }),
       );
     } catch (e) {
@@ -319,6 +321,20 @@ export default function App() {
                 <em>{useForecast ? "what a real scheduler sees" : "upper bound"}</em>
               </div>
             </div>
+            <div className="field">
+              <label>Vehicle-to-grid</label>
+              <Segmented
+                options={[
+                  { key: "off", label: "Charge only" },
+                  { key: "on", label: "Discharge too" },
+                ]}
+                value={v2g ? "on" : "off"}
+                onChange={(x) => setV2g(x === "on")}
+              />
+              <div className="fieldValue">
+                <em>{v2g ? "6 kWh export cap per car" : "one-way"}</em>
+              </div>
+            </div>
             <button className="runBtn" onClick={() => run()} disabled={loading}>
               {loading ? (
                 <span className="solving">
@@ -343,6 +359,11 @@ export default function App() {
                 </div>
                 <div className="heroLabel">{head.label}</div>
                 <div className="heroSub">{head.sub}</div>
+                {result.used_v2g && result.exported_kwh > 0 && (
+                  <div className="heroSub" style={{ color: "#199e70" }}>
+                    {result.exported_kwh} kWh exported back to the grid
+                  </div>
+                )}
                 {result.used_forecast && (
                   <div className="heroSub" style={{ color: NAIVE }}>
                     scheduled on the day-ahead forecast, scored on what happened

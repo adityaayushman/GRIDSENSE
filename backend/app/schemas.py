@@ -21,6 +21,18 @@ class ScenarioRequest(BaseModel):
                     "this is what a real scheduler could have achieved; leaving it off is "
                     "perfect foresight and an upper bound.",
     )
+    allow_v2g: bool = Field(
+        False,
+        description="Let vehicles discharge back to the grid. Round-trip losses are "
+                    "charged to the export leg, and each vehicle keeps a reserve it "
+                    "will not go below.",
+    )
+    v2g_export_cap_kwh: float | None = Field(
+        6.0, ge=0, le=100,
+        description="Cap on energy each vehicle exports over the night. Uncapped, the "
+                    "schedule cycles packs repeatedly, because the model prices carbon "
+                    "and money but not battery wear.",
+    )
     feeder_capacity_kw: float | None = Field(
         None,
         ge=10,
@@ -51,6 +63,8 @@ class ScenarioResponse(BaseModel):
     emissions_reduction_pct: float
     cost_naive: float
     cost_optimized: float
+    exported_kwh: float
+    used_v2g: bool
     cost_reduction_pct: float
     currency: str
     energy_scheduled_kwh: float

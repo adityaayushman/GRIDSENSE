@@ -32,6 +32,23 @@ class Vehicle:
     charger_kw: float
     arrival_hour: int
     deadline_hour: int  # hour index (0-23) by which charging must complete, next-day wraparound handled by caller
+    # --- vehicle-to-grid ---
+    # Discharge rating in kW. 0 means the car can only take charge, which is
+    # every scenario in this project until V2G is switched on.
+    discharge_kw: float = 0.0
+    # Usable pack size, needed once discharging is allowed: without it there is
+    # nothing stopping the schedule draining a battery that was never full.
+    battery_kwh: float = 60.0
+    # Energy in the pack on arrival. The default assumes the car arrives needing
+    # exactly what it asks for, which is what the charge-only model implied.
+    arrival_soc_kwh: float | None = None
+    # Floor the owner will not go below — nobody lends the grid their whole car.
+    reserve_kwh: float = 0.0
+    # Cap on energy exported across the night. Without one the schedule cycles
+    # the pack repeatedly, because the model prices carbon and money but not
+    # battery wear, and a free battery is worth cycling until the arbitrage runs
+    # out. Real V2G programmes cap throughput for exactly this reason.
+    max_export_kwh: float | None = None
 
 
 @dataclass
@@ -45,6 +62,7 @@ class ScenarioResult:
     emissions_optimized_kg: float
     cost_naive: float
     cost_optimized: float
+    exported_kwh: float
     peak_reduction_pct: float
     emissions_reduction_pct: float
     cost_reduction_pct: float
@@ -102,6 +120,23 @@ def naive_schedule(vehicles: list[Vehicle]) -> list[float]:
     return load
 
 
+#: Round-trip efficiency of a charge/discharge cycle — inverter losses both
+#: ways, roughly 90% for a modern bidirectional charger.
+#:
+#: The whole loss is charged to the *discharge* leg rather than split across
+#: both. Charging stays lossless, which is the convention the rest of this
+#: project already uses: `energy_needed_kwh` is grid energy, and every published
+#: figure — the 3.3% median saving, the 6.3x hosting capacity — was measured
+#: that way. Splitting the loss across both legs would silently move all of them
+#: by about 5% while changing nothing about V2G's economics, since only the
+#: round trip matters. Exporting a kWh therefore drains ~1.11 kWh from the pack,
+#: which has to be imported back before morning.
+ROUND_TRIP_EFFICIENCY = 0.90
+#: Pack energy consumed per kWh delivered to the grid. A multiplier because PuLP
+#: expressions are linear: a variable cannot be divided.
+DISCHARGE_DRAIN = 1.0 / ROUND_TRIP_EFFICIENCY
+
+
 def optimize_schedule(
     vehicles: list[Vehicle],
     carbon_intensity: list[float],  # gCO2/kWh, len 24
@@ -109,8 +144,17 @@ def optimize_schedule(
     objective: Objective = "emissions",
     residential_baseline_kw: list[float] | None = None,
     feeder_capacity_kw: float | None = None,
+    allow_v2g: bool = False,
 ) -> list[float]:
-    """Solve the LP schedule for the given objective. Returns hourly EV load (kW)."""
+    """Solve the LP schedule for the given objective. Returns hourly net EV load
+    in kW — negative in an hour where the fleet exports more than it draws.
+
+    With `allow_v2g`, vehicles may discharge back to the grid. That turns the
+    problem from "when to buy energy" into "when to buy and when to sell", which
+    needs the battery tracked through the night: charge-only scheduling can get
+    away with constraining the total, but a schedule that discharges must never
+    take a pack below its reserve at any point along the way.
+    """
     if price is None:
         price = [1.0] * 24
     if residential_baseline_kw is None:
@@ -118,20 +162,56 @@ def optimize_schedule(
 
     prob = pulp.LpProblem("gridsense_schedule", pulp.LpMinimize)
 
-    # decision vars: power drawn by vehicle v in hour h
-    x = {
-        (v.id, h): pulp.LpVariable(f"x_{v.id}_{h}", lowBound=0, upBound=v.charger_kw)
+    # Charging and discharging are separate non-negative variables rather than
+    # one signed variable, because efficiency applies asymmetrically: a signed
+    # variable cannot lose 5% in both directions.
+    c = {
+        (v.id, h): pulp.LpVariable(f"c_{v.id}_{h}", lowBound=0, upBound=v.charger_kw)
         for v in vehicles
         for h in HOURS
     }
+    d = {
+        (v.id, h): pulp.LpVariable(
+            f"d_{v.id}_{h}", lowBound=0,
+            upBound=v.discharge_kw if allow_v2g else 0.0,
+        )
+        for v in vehicles
+        for h in HOURS
+    }
+    # Net draw, which is what the grid and every objective actually sees.
+    x = {(v.id, h): c[(v.id, h)] - d[(v.id, h)] for v in vehicles for h in HOURS}
 
-    # energy requirement met exactly, only within available hours
     for v in vehicles:
-        avail = set(_available_hours(v))
+        window = _available_hours(v)
+        avail = set(window)
         for h in HOURS:
             if h not in avail:
-                prob += x[(v.id, h)] == 0
-        prob += pulp.lpSum(x[(v.id, h)] for h in HOURS) == v.energy_needed_kwh
+                prob += c[(v.id, h)] == 0
+                prob += d[(v.id, h)] == 0
+
+        # Energy delivered into the pack, net of losses, must meet the
+        # requirement by the deadline.
+        # Net energy into the pack by the deadline. Identical to the previous
+        # charge-only constraint whenever discharge is zero.
+        prob += pulp.lpSum(
+            c[(v.id, h)] - d[(v.id, h)] * DISCHARGE_DRAIN for h in HOURS
+        ) == v.energy_needed_kwh
+
+        if not allow_v2g:
+            continue
+
+        if v.max_export_kwh is not None:
+            prob += pulp.lpSum(d[(v.id, h)] for h in HOURS) <= v.max_export_kwh
+
+        # State of charge along the window, in plug-in order rather than clock
+        # order — the window wraps midnight, and accumulating by hour index
+        # would rewind the battery halfway through the night.
+        start = v.arrival_soc_kwh if v.arrival_soc_kwh is not None else v.reserve_kwh
+        running = start
+        for h in window:
+            running = running + c[(v.id, h)] - d[(v.id, h)] * DISCHARGE_DRAIN
+            prob += running >= v.reserve_kwh
+            prob += running <= v.battery_kwh
 
     # objective
     if objective == "emissions":
@@ -181,6 +261,7 @@ def run_scenario(
     objective: Objective = "emissions",
     feeder_capacity_kw: float | None = None,
     schedule_carbon: list[float] | None = None,
+    allow_v2g: bool = False,
 ) -> ScenarioResult:
     """Run a naive-vs-optimized comparison for one night.
 
@@ -201,6 +282,7 @@ def run_scenario(
         objective=objective,
         residential_baseline_kw=residential_baseline_kw,
         feeder_capacity_kw=feeder_capacity_kw,
+        allow_v2g=allow_v2g,
     )
 
     naive_total = [naive_ev[h] + residential_baseline_kw[h] for h in HOURS]
@@ -237,6 +319,9 @@ def run_scenario(
         emissions_optimized_kg=emissions_optimized,
         cost_naive=cost_naive,
         cost_optimized=cost_optimized,
+        # Energy pushed back to the grid. Hours where the fleet exports show as
+        # negative net load, so the sum of those is what left the batteries.
+        exported_kwh=round(-sum(min(0.0, v) for v in optimized_ev), 1),
         peak_reduction_pct=round((1 - peak_optimized / peak_naive) * 100, 1) if peak_naive else 0.0,
         emissions_reduction_pct=round((1 - emissions_optimized / emissions_naive) * 100, 1)
         if emissions_naive

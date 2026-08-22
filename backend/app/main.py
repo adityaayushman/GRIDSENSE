@@ -72,6 +72,13 @@ def run_scenario_endpoint(req: ScenarioRequest):
                 charger_kw=req.charger_kw,
                 arrival_hour=req.arrival_hour,
                 deadline_hour=req.deadline_hour,
+                discharge_kw=req.charger_kw if req.allow_v2g else 0.0,
+                battery_kwh=60.0,
+                # Arriving part-charged: a pack that is already full has nothing
+                # to lend, and one that is empty cannot lend before it charges.
+                arrival_soc_kwh=25.0,
+                reserve_kwh=12.0,
+                max_export_kwh=req.v2g_export_cap_kwh,
             )
             for i in range(req.ev_count)
         ]
@@ -95,6 +102,7 @@ def run_scenario_endpoint(req: ScenarioRequest):
             objective=req.objective,  # type: ignore[arg-type]
             feeder_capacity_kw=req.feeder_capacity_kw,
             schedule_carbon=forecast if use_forecast else None,
+            allow_v2g=req.allow_v2g,
         )
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
@@ -121,6 +129,8 @@ def run_scenario_endpoint(req: ScenarioRequest):
         emissions_reduction_pct=result.emissions_reduction_pct,
         cost_naive=round(result.cost_naive, 2),
         cost_optimized=round(result.cost_optimized, 2),
+        exported_kwh=result.exported_kwh,
+        used_v2g=req.allow_v2g,
         cost_reduction_pct=result.cost_reduction_pct,
         currency=data_sources.CURRENCY,
         energy_scheduled_kwh=round(req.ev_count * req.energy_per_vehicle_kwh, 1),
