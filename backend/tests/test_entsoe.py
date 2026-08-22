@@ -116,3 +116,39 @@ def test_missing_token_is_rejected_before_any_request(monkeypatch):
     monkeypatch.delenv("ENTSOE_TOKEN", raising=False)
     with pytest.raises(EntsoeError, match="ENTSOE_TOKEN"):
         fetch_carbon_intensity("ES")
+
+
+# --- scratch-directory guard -------------------------------------------------
+
+def test_tmpdir_prefers_a_configured_location(tmp_path, monkeypatch):
+    """An override wins, so a deployment can point scratch wherever it likes."""
+    from app.tmpdir import ensure_writable_tmpdir
+
+    monkeypatch.setenv("GRIDSENSE_TMPDIR", str(tmp_path))
+    assert ensure_writable_tmpdir() == str(tmp_path)
+    # CBC is a subprocess, so the environment must carry it, not just tempfile.
+    import os
+    assert os.environ["TMPDIR"] == str(tmp_path)
+
+
+def test_tmpdir_falls_back_when_no_candidate_exists(monkeypatch):
+    """On a host with none of the candidates — Vercel, CI — the platform
+    default is kept rather than a directory being invented."""
+    import tempfile
+
+    from app import tmpdir as mod
+
+    monkeypatch.delenv("GRIDSENSE_TMPDIR", raising=False)
+    monkeypatch.setattr(mod, "CANDIDATES", [])
+    assert mod.ensure_writable_tmpdir() == str(tempfile.gettempdir())
+
+
+def test_tmpdir_rejects_a_location_without_room(tmp_path, monkeypatch):
+    """A candidate that exists but has no space must not be chosen."""
+    from app import tmpdir as mod
+
+    monkeypatch.delenv("GRIDSENSE_TMPDIR", raising=False)
+    monkeypatch.setattr(mod, "MIN_FREE_BYTES", 1 << 62)  # nothing can satisfy this
+    monkeypatch.setattr(mod, "CANDIDATES", [tmp_path])
+    import tempfile
+    assert mod.ensure_writable_tmpdir() == str(tempfile.gettempdir())

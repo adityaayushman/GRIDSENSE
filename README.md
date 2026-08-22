@@ -201,6 +201,21 @@ rebuilding (see the gotcha below — a restart is not enough).
 Note the free instance sleeps after ~15 minutes idle and takes ~50s to wake. The
 dashboard's `warmUp()` ping covers some of that, but not a fully cold start.
 
+### Scratch space
+
+PuLP shells out to CBC, which writes a problem file and a solution file per
+solve. If the system temp drive is full those writes fail and every scheduling
+request returns a 500 — a disk fault that surfaces as an application error.
+
+`backend/app/tmpdir.py` runs at optimizer import and points Python **and the
+CBC subprocess** at a drive with room, preferring a configured location over the
+platform default. Override with `GRIDSENSE_TMPDIR`. On a host with none of the
+candidates — Vercel, CI — it keeps the platform default, so this is inert there.
+
+`frontend/.npmrc` moves npm's cache off the system drive for the same reason:
+with C: full, `npm run build` fails with `ENOSPC` before Vite is reached, because
+npm cannot write its own cache.
+
 ### Gotchas
 
 - **Changing `VITE_API_BASE` requires a Vercel *rebuild***, not just a restart —

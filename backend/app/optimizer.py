@@ -14,6 +14,12 @@ from typing import Literal
 
 import pulp
 
+from app.tmpdir import ensure_writable_tmpdir
+
+# CBC writes a problem and a solution file per solve. Do this at import, before
+# any solver runs, so a full system drive cannot turn into a 500 at request time.
+ensure_writable_tmpdir()
+
 Objective = Literal["emissions", "cost", "peak"]
 
 HOURS = list(range(24))
