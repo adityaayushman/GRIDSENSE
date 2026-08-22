@@ -26,6 +26,8 @@ sys.path.insert(0, str(HERE.parent / "backend"))
 from app.optimizer import Vehicle, optimize_schedule, _available_hours  # noqa: E402
 
 METRICS = HERE / "artifacts" / "metrics.json"
+METRICS_V2 = HERE / "artifacts" / "metrics_v2.json"
+DEPLOYED = HERE / "artifacts" / "ridge_forecaster.json"
 BACKTEST = HERE / "data" / "backtest_nightly.csv"
 OUT = HERE.parent / "frontend" / "src" / "data" / "evidence.json"
 
@@ -149,6 +151,24 @@ def main() -> None:
         r["mae"] = next(
             (v for k, v in mae.items() if k.startswith(r["model"][:9])), None
         )
+
+    # The shipped forecaster is retrained by train_v2/export_forecaster with a
+    # richer feature set. Replace the stale ridge row rather than leaving the
+    # pane quoting a model that is no longer the one deployed.
+    if DEPLOYED.exists():
+        dep = json.loads(DEPLOYED.read_text(encoding="utf-8"))
+        if dep.get("captured_pct") is not None:
+            regret = [r for r in regret if r["model"] != "ridge"]
+            regret.append({
+                "model": "ridge (deployed)",
+                "captured_pct": dep["captured_pct"],
+                "captured_kg": round(
+                    dep["captured_pct"] / 100 * regret[0]["achievable_kg"], 1
+                ),
+                "achievable_kg": regret[0]["achievable_kg"],
+                "mae": dep["test_mae"],
+            })
+            regret.sort(key=lambda r: r["captured_pct"])
 
     bundle = {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
