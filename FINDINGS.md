@@ -162,6 +162,31 @@ The operational reading: act only when the *predicted* spread is large enough to
 survive the model's own error. That is a gate this project does not yet
 implement.
 
+## 7. A dirtier, more variable grid is not a better one to shift in
+
+`compare_regions.py` · Spain (ENTSO-E 2015-2018) vs Germany/Luxembourg (2023-2026)
+
+| Grid | Mean intensity | Std | Median night saving | Nights under 1% |
+| --- | --- | --- | --- | --- |
+| Spain | 267 gCO₂eq/kWh | 81 | **3.3%** | 38% |
+| Germany | **358** | **135** | **1.0%** | **50%** |
+
+Germany's grid is dirtier and swings harder, so it looked like the better place
+to shift load. It is worse: half its nights offer under 1%.
+
+The reason is that *overall* variability is the wrong statistic. What a
+scheduler can exploit is variability **inside the plug-in window**, and
+Germany's variance is largely driven by multi-day weather — wind arriving or
+not — which moves whole days together rather than creating within-night shape.
+Its overnight hours sit flat on lignite and coal.
+
+The practical reading: the value of carbon-aware charging is a property of a
+grid's *diurnal shape*, not of how carbon-intensive it is. A country can be a
+poor candidate precisely because its dirty generation is steady.
+
+The German data was screened with `screen_dataset.py` before use (lag-1
+autocorrelation 0.92-0.99 across generation, load and price).
+
 ---
 
 ## Datasets evaluated and rejected
