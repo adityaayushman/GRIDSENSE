@@ -254,3 +254,52 @@ def test_feasibility_bound_is_a_true_upper_bound():
             residential_baseline_kw=baseline, feeder_capacity_kw=cap,
         )
         assert sum(load) <= bound + 1e-6, f"bound {bound} under-counts at cap {cap}"
+
+
+def test_scheduling_on_a_forecast_is_scored_against_actuals():
+    """The whole point of the forecast path: the optimizer sees the prediction,
+    but the emissions reported are what the real curve would have produced."""
+    vehicles = [Vehicle("v0", 7.0, 7.0, 18, 7)]
+    actual = flat_carbon(low_hours={3})       # hour 3 is genuinely cleanest
+    forecast = flat_carbon(low_hours={5})     # the model wrongly believes hour 5
+
+    result = run_scenario(vehicles, actual, [1.0] * 24, objective="emissions",
+                          schedule_carbon=forecast)
+    perfect = run_scenario(vehicles, actual, [1.0] * 24, objective="emissions")
+
+    # Charging landed in hour 5, the forecast's pick, not hour 3.
+    assert result.hourly_optimized_load_kw[5] > result.hourly_optimized_load_kw[3]
+    # And it is scored on the real curve, so it must be worse than perfect foresight.
+    assert result.emissions_optimized_kg > perfect.emissions_optimized_kg
+
+
+def test_omitting_schedule_carbon_is_perfect_foresight():
+    vehicles = [Vehicle("v0", 7.0, 7.0, 18, 7)]
+    actual = flat_carbon(low_hours={3})
+    a = run_scenario(vehicles, actual, [1.0] * 24, objective="emissions")
+    b = run_scenario(vehicles, actual, [1.0] * 24, objective="emissions",
+                     schedule_carbon=actual)
+    assert a.emissions_optimized_kg == pytest.approx(b.emissions_optimized_kg)
+
+
+def test_a_perfect_forecast_loses_nothing():
+    vehicles = [Vehicle(f"v{i}", 9.2, 7.0, 18, 7) for i in range(20)]
+    actual = flat_carbon(low_hours={2, 3})
+    exact = run_scenario(vehicles, actual, [2.0] * 24, objective="emissions",
+                         schedule_carbon=list(actual))
+    perfect = run_scenario(vehicles, actual, [2.0] * 24, objective="emissions")
+    assert exact.emissions_reduction_pct == pytest.approx(perfect.emissions_reduction_pct)
+
+
+def test_every_served_night_carries_a_forecast():
+    """export_forecast_curves.py must not silently skip nights."""
+    for d in data_sources.available_days():
+        fc = data_sources.get_carbon_forecast(day=d)
+        assert fc is not None, f"{d} has no forecast attached"
+        assert len(fc) == 24 and all(v > 0 for v in fc), d
+
+
+def test_forecast_metadata_names_the_model():
+    meta = data_sources.forecast_meta()
+    assert meta.get("model"), "forecast provenance missing"
+    assert meta["nights_with_forecast"] == len(data_sources.available_days())

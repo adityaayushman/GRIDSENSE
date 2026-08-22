@@ -174,14 +174,23 @@ def run_scenario(
     price: list[float] | None = None,
     objective: Objective = "emissions",
     feeder_capacity_kw: float | None = None,
+    schedule_carbon: list[float] | None = None,
 ) -> ScenarioResult:
+    """Run a naive-vs-optimized comparison for one night.
+
+    `carbon_intensity` is what actually happened, and is always what the result
+    is *scored* against. `schedule_carbon` is what the optimizer was allowed to
+    see when choosing hours — pass a day-ahead forecast to measure the schedule
+    a real system could have produced. Left unset the two are the same, which is
+    perfect foresight and an upper bound rather than an achievable result.
+    """
     if price is None:
         price = [1.0] * 24
 
     naive_ev = naive_schedule(vehicles)
     optimized_ev = optimize_schedule(
         vehicles,
-        carbon_intensity,
+        schedule_carbon if schedule_carbon is not None else carbon_intensity,
         price=price,
         objective=objective,
         residential_baseline_kw=residential_baseline_kw,

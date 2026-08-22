@@ -71,6 +71,20 @@ def get_carbon_intensity(region: str = "ES", day: str | None = None) -> list[flo
     return list(_grid_data()["days"][resolve_day(day)]["carbon"])
 
 
+def get_carbon_forecast(region: str = "ES", day: str | None = None) -> list[float] | None:
+    """The day-ahead prediction for this night, or None if the night has none.
+
+    Precomputed by ml/export_forecast_curves.py from the deployed ridge model,
+    so serving it needs no ML dependency here.
+    """
+    return _grid_data()["days"][resolve_day(day)].get("carbon_forecast")
+
+
+def forecast_meta() -> dict:
+    """Model provenance for the forecast curves, for the UI to cite."""
+    return _grid_data().get("forecast", {})
+
+
 def get_price(region: str = "ES", day: str | None = None) -> list[float]:
     """Retail price in EUR/kWh for each hour 0-23.
 

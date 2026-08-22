@@ -139,6 +139,29 @@ The cheapest hour and the cleanest hour coincide on only **14.4%** of nights
 night it raises them 18.7% — and optimizing for emissions can raise peak. The
 dashboard shows those as increases rather than hiding them.
 
+## 6. Forecast error only matters when there is something to gain
+
+`export_forecast_curves.py` · **Simulator**, Carbon signal toggle
+
+Scheduling on the day-ahead forecast and scoring against actuals, per night:
+
+| Night | Perfect foresight | On forecast | Captured |
+| --- | --- | --- | --- |
+| 2018-01-19 | 38.5% | 37.8% | 98% |
+| 2018-02-11 | 31.1% | 28.9% | 93% |
+| 2018-02-02 | 26.0% | 24.0% | 92% |
+| 2018-02-12 | 6.5% | **−9.4%** | −145% |
+| 2018-02-15 | 2.1% | **−2.4%** | −114% |
+
+When the curve has real structure the forecast finds it, capturing 92-98%. When
+the night is nearly flat, forecast error exceeds the differences being chased and
+scheduling on it is worse than not scheduling at all. Aggregated by total mass
+across 2018 the forecast captures 71.0%, which hides this split.
+
+The operational reading: act only when the *predicted* spread is large enough to
+survive the model's own error. That is a gate this project does not yet
+implement.
+
 ---
 
 ## Datasets evaluated and rejected

@@ -14,6 +14,13 @@ class ScenarioRequest(BaseModel):
         description="ISO date of the measured charging night to simulate "
                     "(18:00 that day to 07:00 the next). Defaults to the median-saving night.",
     )
+    use_forecast: bool = Field(
+        False,
+        description="Schedule against the day-ahead forecast instead of the measured "
+                    "curve. Results are always scored against what actually happened, so "
+                    "this is what a real scheduler could have achieved; leaving it off is "
+                    "perfect foresight and an upper bound.",
+    )
     feeder_capacity_kw: float | None = Field(
         None,
         ge=10,
@@ -53,3 +60,6 @@ class ScenarioResponse(BaseModel):
     feeder_capacity_kw: float | None
     naive_overload_hours: int
     naive_overload_peak_kw: float
+    used_forecast: bool
+    forecast_available: bool
+    hourly_forecast: list[float] | None

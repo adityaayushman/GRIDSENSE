@@ -76,6 +76,9 @@ export default function App() {
   const [evCount, setEvCount] = useState(80);
   const [chargerKw, setChargerKw] = useState(7);
   const [feederKw, setFeederKw] = useState(0); // 0 = unconstrained
+  // Off by default so the landing view is the theoretical best; switching it on
+  // is what a real scheduler, which cannot see tomorrow, would actually get.
+  const [useForecast, setUseForecast] = useState(false);
   const [objective, setObjective] = useState<Objective>("emissions");
   const [methodOpen, setMethodOpen] = useState(false);
   // Tab lives in the URL hash so a pane can be linked to directly, and so a
@@ -98,8 +101,8 @@ export default function App() {
 
   // Keep the latest control values addressable from the mount effect without
   // making it re-run (and re-fire a request) on every slider nudge.
-  const latest = useRef({ evCount, chargerKw, feederKw, objective, day });
-  latest.current = { evCount, chargerKw, feederKw, objective, day };
+  const latest = useRef({ evCount, chargerKw, feederKw, objective, day, useForecast });
+  latest.current = { evCount, chargerKw, feederKw, objective, day, useForecast };
 
   const run = useCallback(async (overrideDay?: string) => {
     setLoading(true);
@@ -118,6 +121,7 @@ export default function App() {
           region: "ES",
           ...(chosenDay ? { day: chosenDay } : {}),
           ...(c.feederKw > 0 ? { feeder_capacity_kw: c.feederKw } : {}),
+        ...(c.useForecast ? { use_forecast: true } : {}),
         }),
       );
     } catch (e) {
@@ -148,7 +152,16 @@ export default function App() {
   // far right while the hours it shifts into sit on the far left — which reads
   // as if the optimizer acted before anyone got home. Hours 08-17 are outside
   // the window and carry no EV load, so they are dropped rather than reordered.
-  const night = result ? [...result.hourly.slice(18), ...result.hourly.slice(0, 8)] : [];
+  const night = result
+    ? [...result.hourly.slice(18), ...result.hourly.slice(0, 8)].map((p) => ({
+        ...p,
+        // Same stitch as the measured curve, so forecast and actual line up hour
+        // for hour rather than being offset by the window wrap.
+        carbon_forecast: result.hourly_forecast
+          ? result.hourly_forecast[p.hour]
+          : undefined,
+      }))
+    : [];
 
   return (
     <div className="page">
@@ -224,6 +237,18 @@ export default function App() {
               </select>
               <div className="fieldValue"><em>{days.length} real nights</em></div>
             </div>
+            <div className="field fieldWide">
+              <label>Carbon signal the scheduler sees</label>
+              <div className="segmented">
+                <button className={!useForecast ? "active" : ""}
+                  onClick={() => setUseForecast(false)}>Perfect foresight</button>
+                <button className={useForecast ? "active" : ""}
+                  onClick={() => setUseForecast(true)}>Day-ahead forecast</button>
+              </div>
+              <div className="fieldValue">
+                <em>{useForecast ? "what a real scheduler sees" : "upper bound"}</em>
+              </div>
+            </div>
             <button className="runBtn" onClick={() => run()} disabled={loading}>
               {loading ? "Solving…" : "Run simulation"}
             </button>
@@ -241,6 +266,11 @@ export default function App() {
                 </div>
                 <div className="heroLabel">{head.label}</div>
                 <div className="heroSub">{head.sub}</div>
+                {result.used_forecast && (
+                  <div className="heroSub" style={{ color: NAIVE }}>
+                    scheduled on the day-ahead forecast, scored on what happened
+                  </div>
+                )}
               </div>
               <div className="heroNote">
                 This is the <strong>median</strong> night of 2018, not the best one. Across the
@@ -345,6 +375,17 @@ export default function App() {
                     gCO₂/kWh · measured from the ENTSO-E generation mix · average, not marginal
                   </div>
                 </div>
+                {result.used_forecast && (
+                  <div className="legend">
+                    <span className="legendItem">
+                      <span className="legendSwatch" style={{ background: OPT }} />Actual
+                    </span>
+                    <span className="legendItem">
+                      <span className="legendSwatch" style={{ background: NAIVE }} />
+                      Forecast the scheduler saw
+                    </span>
+                  </div>
+                )}
               </div>
               <ResponsiveContainer width="100%" height={170}>
                 <LineChart data={night} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
@@ -358,8 +399,13 @@ export default function App() {
                       (max: number) => Math.ceil((max + 10) / 25) * 25,
                     ]} />
                   <Tooltip content={<ChartTip unit="gCO₂/kWh" digits={0} />} cursor={{ stroke: GRID }} />
-                  <Line type="linear" dataKey="carbon_intensity" name="Carbon intensity"
-                    stroke={OPT} strokeWidth={2} dot={false} />
+                  <Line type="linear" dataKey="carbon_intensity" name="Actual"
+                    stroke={OPT} strokeWidth={2} dot={false} isAnimationActive={false} />
+                  {result.used_forecast && (
+                    <Line type="linear" dataKey="carbon_forecast" name="Day-ahead forecast"
+                      stroke={NAIVE} strokeWidth={1.75} strokeDasharray="5 4" dot={false}
+                      isAnimationActive={false} />
+                  )}
                 </LineChart>
               </ResponsiveContainer>
             </section>

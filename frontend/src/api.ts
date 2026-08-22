@@ -25,6 +25,8 @@ export interface ScenarioRequest {
   day?: string;
   /** Shared transformer limit in kW. Omit for an unconstrained feeder. */
   feeder_capacity_kw?: number;
+  /** Schedule against the day-ahead forecast instead of the measured curve. */
+  use_forecast?: boolean;
 }
 
 export interface HourlyPoint {
@@ -62,6 +64,9 @@ export interface ScenarioResponse {
   feeder_capacity_kw: number | null;
   naive_overload_hours: number;
   naive_overload_peak_kw: number;
+  used_forecast: boolean;
+  forecast_available: boolean;
+  hourly_forecast: number[] | null;
 }
 
 /**
