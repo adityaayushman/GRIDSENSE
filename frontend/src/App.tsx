@@ -7,6 +7,7 @@ import { ChevronDown, Zap, Github, AlertTriangle } from "lucide-react";
 import { runScenario, fetchDays, warmUp, ScenarioResponse } from "./api";
 import Comparison from "./Comparison";
 import Hosting from "./Hosting";
+import HeroScene from "./HeroScene";
 import "./index.css";
 import "./ev-theme.css";
 
@@ -97,6 +98,11 @@ export default function App() {
   const [result, setResult] = useState<ScenarioResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // SMIL animations inside the SVG are not reachable by the CSS media query,
+  // so the preference has to be read in JS and passed down.
+  const prefersReduced =
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   const [days, setDays] = useState<string[]>([]);
   const [day, setDay] = useState<string>("");
 
@@ -202,6 +208,41 @@ export default function App() {
         <button className={`tab ${tab === "hosting" ? "active" : ""}`}
           onClick={() => selectTab("hosting")}>Grid headroom</button>
       </nav>
+
+      {tab === "simulator" && (
+        <section className="masthead">
+          <div>
+            <span className="mastKicker">
+              <span className="mastDot" aria-hidden="true" />
+              Measured grid data · <b>ENTSO-E Spain</b>
+            </span>
+            <h1 className="mastTitle">
+              Charge when the grid is{" "}
+              <span className="lit">actually clean</span>.
+            </h1>
+            <p className="mastSub">
+              Most EVs charge the moment their owner gets home, straight into the evening
+              peak. This schedules the same energy against real carbon intensity and real
+              prices — and reports honestly how little that buys on most nights.
+            </p>
+            <div className="mastFacts">
+              <div className="mastFact">
+                <span className="mastFactVal">1,444</span>
+                <span className="mastFactKey">nights backtested</span>
+              </div>
+              <div className="mastFact">
+                <span className="mastFactVal">6.3×</span>
+                <span className="mastFactKey">hosting capacity</span>
+              </div>
+              <div className="mastFact">
+                <span className="mastFactVal">71%</span>
+                <span className="mastFactKey">captured by forecast</span>
+              </div>
+            </div>
+          </div>
+          <HeroScene reduced={prefersReduced} />
+        </section>
+      )}
 
       <main className="main">
         {tab === "comparison" && <Comparison />}
