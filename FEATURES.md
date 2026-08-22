@@ -83,6 +83,22 @@ In `ml/`, all reproducible:
 Nothing in either evidence pane is hand-typed — re-running the exporters updates
 the site, so the UI cannot drift from the analysis.
 
+## Live data — built, token-gated
+
+`backend/app/entsoe.py` fetches actual generation per production type from the
+ENTSO-E Transparency Platform and derives carbon intensity with the same IPCC
+AR5 factors as the bundled data, so live and offline series are directly
+comparable (cross-checked across all 19 production types).
+
+Set `USE_LIVE_DATA=true` and `ENTSOE_TOKEN`; regions ES, FR, DE, PT. The token
+is issued free on request by ENTSO-E, so this ships unexercised against the live
+endpoint — but the parser, the factor mapping and the failure modes are covered
+by 11 tests against fixtures.
+
+> This replaced a WattTime stub. WattTime covers North American balancing
+> authorities, so enabling it against a Spanish grid would have silently mixed
+> continents.
+
 ## Infrastructure — built
 
 - One Vercel project serving **both tiers**, built from GitHub on every push:
@@ -98,9 +114,6 @@ the site, so the UI cannot drift from the analysis.
 
 ## Not yet built
 
-- **Live data integration.** WattTime covers North American balancing
-  authorities, so it does not fit the Spanish series; ENTSO-E's own API or
-  ElectricityMaps would.
 - **The forecaster is trained but not serving.** Ridge captures 68.5% of the
   achievable saving and exports as 15 coefficients, but the demo serves measured
   curves — i.e. perfect foresight. Wiring it in would let the dashboard show
