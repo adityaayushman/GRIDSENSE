@@ -19,9 +19,10 @@ Current state of the repo. Findings and their reproduction steps live in
   `max_deliverable_kwh` bounds what fits under the limit and the error reports
   both numbers.
 - Naive-schedule simulator for the "before" case.
-- **20 unit tests**, including regression guards for the two defects found in
-  this codebase: the cost objective silently having no price curve, and the LP
-  matching greedy whenever no constraint couples vehicles.
+- **36 unit tests**, including regression guards for the defects found in this
+  codebase: the cost objective silently having no price curve, the LP matching
+  greedy whenever no constraint couples vehicles, and every ENTSO-E parse
+  failure mode that would otherwise return a plausible but wrong curve.
 
 ## Data layer — built
 
@@ -75,7 +76,10 @@ In `ml/`, all reproducible:
 | `explore.py` | Data-quality pass, carbon derivation sanity check |
 | `analyze_window.py` | Shifting headroom inside the charging window |
 | `backtest.py` | 1,444-night replay of the optimizer |
-| `train.py` | Day-ahead forecaster, accuracy + decision regret |
+| `train.py` | First-pass forecaster, accuracy + decision regret |
+| `train_v2.py` | Tuned sweep with/without weather |
+| `export_forecaster.py` | The deployable ridge coefficients |
+| `screen_dataset.py` | Gate a candidate dataset before training on it |
 | `export_grid_days.py` | The nights the API serves |
 | `export_evidence.py` | The **Existing vs GridSense** pane's figures |
 | `export_hosting_capacity.py` | The **Grid headroom** pane's figures |
@@ -99,6 +103,28 @@ by 11 tests against fixtures.
 > authorities, so enabling it against a Spanish grid would have silently mixed
 > continents.
 
+## Day-ahead forecasting — built and serving
+
+The simulator has a **Carbon signal** toggle. *Perfect foresight* schedules
+against the measured curve — an upper bound no real scheduler can reach.
+*Day-ahead forecast* schedules against what the deployed ridge model predicted
+the evening before, while still scoring the result against what actually
+happened.
+
+That gap is the honest cost of not knowing tomorrow. On the default night it is
+3.8% → **2.9%**; aggregated across 2018 the forecast captures **71.0%** of the
+achievable saving.
+
+Predictions are precomputed per night by `ml/export_forecast_curves.py`, so
+serving stays a lookup and the function bundle carries no ML dependency. The
+carbon chart overlays the forecast the scheduler saw against the actual curve.
+
+> Per-night behaviour is uneven in a way worth knowing: on nights with a large
+> achievable saving the forecast captures 92-98% of it, but on nearly flat
+> nights forecast error exceeds the real spread and scheduling on it can do
+> worse than nothing. A production system should act only when the predicted
+> spread is worth acting on.
+
 ## Infrastructure — built
 
 - One Vercel project serving **both tiers**, built from GitHub on every push:
@@ -114,10 +140,6 @@ by 11 tests against fixtures.
 
 ## Not yet built
 
-- **The forecaster is trained but not serving.** Ridge captures 68.5% of the
-  achievable saving and exports as 15 coefficients, but the demo serves measured
-  curves — i.e. perfect foresight. Wiring it in would let the dashboard show
-  forecast-driven against perfect-foresight scheduling.
 - **Marginal rather than average carbon intensity** — needs MOER data.
 - **Heterogeneous fleets** — supported by the optimizer, not exposed by the API.
 - **Postgres persistence** of simulation runs. `sqlalchemy`/`psycopg2` were

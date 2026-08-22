@@ -44,6 +44,12 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/api/forecast")
+def forecast_info():
+    """Provenance of the day-ahead forecast the scheduler can run against."""
+    return data_sources.forecast_meta()
+
+
 @app.get("/api/days")
 def days():
     """Charging nights available to simulate, and which one is served by default."""
@@ -75,6 +81,12 @@ def run_scenario_endpoint(req: ScenarioRequest):
         price = data_sources.get_price(req.region, day)
         baseline = data_sources.get_residential_baseline_kw(household_count=req.ev_count)
 
+        forecast = data_sources.get_carbon_forecast(req.region, day)
+        # Schedule on the forecast when asked, but always score against `carbon`,
+        # which is what actually happened. Falls back to perfect foresight when a
+        # night has no forecast attached rather than failing the request.
+        use_forecast = bool(req.use_forecast and forecast)
+
         result = run_scenario(
             vehicles=vehicles,
             carbon_intensity=carbon,
@@ -82,6 +94,7 @@ def run_scenario_endpoint(req: ScenarioRequest):
             price=price,
             objective=req.objective,  # type: ignore[arg-type]
             feeder_capacity_kw=req.feeder_capacity_kw,
+            schedule_carbon=forecast if use_forecast else None,
         )
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
@@ -117,4 +130,7 @@ def run_scenario_endpoint(req: ScenarioRequest):
         feeder_capacity_kw=result.feeder_capacity_kw,
         naive_overload_hours=result.naive_overload_hours,
         naive_overload_peak_kw=result.naive_overload_peak_kw,
+        used_forecast=use_forecast,
+        forecast_available=forecast is not None,
+        hourly_forecast=forecast,
     )
