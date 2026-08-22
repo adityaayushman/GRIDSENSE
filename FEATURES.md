@@ -50,7 +50,7 @@ Current state of the repo. Findings and their reproduction steps live in
 
 ## Frontend dashboard — built
 
-Three deep-linkable panes:
+Four deep-linkable panes:
 
 - **Simulator** — scenario controls (EVs, charger rating, feeder capacity,
   measured night), a hero number that follows the selected objective, grid-load
@@ -61,6 +61,9 @@ Three deep-linkable panes:
   the LP-vs-greedy coupling table.
 - **Grid headroom** — EV adoption sweep against transformer ratings, and the
   hosting-capacity table.
+- **Two grids** — Spain against Germany on the same optimizer, with the average
+  shape of a charging night in each, and a table of the statistics that predict
+  the saving wrongly.
 
 Charts plot the night in real sequence and use step interpolation, since an
 hourly schedule is piecewise-constant. Series colours are validated against the
@@ -83,6 +86,7 @@ In `ml/`, all reproducible:
 | `export_grid_days.py` | The nights the API serves |
 | `export_evidence.py` | The **Existing vs GridSense** pane's figures |
 | `export_hosting_capacity.py` | The **Grid headroom** pane's figures |
+| `export_regions.py` | The **Two grids** pane's figures |
 
 Nothing in either evidence pane is hand-typed — re-running the exporters updates
 the site, so the UI cannot drift from the analysis.
@@ -145,7 +149,7 @@ carbon chart overlays the forecast the scheduler saw against the actual curve.
 - **Postgres persistence** of simulation runs. `sqlalchemy`/`psycopg2` were
   *removed* from requirements: nothing imported them and they cost build time on
   every deploy.
-- Multi-region comparison, V2G mode.
+- V2G mode.
 - Styled empty/error states — a cold API or a rejected night currently renders a
   bare text block.
 

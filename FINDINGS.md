@@ -164,25 +164,40 @@ implement.
 
 ## 7. A dirtier, more variable grid is not a better one to shift in
 
-`compare_regions.py` · Spain (ENTSO-E 2015-2018) vs Germany/Luxembourg (2023-2026)
+`export_regions.py` · **Two grids** pane · Spain (ENTSO-E 2015-2018) vs Germany/Luxembourg (2023-2026)
 
 | Grid | Mean intensity | Std | Median night saving | Nights under 1% |
 | --- | --- | --- | --- | --- |
-| Spain | 267 gCO₂eq/kWh | 81 | **3.3%** | 38% |
-| Germany | **358** | **135** | **1.0%** | **50%** |
+| Spain | 266.6 gCO₂eq/kWh | 81.4 | **3.3%** | 38.0% |
+| Germany | **358.4** | **135.0** | **1.0%** | **50.1%** |
 
 Germany's grid is dirtier and swings harder, so it looked like the better place
 to shift load. It is worse: half its nights offer under 1%.
 
-The reason is that *overall* variability is the wrong statistic. What a
-scheduler can exploit is variability **inside the plug-in window**, and
-Germany's variance is largely driven by multi-day weather — wind arriving or
-not — which moves whole days together rather than creating within-night shape.
-Its overnight hours sit flat on lignite and coal.
+**My first explanation for this was wrong** and is worth recording. I claimed
+Germany's overnight hours "sit flat on lignite", so there was less within-night
+shape to exploit. Measuring it directly refuted that: Germany's median spread
+*inside the charging window* is **25.5%**, wider than Spain's 21.3%. More
+within-window variation, less saving.
 
-The practical reading: the value of carbon-aware charging is a property of a
-grid's *diurnal shape*, not of how carbon-intensive it is. A country can be a
-poor candidate precisely because its dirty generation is steady.
+The actual reason is what the default behaviour already achieves. Averaged over
+every night, 18:00 — the hour everyone plugs in — is the **cleanest** hour of
+the window in both grids, and Germany's advantage there is larger:
+
+| | Arrival hour vs that grid's night mean |
+| --- | --- |
+| Spain | −2.8% |
+| Germany | **−7.4%** |
+
+Charging on arrival is landing on the best hour by accident, and it lands there
+harder in Germany. The optimizer is measured against that baseline, so the
+better the accident, the less there is left to win. Three separate statistics —
+mean intensity, standard deviation, and within-window spread — all point the
+opposite way.
+
+The practical reading: the value of carbon-aware charging is set by how good
+the *unmanaged* behaviour already is, not by how carbon-intensive or how
+volatile the grid is. See the **Two grids** pane, which plots both shapes.
 
 The German data was screened with `screen_dataset.py` before use (lag-1
 autocorrelation 0.92-0.99 across generation, load and price).
