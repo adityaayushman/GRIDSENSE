@@ -8,13 +8,14 @@ import { runScenario, fetchDays, warmUp, ScenarioResponse } from "./api";
 import Comparison from "./Comparison";
 import Hosting from "./Hosting";
 import HeroScene from "./HeroScene";
+import Regions from "./Regions";
 import Segmented from "./Segmented";
 import { usePrefersReduced, useCountUp, useReveal } from "./motion";
 import "./index.css";
 import "./ev-theme.css";
 
 type Objective = "emissions" | "cost" | "peak";
-type Tab = "simulator" | "comparison" | "hosting";
+type Tab = "simulator" | "comparison" | "hosting" | "regions";
 
 const OPT = "#3987e5";
 const NAIVE = "#d95926";
@@ -98,7 +99,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>(
     () => {
       const h = window.location.hash.replace("#", "");
-      return h === "comparison" || h === "hosting" ? (h as Tab) : "simulator";
+      return ["comparison", "hosting", "regions"].includes(h) ? (h as Tab) : "simulator";
     },
   );
   const selectTab = (t: Tab) => {
@@ -225,6 +226,8 @@ export default function App() {
           onClick={() => selectTab("comparison")}>Existing vs GridSense</button>
         <button className={`tab ${tab === "hosting" ? "active" : ""}`}
           onClick={() => selectTab("hosting")}>Grid headroom</button>
+        <button className={`tab ${tab === "regions" ? "active" : ""}`}
+          onClick={() => selectTab("regions")}>Two grids</button>
       </nav>
 
       {tab === "simulator" && (
@@ -268,6 +271,7 @@ export default function App() {
       <main className="main">
         {tab === "comparison" && <div key="cmp" className="paneEnter"><Comparison /></div>}
         {tab === "hosting" && <div key="hst" className="paneEnter"><Hosting /></div>}
+        {tab === "regions" && <div key="rgn" className="paneEnter"><Regions /></div>}
 
         {tab === "simulator" && (
         <>
