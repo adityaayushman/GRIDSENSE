@@ -50,8 +50,8 @@ export default function HeroScene({ reduced }: { reduced?: boolean }) {
         </circle>
       )}
 
-      {/* Transmission pylon */}
-      <g stroke="#3d4c62" strokeWidth="2" fill="none" strokeLinecap="round">
+      {/* Transmission pylon — furthest back, so it moves least */}
+      <g data-depth="1" stroke="#3d4c62" strokeWidth="2" fill="none" strokeLinecap="round">
         <path d="M78 232 L96 132 M136 232 L118 132" />
         <path d="M96 132 L118 132" />
         <path d="M84 196 L130 196 M88 172 L126 172" />
@@ -63,12 +63,14 @@ export default function HeroScene({ reduced }: { reduced?: boolean }) {
       <path d="M0 138 C 30 150, 50 150, 72 152" stroke="#33415a" strokeWidth="1.5" fill="none" />
       <path d="M142 152 C 200 158, 250 176, 300 186" stroke="#33415a" strokeWidth="1.5" fill="none" />
 
-      {/* Charging post */}
+      {/* Charging post — mid depth */}
+      <g data-depth="2">
       <rect x="316" y="150" width="26" height="82" rx="6" fill="url(#gsBody)" stroke="#3d4c62" />
       <rect x="322" y="160" width="14" height="18" rx="3" fill="#0d131c" stroke="#3d4c62" />
       <circle cx="329" cy="169" r="3" fill="#3987e5">
         {anim && <animate attributeName="opacity" values=".25;1;.25" dur="2.4s" repeatCount="indefinite" />}
       </circle>
+      </g>
 
       {/* Cable: post to car */}
       <path id="gsCablePath" d="M342 186 C 386 214, 424 214, 468 190"
@@ -80,7 +82,8 @@ export default function HeroScene({ reduced }: { reduced?: boolean }) {
         </circle>
       ))}
 
-      {/* Car */}
+      {/* Car — nearest the viewer, so it travels furthest */}
+      <g data-depth="3">
       <ellipse cx="576" cy="236" rx="118" ry="10" fill="url(#gsGlow)" filter="url(#gsSoft)" />
       <path d="M486 206 L494 176 C 500 160, 512 152, 530 150 L618 150
                C 636 152, 650 160, 660 176 L668 206 Z"
@@ -101,6 +104,7 @@ export default function HeroScene({ reduced }: { reduced?: boolean }) {
       <rect x="538" y="184" width="20" height="7" rx="2" fill="#3987e5">
         {anim && <animate attributeName="width" values="8;66;8" dur="6.5s" repeatCount="indefinite" />}
       </rect>
+      </g>
     </svg>
   );
 }
