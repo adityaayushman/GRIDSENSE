@@ -1,0 +1,140 @@
+/* GridSense — the design system the rest of the sheets build on.
+   Loaded before index.css so component rules can still override a token or a
+   base style. Nothing here targets a chart: the data-mark hues stay where the
+   validator put them. */
+
+:root {
+  /* Type scale — 1.2 minor third off a 15px base, clamped for fluid headings. */
+  --t-xs:   11px;
+  --t-sm:   12.5px;
+  --t-base: 14.5px;
+  --t-md:   16px;
+  --t-lg:   19px;
+  --t-xl:   23px;
+  --t-2xl:  clamp(24px, 3.2vw, 33px);
+  --t-3xl:  clamp(30px, 5vw, 46px);
+  --t-4xl:  clamp(38px, 7.4vw, 76px);
+
+  --lh-tight: 1.18;
+  --lh-snug:  1.42;
+  --lh-body:  1.78;
+
+  --tr-tight: -0.035em;
+  --tr-snug:  -0.02em;
+  --tr-wide:  0.1em;
+  --tr-caps:  0.14em;
+
+  /* Spacing — a 4px grid, named so layout reads as intent not arithmetic. */
+  --s-1: 4px;   --s-2: 8px;   --s-3: 12px;  --s-4: 16px;
+  --s-5: 22px;  --s-6: 28px;  --s-7: 38px;  --s-8: 52px;
+  --s-9: 68px;  --s-10: 92px;
+
+  /* Elevation. Dark surfaces read depth from a light rim plus a soft cast,
+     not from shadow alone — a pure shadow on near-black is invisible. */
+  --e-1: 0 1px 2px rgba(0,0,0,.36), inset 0 1px 0 rgba(255,255,255,.03);
+  --e-2: 0 4px 16px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.04);
+  --e-3: 0 12px 38px rgba(0,0,0,.5),  inset 0 1px 0 rgba(255,255,255,.05);
+  --e-glow: 0 8px 30px var(--accent-glow);
+
+  /* Motion. One easing for entrances, one for exits, one spring for affordances. */
+  --ease-out:  cubic-bezier(.22, .8, .3, 1);
+  --ease-in:   cubic-bezier(.6, .04, .78, .3);
+  --ease-spring: cubic-bezier(.34, 1.42, .48, 1);
+  --dur-1: 120ms;  --dur-2: 200ms;  --dur-3: 340ms;  --dur-4: 620ms;
+
+  --z-base: 1;
+  --z-sticky: 40;
+  --z-overlay: 80;
+  --z-toast: 90;
+}
+
+/* ---------- base ---------- */
+
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+::selection { background: rgba(57,135,229,.32); color: #fff; }
+
+/* A scrollbar that belongs to the instrument panel rather than the OS. */
+* { scrollbar-width: thin; scrollbar-color: rgba(96,130,170,.34) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: rgba(96,130,170,.28);
+  border-radius: 99px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: rgba(96,130,170,.5); background-clip: content-box; }
+
+/* One focus treatment everywhere, visible on every surface in the palette. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid #7fb4f5;
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+/* ---------- primitives ---------- */
+
+/* Staggered reveal. Children opt in with --i so a grid arrives in sequence
+   rather than all at once, which is the difference between "animated" and
+   "considered". */
+.stagger > * {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity var(--dur-3) var(--ease-out),
+    transform var(--dur-3) var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 55ms);
+}
+.stagger.isIn > * { opacity: 1; transform: none; }
+
+/* Text that arrives with the surface it sits on. */
+.riseIn {
+  opacity: 0; transform: translateY(10px);
+  animation: riseIn var(--dur-4) var(--ease-out) forwards;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+@keyframes riseIn { to { opacity: 1; transform: none; } }
+
+/* A hairline that draws itself under a heading. */
+.ruleIn { position: relative; }
+.ruleIn::after {
+  content: ""; position: absolute; left: 0; bottom: -10px; height: 1px; width: 0;
+  background: linear-gradient(90deg, var(--accent), transparent);
+  transition: width var(--dur-4) var(--ease-out) 160ms;
+}
+.reveal.isIn .ruleIn::after, .ruleIn.isIn::after { width: 128px; }
+
+/* Skeleton shimmer for anything still loading. */
+.skel {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg,
+    rgba(96,130,170,.07) 25%, rgba(96,130,170,.16) 37%, rgba(96,130,170,.07) 63%);
+  background-size: 400% 100%;
+  animation: skelSweep 1.5s ease-in-out infinite;
+}
+@keyframes skelSweep { to { background-position: -135% 0; } }
+
+/* Keyboard hints, used in the palette and the shortcut sheet. */
+.kbd {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 21px; height: 21px; padding: 0 6px;
+  font-family: var(--mono); font-size: 10.5px; font-weight: 600;
+  color: var(--ink-2);
+  background: rgba(30, 40, 54, .9);
+  border: 1px solid var(--line-bright);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+}
+
+/* A button that leans very slightly toward the cursor. Subtle on purpose —
+   the effect should register as responsiveness, not as a toy. */
+.magnetic { transition: transform var(--dur-2) var(--ease-spring); }
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger > *, .riseIn { opacity: 1; transform: none; animation: none; transition: none; }
+  .ruleIn::after { transition: none; width: 128px; }
+  .skel { animation: none; }
+  .magnetic { transform: none !important; }
+}

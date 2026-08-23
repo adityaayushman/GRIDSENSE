@@ -1,0 +1,277 @@
+/* Application chrome: the landing's sticky nav, the command palette, the
+   shortcut sheet and the toast stack. Everything here sits above the content
+   layer and shares one surface treatment — blurred dark glass with a light rim —
+   so overlays read as one system rather than four separate widgets. */
+
+/* ---------- reading progress ---------- */
+
+.ldProgress {
+  position: fixed; inset: 0 0 auto 0; height: 2px;
+  z-index: var(--z-sticky);
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg, var(--series-naive), var(--accent) 62%, #7fb4f5);
+  will-change: transform;
+}
+
+/* ---------- landing nav ---------- */
+
+.ldNav {
+  position: fixed; top: 0; left: 0; right: 0;
+  z-index: var(--z-sticky);
+  display: flex; align-items: center; gap: var(--s-5);
+  padding: 14px clamp(16px, 3vw, 34px);
+  transition: background var(--dur-3) var(--ease-out),
+              border-color var(--dur-3) var(--ease-out),
+              backdrop-filter var(--dur-3) var(--ease-out);
+  border-bottom: 1px solid transparent;
+}
+.ldNav.isStuck {
+  background: rgba(7, 10, 15, .82);
+  backdrop-filter: blur(14px) saturate(1.3);
+  border-bottom-color: var(--line);
+}
+
+.ldNavBrand {
+  display: inline-flex; align-items: center; gap: 9px;
+  font: inherit; font-size: var(--t-base); font-weight: 660;
+  letter-spacing: -.015em; color: var(--ink);
+  background: none; border: 0; padding: 0; cursor: pointer;
+}
+.ldNavDot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.ldNavLinks { display: flex; gap: 2px; margin-left: auto; }
+.ldNavLink {
+  position: relative;
+  font: inherit; font-size: var(--t-sm); font-weight: 560;
+  color: var(--ink-3); background: none; border: 0; cursor: pointer;
+  padding: 7px 11px; border-radius: 7px;
+  transition: color var(--dur-2) var(--ease-out), background var(--dur-2) var(--ease-out);
+}
+.ldNavLink:hover { color: var(--ink-2); background: rgba(96,130,170,.09); }
+.ldNavLink.isActive { color: var(--ink); }
+.ldNavLink.isActive::after {
+  content: ""; position: absolute; left: 11px; right: 11px; bottom: 2px; height: 1.5px;
+  background: var(--accent); border-radius: 2px;
+}
+
+.ldNavRight { display: flex; align-items: center; gap: 9px; margin-left: auto; }
+.ldNavLinks + .ldNavRight { margin-left: var(--s-5); }
+
+.ldNavCmd {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 9px 6px 10px; border-radius: 8px; cursor: pointer;
+  font: inherit; color: var(--ink-3);
+  border: 1px solid var(--line); background: rgba(19,25,34,.6);
+  transition: color var(--dur-2) var(--ease-out), border-color var(--dur-2) var(--ease-out);
+}
+.ldNavCmd:hover { color: var(--ink); border-color: var(--line-bright); }
+
+.ldNavGh {
+  display: grid; place-items: center; width: 31px; height: 31px;
+  border-radius: 8px; color: var(--ink-3);
+  border: 1px solid var(--line); background: rgba(19,25,34,.6);
+  transition: color var(--dur-2) var(--ease-out), border-color var(--dur-2) var(--ease-out);
+}
+.ldNavGh:hover { color: var(--ink); border-color: var(--line-bright); }
+
+.ldNavEnter {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 999px; cursor: pointer;
+  font: inherit; font-size: var(--t-sm); font-weight: 620; color: #fff;
+  border: 1px solid rgba(127,180,245,.45);
+  background: linear-gradient(180deg, #4292ec, #2f6fc4);
+  box-shadow: var(--e-1);
+  transition: transform var(--dur-2) var(--ease-spring), box-shadow var(--dur-2) var(--ease-out);
+}
+.ldNavEnter:hover { transform: translateY(-1px); box-shadow: var(--e-glow); }
+
+@media (max-width: 1020px) { .ldNavLinks { display: none; } }
+@media (max-width: 620px) {
+  .ldNavGh { display: none; }
+  .ldNavCmd { display: none; }
+}
+
+/* ---------- command palette ---------- */
+
+.cmdScrim {
+  position: fixed; inset: 0; z-index: var(--z-overlay);
+  display: flex; justify-content: center; align-items: flex-start;
+  padding: clamp(48px, 12vh, 130px) 18px 24px;
+  background: rgba(4, 7, 11, .68);
+  backdrop-filter: blur(5px);
+  animation: cmdFade var(--dur-2) var(--ease-out);
+}
+@keyframes cmdFade { from { opacity: 0 } }
+
+.cmdPanel {
+  width: min(620px, 100%);
+  max-height: min(560px, 76vh);
+  display: flex; flex-direction: column;
+  border-radius: var(--radius);
+  border: 1px solid var(--line-bright);
+  background: rgba(13, 18, 26, .96);
+  box-shadow: var(--e-3);
+  overflow: hidden;
+  animation: cmdPop var(--dur-3) var(--ease-out);
+}
+@keyframes cmdPop {
+  from { opacity: 0; transform: translateY(-10px) scale(.985); }
+}
+
+.cmdSearch {
+  display: flex; align-items: center; gap: 11px;
+  padding: 15px 16px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-3);
+}
+.cmdSearch input {
+  flex: 1; min-width: 0;
+  font: inherit; font-size: var(--t-md); color: var(--ink);
+  background: none; border: 0; outline: none;
+}
+.cmdSearch input::placeholder { color: var(--ink-3); }
+
+.cmdList { overflow-y: auto; padding: 7px; flex: 1; }
+
+.cmdGroup {
+  padding: 11px 11px 5px;
+  font-size: var(--t-xs); font-weight: 680;
+  letter-spacing: var(--tr-caps); text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.cmdItem {
+  display: flex; align-items: center; gap: 11px; width: 100%;
+  padding: 9px 11px; border-radius: 8px; cursor: pointer;
+  font: inherit; text-align: left;
+  background: none; border: 0; color: var(--ink-2);
+}
+.cmdItem.isActive { background: rgba(57,135,229,.15); color: var(--ink); }
+.cmdLabel { font-size: var(--t-base); font-weight: 540; }
+.cmdHint {
+  margin-left: auto; font-family: var(--mono);
+  font-size: var(--t-xs); color: var(--ink-3);
+}
+.cmdItem.isActive .cmdHint { color: #7fb4f5; }
+.cmdEnter { color: #7fb4f5; flex: none; }
+
+.cmdEmpty {
+  padding: 28px 14px; text-align: center;
+  font-size: var(--t-base); color: var(--ink-3);
+}
+
+.cmdFoot {
+  display: flex; gap: var(--s-4); align-items: center;
+  padding: 10px 15px;
+  border-top: 1px solid var(--line);
+  background: rgba(9, 13, 19, .8);
+  font-size: var(--t-xs); color: var(--ink-3);
+}
+.cmdFoot span { display: inline-flex; align-items: center; gap: 5px; }
+
+/* ---------- shortcut sheet ---------- */
+
+.shPanel {
+  width: min(760px, 100%);
+  border-radius: var(--radius);
+  border: 1px solid var(--line-bright);
+  background: rgba(13, 18, 26, .97);
+  box-shadow: var(--e-3);
+  overflow: hidden;
+  animation: cmdPop var(--dur-3) var(--ease-out);
+}
+.shHead {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 18px; border-bottom: 1px solid var(--line);
+}
+.shHead h2 {
+  margin: 0; font-size: var(--t-lg); font-weight: 640;
+  letter-spacing: var(--tr-snug); color: var(--ink);
+}
+.shClose {
+  display: grid; place-items: center; width: 30px; height: 30px;
+  border-radius: 8px; cursor: pointer; color: var(--ink-3);
+  background: none; border: 1px solid var(--line);
+}
+.shClose:hover { color: var(--ink); border-color: var(--line-bright); }
+
+.shGrid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(224px, 1fr));
+  gap: var(--s-5); padding: 20px 18px;
+}
+.shGroup {
+  margin: 0 0 9px; font-size: var(--t-xs); font-weight: 680;
+  letter-spacing: var(--tr-caps); text-transform: uppercase; color: var(--accent);
+}
+.shList { margin: 0; }
+.shRow {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 7px 0; border-top: 1px solid var(--line-soft);
+}
+.shRow dt { font-size: var(--t-sm); color: var(--ink-2); }
+.shRow dd { margin: 0; display: flex; gap: 4px; flex: none; }
+.shFoot {
+  margin: 0; padding: 12px 18px;
+  border-top: 1px solid var(--line);
+  background: rgba(9,13,19,.8);
+  font-size: var(--t-xs); color: var(--ink-3);
+}
+
+/* ---------- toasts ---------- */
+
+.toastHost {
+  position: fixed; z-index: var(--z-toast);
+  left: 50%; bottom: 26px; transform: translateX(-50%);
+  display: flex; flex-direction: column; gap: 8px; align-items: center;
+  pointer-events: none;
+}
+.toast {
+  display: inline-flex; align-items: center; gap: 9px;
+  padding: 10px 16px; border-radius: 999px;
+  font-size: var(--t-sm); font-weight: 560; color: var(--ink);
+  border: 1px solid var(--line-bright);
+  background: rgba(16, 22, 31, .95);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--e-2);
+  animation: toastIn var(--dur-3) var(--ease-spring);
+}
+@keyframes toastIn { from { opacity: 0; transform: translateY(12px) scale(.96); } }
+.toast-ok   { color: #8fd3b6; }
+.toast-warn { color: #f0a882; }
+.toast-info { color: #9cc4f2; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cmdScrim, .cmdPanel, .shPanel, .toast { animation: none; }
+  .ldNavEnter:hover { transform: none; }
+}
+
+/* ---------- dashboard header tools ---------- */
+
+.headTools { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+
+.toolBtn {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 31px; padding: 0 9px;
+  border-radius: 8px; cursor: pointer;
+  font: inherit; color: var(--ink-3);
+  border: 1px solid var(--line);
+  background: rgba(19, 25, 34, .6);
+  transition: color var(--dur-2) var(--ease-out),
+              border-color var(--dur-2) var(--ease-out),
+              background var(--dur-2) var(--ease-out);
+}
+.toolBtn:hover {
+  color: var(--ink);
+  border-color: var(--line-bright);
+  background: rgba(30, 40, 54, .75);
+}
+.toolBtn:active { transform: translateY(1px); }
+
+@media (max-width: 780px) {
+  /* The objective control is the only one of these without a keyboard-only
+     alternative, so it is the one that stays. */
+  .toolBtn { display: none; }
+}
