@@ -11,9 +11,11 @@ import HeroScene from "./HeroScene";
 import Regions from "./Regions";
 import Control from "./Control";
 import Segmented from "./Segmented";
+import Landing from "./Landing";
 import { usePrefersReduced, useCountUp, useReveal } from "./motion";
 import "./index.css";
 import "./ev-theme.css";
+import "./landing.css";
 
 type Objective = "emissions" | "cost" | "peak";
 type Tab = "simulator" | "comparison" | "hosting" | "regions" | "control";
@@ -107,8 +109,24 @@ export default function App() {
   );
   const selectTab = (t: Tab) => {
     setTab(t);
-    window.history.replaceState(null, "", t === "simulator" ? "#" : `#${t}`);
+    window.history.replaceState(null, "", `#${t}`);
   };
+
+  // The landing page is the default view, but a link straight to a pane must
+  // skip it — so an existing hash means the visitor already chose a
+  // destination. Leaving the dashboard clears the hash rather than pushing, so
+  // Back still leaves the site instead of ping-ponging through the gate.
+  const [entered, setEntered] = useState(() => window.location.hash.length > 1);
+  const enter = useCallback(() => {
+    setEntered(true);
+    window.history.replaceState(null, "", "#simulator");
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, []);
+  const leave = useCallback(() => {
+    setEntered(false);
+    window.history.replaceState(null, "", window.location.pathname);
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, []);
   const [result, setResult] = useState<ScenarioResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -198,13 +216,16 @@ export default function App() {
       }))
     : [];
 
+  if (!entered) return <Landing onEnter={enter} />;
+
   return (
     <div className="page">
       <div className="gridOverlay" />
       <div className="evFloor" aria-hidden="true" />
 
       <header className="header">
-        <div className="brand">
+        <button className="brand brandHome" onClick={leave}
+          title="Back to the overview">
           <div className="brandMark">
             <Zap size={17} color="#fff" strokeWidth={2.4} />
           </div>
@@ -212,7 +233,7 @@ export default function App() {
             <div className="brandName">GridSense</div>
             <div className="brandTag">carbon-aware charge scheduling · Spanish grid</div>
           </div>
-        </div>
+        </button>
         {tab === "simulator" && (
           <Segmented
             className="objectiveToggle"
