@@ -13,6 +13,7 @@ import Hosting from "./Hosting";
 import HeroScene from "./HeroScene";
 import Regions from "./Regions";
 import Control from "./Control";
+import India from "./India";
 import Segmented from "./Segmented";
 import Landing from "./Landing";
 import CommandPalette, { Command as Cmd } from "./CommandPalette";
@@ -26,7 +27,7 @@ import "./landing.css";
 import "./chrome.css";
 
 type Objective = "emissions" | "cost" | "peak";
-type Tab = "simulator" | "comparison" | "hosting" | "regions" | "control";
+type Tab = "simulator" | "comparison" | "hosting" | "regions" | "control" | "india";
 
 const OPT = "#3987e5";
 const NAIVE = "#d95926";
@@ -130,7 +131,7 @@ function App() {
   const [tab, setTab] = useState<Tab>(
     () => {
       const h = window.location.hash.replace("#", "");
-      return ["comparison", "hosting", "regions", "control"].includes(h)
+      return ["comparison", "hosting", "regions", "control", "india"].includes(h)
         ? (h as Tab) : "simulator";
     },
   );
@@ -273,6 +274,7 @@ function App() {
     { key: "hosting", label: "Grid headroom" },
     { key: "regions", label: "Two grids" },
     { key: "control", label: "Rolling control" },
+    { key: "india", label: "India" },
   ];
 
   const commands: Cmd[] = [
@@ -328,7 +330,7 @@ function App() {
 
       const k = e.key.toLowerCase();
       if (e.key === "?") { e.preventDefault(); setHelpOpen(true); return; }
-      if (k >= "1" && k <= "5") {
+      if (k >= "1" && k <= "6") {
         const t2 = TABS[Number(k) - 1];
         if (t2) { setEntered(true); selectTab(t2.key); }
         return;
@@ -450,6 +452,8 @@ function App() {
           onClick={() => selectTab("regions")}>Two grids</button>
         <button className={`tab ${tab === "control" ? "active" : ""}`}
           onClick={() => selectTab("control")}>Rolling control</button>
+        <button className={`tab ${tab === "india" ? "active" : ""}`}
+          onClick={() => selectTab("india")}>India</button>
       </nav>
 
       {tab === "simulator" && (
@@ -495,6 +499,7 @@ function App() {
         {tab === "hosting" && <div key="hst" className="paneEnter"><Hosting /></div>}
         {tab === "regions" && <div key="rgn" className="paneEnter"><Regions /></div>}
         {tab === "control" && <div key="ctl" className="paneEnter"><Control /></div>}
+        {tab === "india" && <div key="ind" className="paneEnter"><India /></div>}
 
         {tab === "simulator" && (
         <>

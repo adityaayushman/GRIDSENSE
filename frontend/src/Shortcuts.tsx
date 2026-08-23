@@ -9,6 +9,7 @@ const GROUPS = [
       { keys: ["3"], what: "Grid headroom" },
       { keys: ["4"], what: "Two grids" },
       { keys: ["5"], what: "Rolling control" },
+      { keys: ["6"], what: "India" },
       { keys: ["⌘", "K"], what: "Command palette" },
       { keys: ["H"], what: "Back to the overview" },
     ],
