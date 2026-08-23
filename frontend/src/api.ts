@@ -9,9 +9,15 @@
  *
  * Note `??` rather than `||`: an intentionally empty VITE_API_BASE means
  * same-origin, and `||` would discard it in favour of localhost.
+ *
+ * The dev host is `127.0.0.1`, not `localhost`, on purpose. Windows resolves
+ * `localhost` to `::1` first, while `uvicorn --reload` binds IPv4 only, so the
+ * browser opens a connection to an address nothing is listening on and every
+ * request fails with a network error that reads exactly like a CORS problem.
+ * Naming the IPv4 address removes the ambiguity.
  */
 const API_BASE =
-  import.meta.env.VITE_API_BASE ?? (import.meta.env.DEV ? "http://localhost:8000" : "");
+  import.meta.env.VITE_API_BASE ?? (import.meta.env.DEV ? "http://127.0.0.1:8000" : "");
 
 export interface ScenarioRequest {
   ev_count: number;
