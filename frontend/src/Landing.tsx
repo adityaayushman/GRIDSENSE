@@ -1,7 +1,8 @@
-import { useEffect, useRef } from "react";
-import { ArrowRight, ChevronDown } from "lucide-react";
+import { useCallback, useEffect, useRef } from "react";
+import { ArrowRight, ChevronDown, Github, Command } from "lucide-react";
 import LandingScene from "./LandingScene";
 import { usePrefersReduced, useReveal } from "./motion";
+import { useScrollSpy } from "./useScrollSpy";
 import hosting from "./data/hosting.json";
 import regions from "./data/regions.json";
 import mpc from "./data/mpc.json";
@@ -22,11 +23,29 @@ const [es, de] = regions.regions;
 // them all at one instant and overstates the gain roughly threefold.
 const cap = hosting.headline;
 
-function Section({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+const SECTIONS = [
+  { id: "problem", nav: "Problem" },
+  { id: "method", nav: "Method" },
+  { id: "data", nav: "Data" },
+  { id: "findings", nav: "Findings" },
+  { id: "rejected", nav: "Rejected" },
+  { id: "stack", nav: "Stack" },
+] as const;
+
+const SECTION_IDS = SECTIONS.map((s) => s.id);
+
+function Section({
+  id, eyebrow, title, children, wide = false,
+}: {
+  id?: string; eyebrow?: string; title?: string;
+  children: React.ReactNode; wide?: boolean;
+}) {
   const reduced = usePrefersReduced();
   const { ref, shown } = useReveal<HTMLElement>(reduced);
   return (
-    <section ref={ref} className={`ldSection reveal ${shown ? "isIn" : ""} ${className}`}>
+    <section id={id} ref={ref} className={`ldSection reveal ${shown ? "isIn" : ""} ${wide ? "ldWide" : ""}`}>
+      {eyebrow && <span className="ldEyebrow">{eyebrow}</span>}
+      {title && <h2 className="ldH2 ruleIn">{title}</h2>}
       {children}
     </section>
   );
@@ -34,64 +53,55 @@ function Section({ children, className = "" }: { children: React.ReactNode; clas
 
 const FINDINGS = [
   {
-    n: "01",
-    tone: "good",
+    n: "01", tone: "good", tag: "Capacity",
     head: `${cap.gain}× the hosting capacity`,
     body: `One ${cap.rating_kw} kW transformer carries ${cap.coordinated} coordinated vehicles ` +
       `against ${cap.dumb} charging on arrival. This is the headline — not the carbon saving.`,
   },
   {
-    n: "02",
-    tone: "flat",
+    n: "02", tone: "flat", tag: "Carbon",
     head: `${es.median_saving}% median CO₂ saving`,
     body: "Real, and small. The distribution is long-tailed: most nights offer almost nothing, " +
       "a few offer a great deal. Reporting the mean alone would flatter it.",
   },
   {
-    n: "03",
-    tone: "bad",
+    n: "03", tone: "bad", tag: "Data",
     head: "The first carbon curve was inverted",
     body: "The synthetic profile the project started on did not merely differ from the measured " +
       "one — it pointed the wrong way. Every conclusion drawn from it was void.",
   },
   {
-    n: "04",
-    tone: "flat",
+    n: "04", tone: "flat", tag: "Method",
     head: "The optimiser only earns its keep under a coupling constraint",
     body: "Without one, the problem separates and a greedy rule matches the LP exactly. " +
       "Vehicle heterogeneity does not change that; a shared feeder limit does.",
   },
   {
-    n: "05",
-    tone: "flat",
+    n: "05", tone: "flat", tag: "Objectives",
     head: "Cost and carbon genuinely conflict",
     body: "Cheap hours and clean hours are not the same hours. Optimising the bill raises " +
       "emissions; optimising emissions raises the bill. There is no free alignment.",
   },
   {
-    n: "06",
-    tone: "flat",
+    n: "06", tone: "flat", tag: "Forecast",
     head: "Forecast error only matters when there is something to gain",
-    body: `The shipped model captures 71% of the achievable saving. On nearly flat nights its ` +
+    body: "The shipped model captures 71% of the achievable saving. On nearly flat nights its " +
       "error exceeds the real spread, and acting on it does worse than nothing.",
   },
   {
-    n: "07",
-    tone: "bad",
+    n: "07", tone: "bad", tag: "Grids",
     head: "A dirtier, more variable grid is not a better one to shift in",
-    body: `Germany is dirtier (${de.mean} vs ${es.mean} gCO₂eq/kWh) and swings ` +
-      "harder, yet saves less. What predicts the saving is how good the default already is.",
+    body: `Germany is dirtier (${de.mean} vs ${es.mean} gCO₂eq/kWh) and swings harder, yet ` +
+      "saves less. What predicts the saving is how good the default behaviour already is.",
   },
   {
-    n: "08",
-    tone: "bad",
+    n: "08", tone: "bad", tag: "V2G",
     head: "V2G is not economic for carbon",
     body: "Abatement through vehicle-to-grid costs €0.78–1.01 per kg CO₂ against an ETS price " +
       "near €0.06–0.09. It shaves peak well; as a carbon lever it is ten times too expensive.",
   },
   {
-    n: "09",
-    tone: "bad",
+    n: "09", tone: "bad", tag: "Control",
     head: "Rolling-horizon control loses to the one-shot LP",
     body: `Re-solving hourly costs +${mpc.attribution_pp.rolling_commitment}pp of regret while ` +
       `the sharper forecast buys back only ${mpc.attribution_pp.fresher_forecast}pp. ` +
@@ -101,42 +111,71 @@ const FINDINGS = [
 
 const REJECTED = [
   {
-    head: "Indian grid data",
+    head: "Indian grid data", meta: "2,821 days · daily resolution",
     body: "Grid-India and the CEA publish a complete fuel mix back to 2018 — daily. This project " +
       "schedules inside a single night, and one number per day has no shape to schedule against.",
   },
   {
-    head: "A plausible-looking Kaggle dataset",
-    body: "Hourly stamps, no gaps, realistic ranges — and lag-1 autocorrelation of −0.025, where " +
-      "measured grid load sits at +0.951. Independent random draws wearing a schema.",
+    head: "A plausible-looking Kaggle dataset", meta: "lag-1 autocorrelation −0.025",
+    body: "Hourly stamps, no gaps, realistic ranges — and hour-to-hour correlation of white " +
+      "noise, where measured grid load sits at +0.951. Random draws wearing a schema.",
   },
   {
-    head: "Weather features",
-    body: "Cloud cover and wind speed looked like the obvious untapped signal. Measured at " +
-      "−0.19pp: the TSO's day-ahead forecasts already carry it.",
+    head: "Weather features", meta: "−0.19pp captured saving",
+    body: "Cloud cover and wind speed looked like the obvious untapped signal. They are already " +
+      "inside the TSO's day-ahead forecasts, so the raw columns added only dimensionality.",
   },
   {
-    head: "Synchronised-peak theory",
-    body: "Uncoordinated carbon-aware charging was expected to manufacture a new peak. It raises " +
-      "the peak on 3 nights of 46, by 1.03×. The effect is real and small.",
+    head: "Synchronised-peak theory", meta: "3 nights of 46 · 1.03×",
+    body: "Uncoordinated carbon-aware charging was expected to manufacture a new peak. The " +
+      "cleanest hours sit away from the residential peak, so it usually helps slightly.",
   },
 ] as const;
 
 const STACK = [
-  { k: "Optimiser", v: "Linear program over the charging window · PuLP / CBC" },
-  { k: "Objectives", v: "Emissions, cost, peak, and a feeder-capacity mode" },
-  { k: "Carbon", v: "Derived from generation mix × IPCC AR5 lifecycle factors" },
-  { k: "Data", v: "ENTSO-E measured Spanish and German grid records" },
-  { k: "Forecaster", v: "Ridge, exported as coefficients — no ML runtime in the bundle" },
-  { k: "API", v: "FastAPI on a Python serverless function" },
-  { k: "Frontend", v: "React · TypeScript · Vite · Recharts" },
+  { k: "Optimiser", v: "Linear program over the charging window · PuLP / CBC", t: "Python" },
+  { k: "Objectives", v: "Emissions, cost, peak, and a feeder-capacity mode", t: "4 modes" },
+  { k: "Carbon", v: "Derived from generation mix × IPCC AR5 lifecycle factors", t: "gCO₂eq/kWh" },
+  { k: "Data", v: "ENTSO-E measured Spanish and German grid records", t: "4 years" },
+  { k: "Forecaster", v: "Ridge, exported as coefficients — no ML runtime in the bundle", t: "MAE 23.7" },
+  { k: "API", v: "FastAPI on a Python serverless function", t: "46 tests" },
+  { k: "Frontend", v: "React · TypeScript · Vite · Recharts", t: "one origin" },
 ] as const;
 
-export default function Landing({ onEnter }: { onEnter: () => void }) {
-  const reduced = usePrefersReduced();
-  const detail = useRef<HTMLDivElement>(null);
+/** A button that leans a few pixels toward the cursor. */
+function useMagnetic(reduced: boolean) {
+  const ref = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (reduced) return;
+    const el = ref.current;
+    if (!el) return;
+    const move = (e: PointerEvent) => {
+      const r = el.getBoundingClientRect();
+      const x = (e.clientX - (r.left + r.width / 2)) / r.width;
+      const y = (e.clientY - (r.top + r.height / 2)) / r.height;
+      el.style.transform = `translate(${x * 9}px, ${y * 5}px)`;
+    };
+    const out = () => { el.style.transform = ""; };
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerleave", out);
+    return () => {
+      el.removeEventListener("pointermove", move);
+      el.removeEventListener("pointerleave", out);
+    };
+  }, [reduced]);
+  return ref;
+}
 
-  // Entering by keyboard should not require finding the button first.
+export default function Landing({
+  onEnter, onPalette,
+}: {
+  onEnter: () => void;
+  onPalette: () => void;
+}) {
+  const reduced = usePrefersReduced();
+  const { active, progress } = useScrollSpy(SECTION_IDS);
+  const magnet = useMagnetic(reduced);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Enter" && e.target === document.body) onEnter();
@@ -145,74 +184,112 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onEnter]);
 
-  const dive = () =>
-    detail.current?.scrollIntoView({
-      behavior: reduced ? "auto" : "smooth",
-      block: "start",
+  const goto = useCallback((id: string) => {
+    document.getElementById(id)?.scrollIntoView({
+      behavior: reduced ? "auto" : "smooth", block: "start",
     });
+  }, [reduced]);
+
+  // The nav only earns its space once the reader has left the hero.
+  const past = progress > 0.04;
 
   return (
     <div className="landing">
       <div className="gridOverlay" />
 
+      <div className="ldProgress" style={{ transform: `scaleX(${progress})` }} aria-hidden="true" />
+
+      <header className={`ldNav ${past ? "isStuck" : ""}`}>
+        <button className="ldNavBrand" onClick={() => window.scrollTo({ top: 0 })}>
+          <span className="ldNavDot" aria-hidden="true" />
+          GridSense
+        </button>
+
+        <nav className="ldNavLinks" aria-label="Sections">
+          {SECTIONS.map((s) => (
+            <button
+              key={s.id}
+              className={`ldNavLink ${active === s.id && past ? "isActive" : ""}`}
+              onClick={() => goto(s.id)}
+            >
+              {s.nav}
+            </button>
+          ))}
+        </nav>
+
+        <div className="ldNavRight">
+          <button className="ldNavCmd" onClick={onPalette} title="Command palette">
+            <Command size={13} strokeWidth={2.2} />
+            <span className="kbd">K</span>
+          </button>
+          <a className="ldNavGh" href="https://github.com/adityaayushman/GRIDSENSE"
+            target="_blank" rel="noreferrer" aria-label="Source on GitHub">
+            <Github size={15} strokeWidth={2} />
+          </a>
+          <button className="ldNavEnter" onClick={onEnter}>
+            Open dashboard <ArrowRight size={13} strokeWidth={2.6} />
+          </button>
+        </div>
+      </header>
+
       <section className="ldHero">
         <LandingScene reduced={reduced} />
 
         <div className="ldHeroCopy">
-          <span className="ldKicker">
+          <span className="ldKicker riseIn" style={{ ["--i" as string]: 0 }}>
             <span className="mastDot" aria-hidden="true" />
             Measured grid data · <b>ENTSO-E Spain</b> · four years, hour by hour
           </span>
 
-          <h1 className="ldTitle">
+          <h1 className="ldTitle riseIn" style={{ ["--i" as string]: 1 }}>
             Charge when the grid is <span className="lit">actually clean</span>.
           </h1>
 
-          <p className="ldLede">
+          <p className="ldLede riseIn" style={{ ["--i" as string]: 2 }}>
             Most electric cars start charging the moment their owner gets home — straight into
             the evening peak, on the dirtiest power of the day. GridSense schedules the same
             energy against real carbon intensity, real prices and a real transformer limit,
             then reports honestly how little that buys on most nights and where it buys a lot.
           </p>
 
-          <div className="ldStats">
-            <div className="ldStat">
-              <span className="ldStatVal">{cap.gain}×</span>
-              <span className="ldStatKey">hosting capacity</span>
-            </div>
-            <div className="ldStat">
-              <span className="ldStatVal">{es.median_saving}%</span>
-              <span className="ldStatKey">median CO₂ cut</span>
-            </div>
-            <div className="ldStat">
-              <span className="ldStatVal">71%</span>
-              <span className="ldStatKey">captured by forecast</span>
-            </div>
-            <div className="ldStat">
-              <span className="ldStatVal">9</span>
-              <span className="ldStatKey">findings · 4 negative</span>
-            </div>
+          <div className="ldStats riseIn" style={{ ["--i" as string]: 3 }}>
+            {[
+              { v: `${cap.gain}×`, k: "hosting capacity" },
+              { v: `${es.median_saving}%`, k: "median CO₂ cut" },
+              { v: "71%", k: "captured by forecast" },
+              { v: "9", k: "findings · 4 negative" },
+            ].map((s) => (
+              <div className="ldStat" key={s.k}>
+                <span className="ldStatVal">{s.v}</span>
+                <span className="ldStatKey">{s.k}</span>
+              </div>
+            ))}
           </div>
 
-          <div className="ldActions">
-            <button className="ldEnter" onClick={onEnter}>
+          <div className="ldActions riseIn" style={{ ["--i" as string]: 4 }}>
+            <button className="ldEnter magnetic" ref={magnet} onClick={onEnter}>
               Enter the dashboard <ArrowRight size={16} strokeWidth={2.4} />
             </button>
-            <button className="ldDive" onClick={dive}>
+            <button className="ldDive" onClick={() => goto("problem")}>
               What is this? <ChevronDown size={15} strokeWidth={2.4} />
             </button>
           </div>
+
+          <p className="ldHint riseIn" style={{ ["--i" as string]: 5 }}>
+            Press <span className="kbd">↵</span> to enter · <span className="kbd">⌘</span>
+            <span className="kbd">K</span> for commands
+          </p>
         </div>
 
-        <button className="ldScrollCue" onClick={dive} aria-label="Read more about the project">
+        <button className="ldScrollCue" onClick={() => goto("problem")}
+          aria-label="Read more about the project">
           <ChevronDown size={18} strokeWidth={2} />
         </button>
       </section>
 
-      <div className="ldDetail" ref={detail}>
-        <Section>
-          <span className="ldEyebrow">The problem</span>
-          <h2 className="ldH2">A transformer, not the atmosphere, is what breaks first</h2>
+      <div className="ldDetail">
+        <Section id="problem" eyebrow="The problem"
+          title="A transformer, not the atmosphere, is what breaks first">
           <div className="ldCols">
             <p>
               An electric car draws roughly what an entire house does. Put a handful on one
@@ -231,9 +308,7 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
           </div>
         </Section>
 
-        <Section>
-          <span className="ldEyebrow">What it does</span>
-          <h2 className="ldH2">A linear program over one night</h2>
+        <Section id="method" eyebrow="What it does" title="A linear program over one night">
           <div className="ldCols">
             <p>
               Every vehicle arrives with an energy requirement, a charger rating and a deadline.
@@ -250,14 +325,13 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
             </p>
           </div>
           <div className="ldChips">
-            {["min emissions", "min cost", "min peak", "feeder-limited", "V2G", "day-ahead forecast"]
+            {["min emissions", "min cost", "min peak", "feeder-limited", "V2G",
+              "day-ahead forecast", "state of charge", "round-trip loss"]
               .map((c) => <span className="ldChip" key={c}>{c}</span>)}
           </div>
         </Section>
 
-        <Section>
-          <span className="ldEyebrow">The data</span>
-          <h2 className="ldH2">Measured, not simulated</h2>
+        <Section id="data" eyebrow="The data" title="Measured, not simulated">
           <div className="ldCols">
             <p>
               Carbon intensity is not downloaded — it is derived, from ENTSO-E's published
@@ -269,68 +343,103 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
               Datasets are screened before they are trusted. A candidate whose hour-to-hour
               autocorrelation looks like white noise is rejected regardless of how convincing
               its column names are, because a model fitted to noise still reports a believable
-              error figure. Four candidates were rejected on that test and are listed below.
+              error figure. Four candidates were rejected on that test.
             </p>
+          </div>
+          <div className="ldMetrics">
+            {[
+              { v: es.mean, u: "gCO₂eq/kWh", k: "Spain, mean intensity" },
+              { v: de.mean, u: "gCO₂eq/kWh", k: "Germany, mean intensity" },
+              { v: mpc.nights, u: "nights", k: "held out for control tests" },
+              { v: "0.951", u: "lag-1", k: "autocorrelation screen floor" },
+            ].map((m) => (
+              <div className="ldMetric" key={m.k}>
+                <span className="ldMetricVal">{m.v}<em>{m.u}</em></span>
+                <span className="ldMetricKey">{m.k}</span>
+              </div>
+            ))}
           </div>
         </Section>
 
-        <Section className="ldWide">
-          <span className="ldEyebrow">What it found</span>
-          <h2 className="ldH2">Nine findings, four of them negative</h2>
+        <Section id="findings" eyebrow="What it found"
+          title="Nine findings, four of them negative" wide>
           <p className="ldNote">
             A findings list containing only confirmations is a marketing document. These are
             ordered as they were established, and the ones that contradict the project's own
             premise are kept.
           </p>
-          <div className="ldGrid">
-            {FINDINGS.map((f) => (
-              <article className={`ldCard tone-${f.tone}`} key={f.n}>
-                <span className="ldCardNum">{f.n}</span>
-                <h3 className="ldCardHead">{f.head}</h3>
-                <p className="ldCardBody">{f.body}</p>
-              </article>
-            ))}
-          </div>
+          <FindingGrid />
         </Section>
 
-        <Section className="ldWide">
-          <span className="ldEyebrow">What did not survive</span>
-          <h2 className="ldH2">Rejected on evidence</h2>
-          <div className="ldGrid ldGrid2">
-            {REJECTED.map((r) => (
-              <article className="ldCard tone-bad" key={r.head}>
-                <h3 className="ldCardHead">{r.head}</h3>
-                <p className="ldCardBody">{r.body}</p>
-              </article>
-            ))}
-          </div>
+        <Section id="rejected" eyebrow="What did not survive" title="Rejected on evidence" wide>
+          <p className="ldNote">
+            Each of these looked promising enough to spend time on, and each was dropped because
+            a measurement said so rather than because it became inconvenient.
+          </p>
+          <RejectedGrid />
         </Section>
 
-        <Section>
-          <span className="ldEyebrow">How it is built</span>
-          <h2 className="ldH2">The stack</h2>
+        <Section id="stack" eyebrow="How it is built" title="The stack">
           <dl className="ldStack">
             {STACK.map((s) => (
               <div className="ldStackRow" key={s.k}>
                 <dt>{s.k}</dt>
                 <dd>{s.v}</dd>
+                <span className="ldStackTag">{s.t}</span>
               </div>
             ))}
           </dl>
         </Section>
 
-        <Section className="ldFinal">
+        <section className="ldSection ldFinal">
           <h2 className="ldH2">Five panes, every number regenerated from source</h2>
           <p className="ldNote">
-            The simulator solves a night live. The other four defend a specific claim — against
-            the alternatives, against a transformer limit, against a second grid, and against a
-            more sophisticated controller that turned out not to be worth it.
+            The simulator solves a night live. The other four each defend a specific claim —
+            against the alternatives, against a transformer limit, against a second grid, and
+            against a more sophisticated controller that turned out not to be worth it.
           </p>
           <button className="ldEnter ldEnterBig" onClick={onEnter}>
             Enter the dashboard <ArrowRight size={17} strokeWidth={2.4} />
           </button>
-        </Section>
+        </section>
       </div>
+    </div>
+  );
+}
+
+function FindingGrid() {
+  const reduced = usePrefersReduced();
+  const { ref, shown } = useReveal<HTMLDivElement>(reduced);
+  return (
+    <div ref={ref} className={`ldGrid stagger ${shown ? "isIn" : ""}`}>
+      {FINDINGS.map((f, i) => (
+        <article className={`ldCard tone-${f.tone}`} key={f.n} style={{ ["--i" as string]: i }}>
+          <div className="ldCardTop">
+            <span className="ldCardNum">{f.n}</span>
+            <span className="ldCardTag">{f.tag}</span>
+          </div>
+          <h3 className="ldCardHead">{f.head}</h3>
+          <p className="ldCardBody">{f.body}</p>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function RejectedGrid() {
+  const reduced = usePrefersReduced();
+  const { ref, shown } = useReveal<HTMLDivElement>(reduced);
+  return (
+    <div ref={ref} className={`ldGrid ldGrid2 stagger ${shown ? "isIn" : ""}`}>
+      {REJECTED.map((r, i) => (
+        <article className="ldCard tone-bad" key={r.head} style={{ ["--i" as string]: i }}>
+          <div className="ldCardTop">
+            <span className="ldCardTag">{r.meta}</span>
+          </div>
+          <h3 className="ldCardHead">{r.head}</h3>
+          <p className="ldCardBody">{r.body}</p>
+        </article>
+      ))}
     </div>
   );
 }

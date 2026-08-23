@@ -3,7 +3,10 @@ import {
   AreaChart, Area, LineChart, Line, ReferenceLine,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { ChevronDown, Zap, Github, AlertTriangle } from "lucide-react";
+import {
+  ChevronDown, Zap, Github, AlertTriangle,
+  Command, Link2, Download, Keyboard,
+} from "lucide-react";
 import { runScenario, fetchDays, warmUp, ScenarioResponse } from "./api";
 import Comparison from "./Comparison";
 import Hosting from "./Hosting";
@@ -12,10 +15,15 @@ import Regions from "./Regions";
 import Control from "./Control";
 import Segmented from "./Segmented";
 import Landing from "./Landing";
+import CommandPalette, { Command as Cmd } from "./CommandPalette";
+import Shortcuts from "./Shortcuts";
+import { ToastHost, useToast } from "./toast";
 import { usePrefersReduced, useCountUp, useReveal } from "./motion";
+import "./design.css";
 import "./index.css";
 import "./ev-theme.css";
 import "./landing.css";
+import "./chrome.css";
 
 type Objective = "emissions" | "cost" | "peak";
 type Tab = "simulator" | "comparison" | "hosting" | "regions" | "control";
@@ -88,15 +96,34 @@ function ChartTip({ active, payload, label, unit, digits = 1 }: any) {
   );
 }
 
-export default function App() {
-  const [evCount, setEvCount] = useState(80);
-  const [chargerKw, setChargerKw] = useState(7);
-  const [feederKw, setFeederKw] = useState(0); // 0 = unconstrained
+/**
+ * Scenario controls live in the query string so a run can be linked to.
+ *
+ * The tab stays in the hash and the controls in the search params: they change
+ * on different cadences, and mixing them would mean rewriting the whole
+ * fragment every time a slider moves.
+ */
+const PARAMS = new URLSearchParams(window.location.search);
+const num = (key: string, fallback: number) => {
+  const raw = PARAMS.get(key);
+  const n = raw === null ? NaN : Number(raw);
+  return Number.isFinite(n) ? n : fallback;
+};
+const flag = (key: string) => PARAMS.get(key) === "1";
+
+function App() {
+  const toast = useToast();
+  const [evCount, setEvCount] = useState(() => num("ev", 80));
+  const [chargerKw, setChargerKw] = useState(() => num("kw", 7));
+  const [feederKw, setFeederKw] = useState(() => num("feeder", 0)); // 0 = unconstrained
   // Off by default so the landing view is the theoretical best; switching it on
   // is what a real scheduler, which cannot see tomorrow, would actually get.
-  const [useForecast, setUseForecast] = useState(false);
-  const [v2g, setV2g] = useState(false);
-  const [objective, setObjective] = useState<Objective>("emissions");
+  const [useForecast, setUseForecast] = useState(() => flag("fc"));
+  const [v2g, setV2g] = useState(() => flag("v2g"));
+  const [objective, setObjective] = useState<Objective>(() => {
+    const o = PARAMS.get("obj");
+    return o === "cost" || o === "peak" || o === "emissions" ? o : "emissions";
+  });
   const [methodOpen, setMethodOpen] = useState(false);
   // Tab lives in the URL hash so a pane can be linked to directly, and so a
   // reload keeps you where you were.
@@ -149,7 +176,7 @@ export default function App() {
     stage.current?.style.setProperty("--py", "0");
   };
   const [days, setDays] = useState<string[]>([]);
-  const [day, setDay] = useState<string>("");
+  const [day, setDay] = useState<string>(() => PARAMS.get("day") ?? "");
 
   // Keep the latest control values addressable from the mount effect without
   // making it re-run (and re-fire a request) on every slider nudge.
@@ -185,6 +212,145 @@ export default function App() {
     }
   }, []);
 
+  // Mirror the controls into the address bar after each run, so the URL always
+  // describes what is on screen and can be copied at any moment.
+  useEffect(() => {
+    if (!entered) return;
+    const p = new URLSearchParams();
+    if (evCount !== 80) p.set("ev", String(evCount));
+    if (chargerKw !== 7) p.set("kw", String(chargerKw));
+    if (feederKw > 0) p.set("feeder", String(feederKw));
+    if (objective !== "emissions") p.set("obj", objective);
+    if (useForecast) p.set("fc", "1");
+    if (v2g) p.set("v2g", "1");
+    if (day) p.set("day", day);
+    const qs = p.toString();
+    window.history.replaceState(
+      null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}#${tab}`,
+    );
+  }, [entered, evCount, chargerKw, feederKw, objective, useForecast, v2g, day, tab]);
+
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+
+  const share = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast("Link copied — it reopens this exact scenario");
+    } catch {
+      // Clipboard access is refused outside a secure context and in some
+      // embedded views; the URL is already correct, so say so rather than fail.
+      toast("Copy blocked — the address bar already holds this scenario", "warn");
+    }
+  }, [toast]);
+
+  const exportCsv = useCallback(() => {
+    if (!result) return toast("Nothing to export yet", "warn");
+    const head = "hour,label,naive_kw,optimized_kw,carbon_gco2eq_per_kwh,price_eur_per_kwh";
+    const rows = result.hourly.map((h) =>
+      [h.hour, h.label, h.naive_kw, h.optimized_kw, h.carbon_intensity, h.price].join(","));
+    const blob = new Blob([[head, ...rows].join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `gridsense-${result.day ?? "night"}-${objective}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast(`Exported ${rows.length} hours as CSV`);
+  }, [result, objective, toast]);
+
+  const stepDay = useCallback((delta: number) => {
+    if (!days.length) return;
+    const i = days.indexOf(day);
+    const next = days[(i < 0 ? 0 : i + delta + days.length) % days.length];
+    setDay(next);
+    run(next);
+  }, [days, day, run]);
+
+  const TABS: { key: Tab; label: string }[] = [
+    { key: "simulator", label: "Simulator" },
+    { key: "comparison", label: "Existing vs GridSense" },
+    { key: "hosting", label: "Grid headroom" },
+    { key: "regions", label: "Two grids" },
+    { key: "control", label: "Rolling control" },
+  ];
+
+  const commands: Cmd[] = [
+    ...TABS.map((t, i) => ({
+      id: `go-${t.key}`, group: "Go to", label: t.label, hint: String(i + 1),
+      keywords: "pane tab view",
+      run: () => { setEntered(true); selectTab(t.key); },
+    })),
+    { id: "go-home", group: "Go to", label: "Project overview", hint: "H",
+      keywords: "landing home about", run: leave },
+    ...OBJECTIVES.map((o) => ({
+      id: `obj-${o.key}`, group: "Objective", label: `Minimise ${o.label.toLowerCase()}`,
+      keywords: "optimise target carbon cost peak",
+      run: () => { setEntered(true); selectTab("simulator"); setObjective(o.key); },
+    })),
+    { id: "t-v2g", group: "Toggle", label: `${v2g ? "Disable" : "Enable"} vehicle-to-grid`,
+      hint: "V", keywords: "v2g discharge export battery", run: () => setV2g((x) => !x) },
+    { id: "t-fc", group: "Toggle",
+      label: `${useForecast ? "Use perfect foresight" : "Use the day-ahead forecast"}`,
+      hint: "F", keywords: "forecast prediction foresight", run: () => setUseForecast((x) => !x) },
+    { id: "a-run", group: "Actions", label: "Re-run this scenario", hint: "R",
+      keywords: "solve refresh compute", run: () => run() },
+    { id: "a-next", group: "Actions", label: "Next night", hint: "]",
+      keywords: "day date advance", run: () => stepDay(1) },
+    { id: "a-prev", group: "Actions", label: "Previous night", hint: "[",
+      keywords: "day date back", run: () => stepDay(-1) },
+    { id: "a-share", group: "Actions", label: "Copy a link to this scenario", hint: "S",
+      keywords: "share url permalink copy", run: share },
+    { id: "a-csv", group: "Actions", label: "Export the schedule as CSV", hint: "E",
+      keywords: "download data export csv", run: exportCsv },
+    { id: "a-keys", group: "Actions", label: "Keyboard shortcuts", hint: "?",
+      keywords: "help keys bindings", run: () => setHelpOpen(true) },
+    { id: "a-src", group: "Actions", label: "Open the source on GitHub",
+      keywords: "code repository github",
+      run: () => window.open("https://github.com/adityaayushman/GRIDSENSE", "_blank") },
+  ];
+
+  // Global keys. Anything typed into a field belongs to that field, so the
+  // handler stands down whenever an editable element holds focus.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      const typing = !!t && (t.isContentEditable ||
+        ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName));
+
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((x) => !x);
+        return;
+      }
+      if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (paletteOpen || helpOpen) return;
+
+      const k = e.key.toLowerCase();
+      if (e.key === "?") { e.preventDefault(); setHelpOpen(true); return; }
+      if (k >= "1" && k <= "5") {
+        const t2 = TABS[Number(k) - 1];
+        if (t2) { setEntered(true); selectTab(t2.key); }
+        return;
+      }
+      if (!entered) return;
+      if (k === "h") leave();
+      else if (k === "r") run();
+      else if (k === "s") share();
+      else if (k === "e") exportCsv();
+      else if (k === "v") setV2g((x) => !x);
+      else if (k === "f") setUseForecast((x) => !x);
+      else if (e.key === "[") stepDay(-1);
+      else if (e.key === "]") stepDay(1);
+      else if (k === "c") {
+        const i = OBJECTIVES.findIndex((o) => o.key === objective);
+        setObjective(OBJECTIVES[(i + 1) % OBJECTIVES.length].key);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
   // Land on a populated page. An empty dashboard behind a "Run" button is a
   // dead first impression, and the default night is already representative.
   useEffect(() => {
@@ -216,7 +382,16 @@ export default function App() {
       }))
     : [];
 
-  if (!entered) return <Landing onEnter={enter} />;
+  if (!entered) {
+    return (
+      <>
+        <Landing onEnter={enter} onPalette={() => setPaletteOpen(true)} />
+        <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)}
+          commands={commands} />
+        <Shortcuts open={helpOpen} onClose={() => setHelpOpen(false)} />
+      </>
+    );
+  }
 
   return (
     <div className="page">
@@ -234,14 +409,34 @@ export default function App() {
             <div className="brandTag">carbon-aware charge scheduling · Spanish grid</div>
           </div>
         </button>
-        {tab === "simulator" && (
-          <Segmented
-            className="objectiveToggle"
-            options={OBJECTIVES.map((o) => ({ key: o.key, label: o.label }))}
-            value={objective}
-            onChange={setObjective}
-          />
-        )}
+        <div className="headTools">
+          {tab === "simulator" && (
+            <Segmented
+              className="objectiveToggle"
+              options={OBJECTIVES.map((o) => ({ key: o.key, label: o.label }))}
+              value={objective}
+              onChange={setObjective}
+            />
+          )}
+          <button className="toolBtn" onClick={() => setPaletteOpen(true)}
+            title="Command palette (⌘K)">
+            <Command size={14} strokeWidth={2.2} /><span className="kbd">K</span>
+          </button>
+          {tab === "simulator" && (
+            <>
+              <button className="toolBtn" onClick={share} title="Copy a link to this scenario (S)">
+                <Link2 size={14} strokeWidth={2.2} />
+              </button>
+              <button className="toolBtn" onClick={exportCsv} title="Export as CSV (E)">
+                <Download size={14} strokeWidth={2.2} />
+              </button>
+            </>
+          )}
+          <button className="toolBtn" onClick={() => setHelpOpen(true)}
+            title="Keyboard shortcuts (?)">
+            <Keyboard size={14} strokeWidth={2.2} />
+          </button>
+        </div>
       </header>
 
       <nav className="tabs">
@@ -597,6 +792,19 @@ export default function App() {
           <Github size={14} /> Source
         </a>
       </footer>
+
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)}
+        commands={commands} />
+      <Shortcuts open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
+  );
+}
+
+/** useToast has to be called under the provider, so the tree is split here. */
+export default function AppRoot() {
+  return (
+    <ToastHost>
+      <App />
+    </ToastHost>
   );
 }

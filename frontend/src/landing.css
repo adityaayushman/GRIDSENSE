@@ -19,7 +19,7 @@
   min-height: 100svh;
   display: grid;
   place-items: center;
-  padding: 84px 26px 110px;
+  padding: 118px 26px 110px;
   overflow: hidden;
 }
 
@@ -361,3 +361,81 @@
   .ldCard:hover, .ldEnter:hover { transform: none; }
 }
 .lsStage.isStill .lsWorld { transition: none; }
+
+
+/* ---------- additions: hint line, metrics, card chrome ---------- */
+
+.ldHint {
+  margin: 22px 0 0;
+  font-size: var(--t-sm); color: var(--ink-3);
+  display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Section anchors must clear the fixed nav when jumped to. */
+.ldSection { scroll-margin-top: 74px; }
+
+/* Figures under the data section. */
+.ldMetrics {
+  display: grid; gap: 10px; margin-top: var(--s-5);
+  grid-template-columns: repeat(auto-fit, minmax(172px, 1fr));
+}
+.ldMetric {
+  padding: 15px 17px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.ldMetricVal {
+  display: block;
+  font-family: var(--mono); font-size: var(--t-xl); font-weight: 650;
+  letter-spacing: var(--tr-snug); color: var(--ink);
+}
+.ldMetricVal em {
+  font-style: normal; font-size: var(--t-xs); font-weight: 500;
+  color: var(--ink-3); margin-left: 5px; letter-spacing: 0;
+}
+.ldMetricKey {
+  display: block; margin-top: 5px;
+  font-size: var(--t-xs); color: var(--ink-3);
+}
+
+/* Card header row: index on the left, subject tag on the right. */
+.ldCardTop {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-bottom: 10px;
+}
+.ldCardTag {
+  font-family: var(--mono); font-size: 10px; font-weight: 600;
+  letter-spacing: .06em; color: var(--ink-3);
+  padding: 3px 8px; border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(10,15,22,.5);
+  white-space: nowrap;
+}
+
+/* A card lifts and warms its rim toward the tone it carries. */
+.ldCard::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  opacity: 0; pointer-events: none;
+  transition: opacity var(--dur-3) var(--ease-out);
+  background: radial-gradient(420px 180px at 50% -30%, rgba(57,135,229,.14), transparent 70%);
+}
+.ldCard:hover::after { opacity: 1; }
+.ldCard.tone-bad:hover::after {
+  background: radial-gradient(420px 180px at 50% -30%, rgba(217,89,38,.13), transparent 70%);
+}
+.ldCard:hover { box-shadow: var(--e-2); }
+
+/* Stack rows carry a right-hand tag. */
+.ldStackRow { grid-template-columns: 150px 1fr auto; align-items: baseline; }
+.ldStackTag {
+  font-family: var(--mono); font-size: 10.5px; color: var(--ink-3);
+  padding: 3px 9px; border-radius: 999px;
+  border: 1px solid var(--line);
+  white-space: nowrap;
+}
+@media (max-width: 620px) {
+  .ldStackRow { grid-template-columns: 1fr; }
+  .ldStackTag { justify-self: start; }
+}
