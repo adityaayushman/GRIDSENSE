@@ -82,6 +82,16 @@ def indian_fleet(n: int, arrival: int = 18, deadline: int = 7,
             break
         counts[k] += 1
 
+    # How many hours the window actually holds, and how long the slowest
+    # vehicle needs. Staggering a fixed four hours works for a thirteen-hour
+    # night and strands a three-wheeler in a six-hour one — it needs 3.4 hours
+    # at 1.9 kW, so arriving three hours in leaves it short and the LP reports
+    # an infeasible problem rather than a small saving.
+    span = (deadline - arrival) % 24 or 24
+    slowest = max(s["energy_kwh"] / s["charger_kw"] for s in SEGMENTS.values())
+    max_offset = max(0, int(span - slowest))
+    spread = min(4, max_offset) if stagger else 1
+
     fleet: list[Vehicle] = []
     i = 0
     for seg, count in counts.items():
@@ -90,7 +100,7 @@ def indian_fleet(n: int, arrival: int = 18, deadline: int = 7,
             # Arrivals spread over the early evening. A single instant would make
             # charge-on-arrival look worse than it is, which is the error that
             # inflated the identical-fleet capacity figures elsewhere.
-            offset = (j % 4) if stagger else 0
+            offset = (j % spread) if spread > 0 else 0
             fleet.append(Vehicle(
                 id=f"{seg}-{i}",
                 energy_needed_kwh=s["energy_kwh"],

@@ -418,12 +418,10 @@ problem.
 > 150 homes is the realistic figure. Both corrections changed the answer, and
 > the second changed the seasonal spread from 1.04× to 1.34×.
 
-> **Carbon is still open.** Grid-India and the CEA publish generation mix only
-> daily, but Electricity Maps' data portal offers free historical CSV at hourly
-> granularity for Indian zones, which an earlier note in this document wrongly
-> called paid. Finding 7 predicts India will save *less* than Spain despite
-> being 2.3× dirtier, because steady coal has no shape to exploit. That is now
-> testable and has not been tested.
+> **Carbon is no longer open — see finding 12.** Grid-India's aggregate tables
+> are daily, but its Daily PSP Report carries a 15-minute generation-by-fuel
+> sheet. Finding 7's prediction has now been tested on 506 days of it: India
+> saves a median 0.05% overnight against Spain's 3.30%, on a grid twice as dirty.
 
 ---
 
@@ -470,6 +468,72 @@ should be read as provisional until it is.
 This is the same class of error as finding 3, where a synthetic carbon curve
 turned out to be inverted. The lesson there was applied to the carbon input and
 not to this one.
+
+---
+
+## 12. India is twice as dirty as Spain and carbon-aware charging saves nothing there
+
+`ml/fetch_india_psp.py`, `ml/india_carbon.py`, `ml/india_backtest.py` · **India** pane
+
+Finding 7 predicted that a dirtier grid is not a better one to shift load in,
+because value follows a grid's *shape* rather than its level. India is the test
+case that prediction deserved, and it now has measured data behind it.
+
+**The data.** Grid-India publishes a Daily PSP Report whose `TimeSeries` sheet
+carries 96 fifteen-minute intervals of all-India generation split by fuel. It is
+free, official, and needs no account — it is the primary source Electricity Maps
+itself parses for Indian zones, so going straight to it gives finer resolution
+than their hourly export. **48,538 fifteen-minute rows across 506 days**,
+2025-04-01 to 2026-08-22, screened at lag-1 +0.997. Carbon intensity is derived
+from the mix with the same IPCC AR5 factors used for Spain, so the two are
+comparable by construction rather than by assertion.
+
+**India runs at 541 gCO₂eq/kWh** against Spain's 267 — a little over twice as
+dirty, on 13.4% renewable share.
+
+And the overnight window is the worst part of its day:
+
+| Window | Mean intensity | Spread | Median CO₂ cut | Days under 1% |
+| --- | --- | --- | --- | --- |
+| **Overnight 18–07** (this project's default) | 567 | 3.4% | **0.05%** | **98.4%** |
+| Daytime 09–17 | 499 | 6.5% | 0.57% | 78.0% |
+| Afternoon 12–18 | 506 | 10.2% | **0.00%** | 100.0% |
+| Spain, overnight | 267 | — | 3.30% | 38.0% |
+
+Intensity climbs steadily from 554 at 18:00 to 573 at 05:00, then falls to a
+trough of **488 at midday**, where the solar is. India's clean hours are the
+middle of the day. A European charging habit points Indian drivers at precisely
+the wrong end of the clock, and scheduling inside that window recovers a median
+of **0.05%** — twenty-fold less than Spain, on a grid twice as dirty. Finding 7
+holds, and holds hard.
+
+**The afternoon row is the sharper lesson, and it corrects finding 7.** That
+window has the *widest* spread of the three — 10.2% against the overnight
+window's 3.4% — and saves **nothing at all**. Six hours barely covers what a
+three-wheeler needs at 1.9 kW, so the fleet must charge almost continuously and
+there is nowhere to move load to. Shape is **necessary but not sufficient**: a
+scheduler needs slack as well, and the two can point in opposite directions.
+Finding 7's rule as originally stated would have predicted the afternoon window
+to be the best of the three. It is the worst.
+
+**The policy reading is uncomfortable for this project's own premise.**
+Carbon-aware charging is the wrong intervention for India. Capacity coordination
+is the right one: the same fleet on the same transformer is worth 3.5× in
+hosting capacity (finding 10), a real and large number, while the carbon saving
+rounds to zero. A project that exists to schedule charging against carbon has
+measured its way to the conclusion that in India it should not.
+
+> Two modelling choices are stated rather than buried. The sheet reports a single
+> THERMAL column, treated here as coal at 820 — it includes some lignite at 1054,
+> so this **understates** Indian intensity slightly. And storage discharge is
+> excluded from the mix, since its emissions belong to whatever charged it;
+> counting it as zero-carbon generation would flatter the grid. Storage is ~1.6%
+> of generation, so neither choice moves much, but both should be choices.
+
+> An earlier version of this document said hourly Indian carbon data was
+> available only behind a paid API. That was wrong twice over: Electricity Maps
+> publishes free hourly CSV for Indian zones, *and* the underlying Grid-India
+> source used here is free and finer-grained than either.
 
 ---
 
