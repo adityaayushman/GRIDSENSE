@@ -9,13 +9,14 @@ import Comparison from "./Comparison";
 import Hosting from "./Hosting";
 import HeroScene from "./HeroScene";
 import Regions from "./Regions";
+import Control from "./Control";
 import Segmented from "./Segmented";
 import { usePrefersReduced, useCountUp, useReveal } from "./motion";
 import "./index.css";
 import "./ev-theme.css";
 
 type Objective = "emissions" | "cost" | "peak";
-type Tab = "simulator" | "comparison" | "hosting" | "regions";
+type Tab = "simulator" | "comparison" | "hosting" | "regions" | "control";
 
 const OPT = "#3987e5";
 const NAIVE = "#d95926";
@@ -100,7 +101,8 @@ export default function App() {
   const [tab, setTab] = useState<Tab>(
     () => {
       const h = window.location.hash.replace("#", "");
-      return ["comparison", "hosting", "regions"].includes(h) ? (h as Tab) : "simulator";
+      return ["comparison", "hosting", "regions", "control"].includes(h)
+        ? (h as Tab) : "simulator";
     },
   );
   const selectTab = (t: Tab) => {
@@ -230,6 +232,8 @@ export default function App() {
           onClick={() => selectTab("hosting")}>Grid headroom</button>
         <button className={`tab ${tab === "regions" ? "active" : ""}`}
           onClick={() => selectTab("regions")}>Two grids</button>
+        <button className={`tab ${tab === "control" ? "active" : ""}`}
+          onClick={() => selectTab("control")}>Rolling control</button>
       </nav>
 
       {tab === "simulator" && (
@@ -274,6 +278,7 @@ export default function App() {
         {tab === "comparison" && <div key="cmp" className="paneEnter"><Comparison /></div>}
         {tab === "hosting" && <div key="hst" className="paneEnter"><Hosting /></div>}
         {tab === "regions" && <div key="rgn" className="paneEnter"><Regions /></div>}
+        {tab === "control" && <div key="ctl" className="paneEnter"><Control /></div>}
 
         {tab === "simulator" && (
         <>

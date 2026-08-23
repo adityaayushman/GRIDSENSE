@@ -379,3 +379,52 @@ def test_v2g_costs_more_energy_than_it_returns():
     v2g = optimize_schedule(_v2g_fleet(), carbon, objective="emissions", allow_v2g=True)
     # Gross import must rise: every exported kWh has to be bought back, plus losses.
     assert sum(v for v in v2g if v > 0) > sum(plain) + 1e-6
+
+
+WINDOW_HOURS = [h % 24 for h in range(18, 18 + 13)]
+
+
+def _varied_carbon():
+    """A curve with several distinct minima, so deferral decisions are non-trivial."""
+    shape = [412, 398, 371, 344, 358, 380, 291, 268, 243, 219, 232, 205, 254]
+    curve = [400.0] * 24
+    for h, v in zip(WINDOW_HOURS, shape):
+        curve[h] = float(v)
+    return curve
+
+
+def test_optimizer_is_time_consistent():
+    """Re-solving hour by hour must cost exactly what solving once costs.
+
+    This is the property that makes rolling-horizon control sound: with the
+    carbon curve held fixed, executing one hour and re-solving for the rest can
+    never beat or lose to the plan made up front. ml/mpc.py depends on it to
+    separate the effect of forecast error from the effect of control structure —
+    if this drifts, that attribution is meaningless.
+    """
+    carbon = _varied_carbon()
+    energy, power = 40.0, 7.0
+
+    def solve(from_hour: float, remaining: float) -> list[float]:
+        v = Vehicle(id="v1", energy_needed_kwh=remaining, charger_kw=power,
+                    arrival_hour=from_hour, deadline_hour=7)
+        return optimize_schedule([v], carbon, objective="emissions")
+
+    upfront = solve(18, energy)
+
+    rolling = [0.0] * 24
+    remaining = energy
+    for h in WINDOW_HOURS:
+        if remaining <= 1e-9:
+            break
+        commit = min(solve(h, remaining)[h], remaining)
+        rolling[h] = commit
+        remaining -= commit
+
+    assert remaining == pytest.approx(0.0, abs=1e-6)
+    assert sum(rolling) == pytest.approx(energy)
+    assert max(rolling) <= power + 1e-6
+
+    e_upfront = sum(l * c for l, c in zip(upfront, carbon))
+    e_rolling = sum(l * c for l, c in zip(rolling, carbon))
+    assert e_rolling == pytest.approx(e_upfront, rel=1e-9)

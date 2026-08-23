@@ -133,6 +133,29 @@ carbon chart overlays the forecast the scheduler saw against the actual curve.
 > worse than nothing. A production system should act only when the predicted
 > spread is worth acting on.
 
+## Rolling-horizon control — built, and measured as a negative result
+
+`ml/train_horizon.py` trains one ridge per forecast horizon, h = 1..13, so the
+question "does waiting buy better information?" is answered with a number rather
+than an assumption. It does: MAE runs **6.72 g** at one hour ahead to **26.33 g**
+at thirteen, monotone.
+
+`ml/mpc.py` then rebuilds the scheduler the way grid operators actually run —
+re-solve every hour on refreshed forecasts, commit only the next hour — and
+replays it over 362 held-out nights against the one-shot LP and perfect
+foresight. **It loses**, and the loss decomposes: hour-by-hour commitment costs
+**+1.361pp** of regret while the sharper forecast buys back only **−0.796pp**.
+
+The **Rolling control** pane presents this, including the diagnosis (the
+controller over-defers, because the minimum of a dozen noisy forecasts is
+optimistically biased) and the bug that nearly inflated it — a baseline that was
+accidentally reading true intensities at long horizons. Kept as a shipped pane
+because a project that only displays its successes is a brochure.
+
+> Certainty-equivalent MPC only. A controller with a terminal cost, or one that
+> prices the optionality it destroys by deferring, is the obvious next attempt
+> and was not tested; the conclusion covers the formulation that was.
+
 ## Infrastructure — built
 
 - One Vercel project serving **both tiers**, built from GitHub on every push:
