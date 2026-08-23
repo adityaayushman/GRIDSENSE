@@ -56,6 +56,12 @@ rather than a ceiling. `solver_ceiling` now raises instead of returning it.
 > **Remaining caveat.** Vehicles are still drawn from one distribution and every
 > car can wait until morning. A fleet with hard early deadlines would host fewer.
 
+> ⚠️ **Read this number as provisional.** Finding 11 shows the residential
+> baseline these figures are measured against overstates household demand about
+> sevenfold, and that error inflates the coordination gain by roughly 1.5×. The
+> corrected headline is nearer 4× than 6.3×. The table above has not yet been
+> recomputed on a calibrated baseline.
+
 ## 2. The emissions saving is real but small, and long-tailed
 
 `backtest.py` · **Existing vs GridSense** pane
@@ -329,6 +335,115 @@ a property of forecasting under commitment, not an implementation artefact.
 
 ---
 
+## 10. India is a different problem, and the European model gets it wrong twice
+
+`ml/india_fleet.py`, `ml/export_india_capacity.py` · **India** pane
+
+Hosting capacity never needed carbon data — it is load against a rating — so it
+is the one claim in this project that transfers to India intact. What does not
+transfer is everything underneath it.
+
+**India does not drive cars.** FADA retail registrations for calendar 2025:
+two-wheelers 1,279,951 (56%), three-wheelers 797,733 (35%), passenger cars
+176,817 (8%). Ninety-one percent of Indian EVs are two- and three-wheelers, and
+61% of *all* three-wheeler sales are now electric — that segment is close to
+fully electrified rather than emerging.
+
+**Indian transformers are small.** IS 1180 standard distribution ratings run
+16–2500 kVA, and a residential unit is typically 63–250 kVA against the 1,250 kW
+this project assumed. Ratings are apparent power, so a 0.9 power factor is
+applied; treating kVA as kW would quietly grant every transformer 10% more
+headroom than it has.
+
+Per 100 vehicles:
+
+| | Energy wanted | Connected power |
+| --- | --- | --- |
+| Indian fleet | 404 kWh | 144 kW |
+| European cars | 920 kWh | 700 kW |
+
+**2.3× less energy and 4.9× less connected power.** A 900 W scooter charger is
+not a small car charger; it is a different class of load, and thirteen overnight
+hours are far more than it needs. Three-wheelers are the segment that matters:
+35 of the 100 vehicles but 56% of the energy, because a shared rickshaw is
+worked all day and wants most of its pack back.
+
+Capacity on a 40-home feeder:
+
+| Rating | On arrival | Coordinated | Gain |
+| --- | --- | --- | --- |
+| 63 kVA | 24 | 129 | **5.4×** |
+| 100 kVA | 60 | 236 | 3.9× |
+| 160 kVA | 116 | 410 | 3.5× |
+| 250 kVA | 194 | 672 | 3.5× |
+| 400 kVA | 331 | 1,111 | 3.4× |
+
+**The gain rises as the transformer shrinks.** On a small unit the houses
+already occupy most of the rating, so the headroom for charging on arrival is
+thin while the overnight valley is proportionally larger. Coordination is worth
+most exactly where the grid is most constrained — which in India is most of it.
+That is the opposite of where a European reading would point the intervention.
+
+On the same 100 kVA unit, the Indian fleet fits 60 vehicles charging on arrival
+against 25 European cars. Modelling India with European vehicles would have
+understated one transformer's capacity 2.4× and aimed the fix at the wrong
+problem.
+
+> **Carbon is still open.** Grid-India and the CEA publish generation mix only
+> daily, but Electricity Maps' data portal offers free historical CSV at hourly
+> granularity for Indian zones, which an earlier note in this document wrongly
+> called paid. Finding 7 predicts India will save *less* than Spain despite
+> being 2.3× dirtier, because steady coal has no shape to exploit. That is now
+> testable and has not been tested.
+
+---
+
+## 11. The residential baseline was overstated sevenfold, and it inflated finding 1
+
+`app/data_sources.py` · found while calibrating the Indian equivalent
+
+The synthetic household profile is a sum of two Gaussians:
+
+```python
+household_count * (2.2 + 1.8 * exp(-((h-19)**2)/8) + 0.6 * exp(-((h-8)**2)/4))
+```
+
+Its *shape* was the documented assumption. Its **magnitude** was never checked,
+and it is wrong: 4.00 kW peak and **1,915 kWh per household per month**, against
+a measured Spanish average near 292. Spanish households commonly *contract*
+3.3–5.75 kW as a ceiling; this curve never drops below 2.2 kW all night.
+
+Because the transformer binds on `residential + EV load`, an inflated baseline
+eats the rating before any vehicle plugs in — 800 kW of 1,250 kW. That punishes
+charge-on-arrival, which adds to the existing peak, far more than it punishes
+coordinated charging, which fills the overnight valley. So overstating the
+houses overstates the value of coordination.
+
+Holding the fleet and the transformer fixed and correcting only the baseline:
+
+| Baseline | Per home | On arrival | Coordinated | Gain |
+| --- | --- | --- | --- | --- |
+| As shipped | 1,915 kWh/mo | 193 | 988 | **5.1×** |
+| Calibrated | 288 kWh/mo | 465 | 1,635 | **3.5×** |
+
+The published headline is **6.3×** on the realistic staggered fleet. The
+comparison above uses a simplified fleet, so it does not give the corrected
+headline directly — but the direction and rough size are unambiguous: the
+baseline error inflates the coordination gain by about 1.5×, and the real figure
+is nearer 4× than 6.3×.
+
+The Indian model (finding 10) is calibrated: its profile is scaled so the day
+integrates to Delhi's measured ~260 kWh/month, leaving only the *shape*
+assumed. The Spanish pipeline has not yet been recomputed on a corrected
+baseline, and every capacity figure in finding 1 and the **Grid headroom** pane
+should be read as provisional until it is.
+
+This is the same class of error as finding 3, where a synthetic carbon curve
+turned out to be inverted. The lesson there was applied to the carbon input and
+not to this one.
+
+---
+
 ## Datasets evaluated and rejected
 
 Screened with `screen_dataset.py`, which any candidate must pass before it is
@@ -372,6 +487,14 @@ and one number per day has no within-night shape to schedule against. Hourly
 Indian generation mix exists only behind ElectricityMaps' paid API or inside
 RLDC 15-minute PSP report PDFs, which would be a scraping project in its own
 right. State SLDCs publish load, and load is not mix.
+
+**Correction.** The paragraph above originally called Electricity Maps the paid
+route. That is wrong for the historical data: their data portal offers free CSV
+downloads at hourly granularity for Indian zones (2021-2024, five datasets per
+account). The *API* is paid; the archive is not. The POSOCO/CEA finding stands —
+those really are daily — but the conclusion drawn from it, that no free hourly
+Indian source existed, was an overreach. Hourly Indian carbon intensity is
+obtainable, and finding 7's prediction about India is testable.
 
 The level comparison is still worth having, and finding 7 gives it teeth:
 
