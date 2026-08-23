@@ -163,3 +163,26 @@ Coordinated ceilings are found analytically with `max_deliverable_kwh` rather
 than by sweeping, so the number is where the night physically runs out of
 headroom and not where the sweep stopped, then confirmed against the solver at
 the boundary in both directions.
+
+## India
+
+Measured Indian data, screened before use like everything else here.
+
+```bash
+kaggle datasets download -d shubhamvashisht/hourly-load-india-electrical-load-forecasting \
+  -p data/india-grid --unzip
+python screen_dataset.py data/india-grid/india_hourly_load.csv \
+  --time datetime --value "National Hourly Demand"     # PASS, lag-1 +0.979
+python india_fleet.py                                  # fleet mix and IS 1180 ratings
+python india_load.py                                   # measured demand shape by season
+python export_india_capacity.py                        # -> frontend/src/data/india.json
+```
+
+`india_hourly_load.csv` is converted once from the published `.xlsx`; 46,728
+hourly rows, national plus five regional grids, 2019-01-01 to 2024-04-30, no
+nulls and no irregular steps.
+
+`india_feasibility.py` documents why Grid-India's own generation mix is not used:
+it is published daily, and a daily figure has no within-night shape to schedule
+against. Hourly Indian *carbon intensity* is separately available free from
+Electricity Maps' data portal and has not yet been pulled in.
