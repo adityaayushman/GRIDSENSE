@@ -1,0 +1,363 @@
+/* GridSense — the front door.
+   Shares the instrument-panel tokens from index.css; adds a 3D stage and the
+   long-form overview. No data-mark hues are introduced here: the landing borrows
+   --series-opt / --series-naive so the story and the charts agree on what blue
+   and orange mean. */
+
+.landing {
+  position: relative;
+  min-height: 100vh;
+}
+
+/* ---------- hero ---------- */
+
+.ldHero {
+  position: relative;
+  /* svh keeps the hero clear of a mobile browser's collapsing toolbar; the vh
+     line before it is the fallback for engines that do not know the unit. */
+  min-height: 100vh;
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 84px 26px 110px;
+  overflow: hidden;
+}
+
+.ldHeroCopy {
+  position: relative;
+  z-index: 2;
+  max-width: 760px;
+  text-align: center;
+}
+
+.ldKicker {
+  display: inline-flex; align-items: center; gap: 9px;
+  font-size: 11.5px; letter-spacing: .13em; text-transform: uppercase;
+  color: var(--ink-3); font-weight: 600;
+  padding: 7px 14px; border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(10, 15, 22, 0.55);
+  backdrop-filter: blur(7px);
+}
+.ldKicker b { color: #7fb4f5; font-weight: 650; }
+
+.ldTitle {
+  margin: 26px 0 0;
+  font-size: clamp(38px, 7.4vw, 76px);
+  line-height: 1.03;
+  letter-spacing: -0.035em;
+  font-weight: 680;
+  color: var(--ink);
+}
+.ldTitle .lit {
+  color: #7fb4f5;
+  text-shadow: 0 0 34px var(--accent-glow);
+}
+
+.ldLede {
+  margin: 22px auto 0;
+  max-width: 60ch;
+  font-size: 15.5px;
+  line-height: 1.78;
+  color: var(--ink-2);
+}
+
+.ldStats {
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: 12px; margin-top: 34px;
+}
+.ldStat {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 13px 20px; min-width: 132px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  backdrop-filter: blur(9px);
+}
+.ldStatVal {
+  font-family: var(--mono); font-size: 25px; font-weight: 650;
+  letter-spacing: -.025em; color: var(--ink);
+}
+.ldStatKey {
+  font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink-3); font-weight: 600;
+}
+
+.ldActions {
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: 12px; margin-top: 38px;
+}
+
+.ldEnter {
+  display: inline-flex; align-items: center; gap: 9px;
+  padding: 13px 24px; border-radius: 999px; cursor: pointer;
+  font: inherit; font-size: 14.5px; font-weight: 620;
+  color: #fff; border: 1px solid rgba(127, 180, 245, .5);
+  background: linear-gradient(180deg, #4292ec, #2f6fc4);
+  box-shadow: 0 8px 26px rgba(57, 135, 229, .3);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.ldEnter:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 34px rgba(57, 135, 229, .42);
+}
+.ldEnter:active { transform: translateY(0); }
+.ldEnterBig { margin-top: 26px; padding: 15px 30px; font-size: 15.5px; }
+
+.ldDive {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 13px 22px; border-radius: 999px; cursor: pointer;
+  font: inherit; font-size: 14.5px; font-weight: 560;
+  color: var(--ink-2);
+  border: 1px solid var(--line-bright);
+  background: rgba(14, 20, 29, .6);
+  backdrop-filter: blur(7px);
+  transition: color .18s ease, border-color .18s ease;
+}
+.ldDive:hover { color: var(--ink); border-color: rgba(127, 180, 245, .5); }
+
+.ldScrollCue {
+  position: absolute; left: 50%; bottom: 26px; z-index: 2;
+  transform: translateX(-50%);
+  width: 38px; height: 38px; display: grid; place-items: center;
+  border-radius: 50%; cursor: pointer;
+  color: var(--ink-3);
+  border: 1px solid var(--line);
+  background: rgba(10, 15, 22, .6);
+  animation: ldBob 2.6s ease-in-out infinite;
+}
+.ldScrollCue:hover { color: var(--ink); }
+@keyframes ldBob {
+  0%, 100% { transform: translate(-50%, 0); }
+  50%      { transform: translate(-50%, 7px); }
+}
+
+/* ---------- the 3D stage ---------- */
+
+.lsStage {
+  position: absolute; inset: 0;
+  z-index: 1;
+  perspective: 1150px;
+  perspective-origin: 50% 42%;
+  /* The hero above carries the pointer listener; the stage is decoration and
+     must never intercept a click meant for the buttons over it. */
+  pointer-events: none;
+  /* Written by pointermove; never round-trips through React. */
+  --rx: 0deg;
+  --ry: 0deg;
+}
+
+.lsWorld {
+  position: absolute; inset: 0;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--rx)) rotateY(var(--ry));
+  transition: transform .5s cubic-bezier(.22, .8, .3, 1);
+  opacity: .82;
+}
+
+.lsLayer {
+  position: absolute; left: 50%; top: 50%;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+.lsSvg { display: block; width: 100%; height: 100%; overflow: visible; }
+.lsTick {
+  fill: var(--ink-3); font-size: 11px; font-family: var(--mono);
+  letter-spacing: .06em;
+}
+
+/* Depth 0 — horizon glow, furthest back */
+.lsHorizon {
+  width: 1400px; height: 620px;
+  margin: -520px 0 0 -700px;
+  background:
+    radial-gradient(52% 46% at 50% 100%, rgba(57, 135, 229, .3), transparent 72%),
+    radial-gradient(30% 30% at 68% 96%, rgba(217, 89, 38, .17), transparent 74%);
+  transform: translateZ(-420px);
+  filter: blur(3px);
+}
+
+/* Depth 1 — the grid plane, laid flat and running to the horizon */
+.lsFloor {
+  width: 2400px; height: 1500px;
+  margin: -180px 0 0 -1200px;
+  transform: translateZ(-240px) rotateX(80deg);
+  background-image:
+    linear-gradient(rgba(96, 130, 170, .30) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(96, 130, 170, .30) 1px, transparent 1px);
+  background-size: 88px 88px;
+  mask-image: radial-gradient(ellipse 46% 42% at 50% 26%, #000 8%, transparent 72%);
+  -webkit-mask-image: radial-gradient(ellipse 46% 42% at 50% 26%, #000 8%, transparent 72%);
+  animation: lsFloorRun 13s linear infinite;
+}
+@keyframes lsFloorRun { to { background-position: 0 88px, 0 0; } }
+
+/* Depth 2 — the night's carbon curve */
+.lsCurve {
+  width: 900px; height: 280px;
+  margin: -290px 0 0 -450px;
+  transform: translateZ(-90px);
+  opacity: .95;
+}
+
+/* Depth 3 — pylon */
+.lsPylon {
+  width: 190px; height: 320px;
+  margin: -80px 0 0 -580px;
+  transform: translateZ(10px);
+  opacity: .8;
+}
+
+/* Depth 4 — vehicle */
+.lsCar {
+  width: 330px; height: 155px;
+  margin: 44px 0 0 250px;
+  transform: translateZ(90px);
+}
+
+/* Depth 5 — energy in transit */
+.lsFlow {
+  width: 900px; height: 170px;
+  margin: 34px 0 0 -450px;
+  transform: translateZ(140px);
+}
+
+@media (max-width: 900px) {
+  .lsPylon, .lsFlow { display: none; }
+  .lsCar { margin: 96px 0 0 -165px; transform: translateZ(70px) scale(.82); }
+  .lsCurve { margin-left: -420px; transform: translateZ(-70px) scale(.86); }
+  .lsWorld { opacity: .45; }
+}
+
+/* ---------- the long-form overview ---------- */
+
+.ldDetail {
+  position: relative; z-index: 2;
+  padding: 0 26px 96px;
+  scroll-margin-top: 0;
+}
+
+.ldSection {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 62px 0;
+  border-top: 1px solid var(--line-soft);
+}
+.ldSection.ldWide { max-width: 1180px; }
+.ldSection.ldFinal { text-align: center; border-bottom: 1px solid var(--line-soft); }
+
+.ldEyebrow {
+  font-size: 11px; letter-spacing: .15em; text-transform: uppercase;
+  color: var(--accent); font-weight: 680;
+}
+
+.ldH2 {
+  margin: 13px 0 0;
+  font-size: clamp(23px, 3.3vw, 33px);
+  line-height: 1.22; letter-spacing: -.025em; font-weight: 660;
+  color: var(--ink);
+}
+
+.ldCols {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 26px;
+  margin-top: 22px;
+}
+.ldCols p {
+  margin: 0; font-size: 14.5px; line-height: 1.82; color: var(--ink-2);
+}
+.ldCols strong { color: var(--ink); font-weight: 640; }
+@media (max-width: 760px) { .ldCols { grid-template-columns: 1fr; gap: 16px; } }
+
+.ldNote {
+  margin: 15px 0 0; max-width: 68ch;
+  font-size: 14px; line-height: 1.78; color: var(--ink-2);
+}
+.ldFinal .ldNote { margin-left: auto; margin-right: auto; }
+
+.ldChips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+.ldChip {
+  padding: 6px 13px; border-radius: 999px;
+  font-family: var(--mono); font-size: 11.5px; color: var(--ink-2);
+  border: 1px solid var(--line);
+  background: rgba(19, 25, 34, .6);
+}
+
+/* Findings grid */
+.ldGrid {
+  display: grid; gap: 14px; margin-top: 26px;
+  grid-template-columns: repeat(auto-fit, minmax(268px, 1fr));
+}
+.ldGrid2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+
+.ldCard {
+  position: relative;
+  padding: 20px 20px 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+  transition: transform .2s ease, border-color .2s ease;
+}
+.ldCard:hover { transform: translateY(-3px); border-color: var(--line-bright); }
+/* A hairline that says at a glance whether the finding confirmed or refuted. */
+.ldCard::before {
+  content: ""; position: absolute; inset: 0 auto 0 0; width: 2px;
+}
+.ldCard.tone-good::before { background: var(--series-opt); }
+.ldCard.tone-bad::before  { background: var(--series-naive); }
+.ldCard.tone-flat::before { background: var(--ink-3); }
+
+.ldCardNum {
+  font-family: var(--mono); font-size: 11px; font-weight: 650;
+  letter-spacing: .1em; color: var(--ink-3);
+}
+.ldCardHead {
+  margin: 8px 0 0; font-size: 15.5px; line-height: 1.38;
+  font-weight: 640; color: var(--ink); letter-spacing: -.012em;
+}
+.ldCardBody {
+  margin: 9px 0 0; font-size: 13.5px; line-height: 1.72; color: var(--ink-2);
+}
+
+/* Stack list */
+.ldStack { margin: 24px 0 0; }
+.ldStackRow {
+  display: grid; grid-template-columns: 150px 1fr; gap: 18px;
+  padding: 13px 0;
+  border-top: 1px solid var(--line-soft);
+}
+.ldStackRow dt {
+  font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ink-3); font-weight: 660; padding-top: 2px;
+}
+.ldStackRow dd {
+  margin: 0; font-size: 14px; line-height: 1.65; color: var(--ink-2);
+}
+@media (max-width: 620px) {
+  .ldStackRow { grid-template-columns: 1fr; gap: 5px; }
+}
+
+/* The header brand doubles as the way back to the overview. It is a button for
+   keyboard and screen-reader reasons, so it needs the button chrome removed. */
+.brandHome {
+  font: inherit; color: inherit; text-align: left;
+  background: none; border: 0; padding: 0; margin: 0;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: opacity .18s ease;
+}
+.brandHome:hover { opacity: .82; }
+.brandHome:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+/* ---------- motion preference ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .lsFloor { animation: none; }
+  .ldScrollCue { animation: none; }
+  .lsWorld { transition: none; }
+  .ldCard:hover, .ldEnter:hover { transform: none; }
+}
+.lsStage.isStill .lsWorld { transition: none; }
