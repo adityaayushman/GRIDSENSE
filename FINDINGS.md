@@ -245,6 +245,77 @@ capacity are different constraints, and V2G addresses only the first.
 
 ---
 
+## 9. Rolling-horizon control loses to the one-shot LP, and the loss splits cleanly
+
+`ml/mpc.py`, `ml/train_horizon.py` · **Rolling control** pane
+
+Grid operators do not decide a whole night in advance; they re-solve as data
+arrives and commit only the imminent step. Rebuilding the scheduler that way is
+a harder and more defensible engineering claim than a static LP, so it was
+built: 362 held-out nights, re-solving every hour, committing one hour at a
+time.
+
+It is worse. Mean regret against perfect foresight rises from **2.049%** to
+**2.615%** — MPC gives back 28% of what the one-shot LP had already won. It is
+better on 65 nights, identical on 189, worse on 108.
+
+The interesting part is that the loss decomposes. A third arm re-solves every
+hour but is fed only the static day-ahead forecast, so it gains no information
+by waiting. It differs from each neighbour in exactly one thing:
+
+| | mean regret | mean position |
+| --- | --- | --- |
+| One-shot LP | 2.049% | 4.83 |
+| Rolling, static forecast | 3.411% | 5.28 |
+| Rolling, refreshed forecast | 2.615% | 4.52 |
+| Perfect foresight | 0% | 5.05 |
+
+*Position* is the mean hour-index at which energy lands, 0 = 18:00, 12 = 06:00.
+
+- **Committing hour by hour costs +1.361pp.**
+- **Refreshing the forecast buys −0.796pp.**
+- **Net +0.566pp**, so the control structure costs about 1.7× what the better
+  information is worth.
+
+The mechanism is visible in the position column. Rolling-with-static-info defers
+hardest of all — 5.28, later even than perfect foresight at 5.05. At each hour
+it compares the hour in front of it against the *minimum* of a dozen noisy
+forecasts, and the minimum of noisy estimates is optimistically biased: some
+later hour almost always looks cleaner than it will turn out to be. So the
+controller waits, waits again, and is eventually forced to buy whatever the
+remaining hours offer. The one-shot LP never faces that comparison, because it
+allocates across all thirteen hours at once and its errors partly average out.
+
+Forecast quality does improve with proximity, and by a lot — MAE runs from
+**6.72 g at one hour ahead to 26.33 g at thirteen**, monotone, measured in
+`train_horizon.py`. The premise of rolling control holds. What fails is the
+assumption that better information per decision outweighs making thirteen
+irreversible decisions instead of one.
+
+> **Two ways this comparison could have been rigged, and what was done about
+> them.** The shipped day-ahead model (MAE 23.70) beats the lag models from h=9
+> out, so a controller could be flattered by handing its baseline the weaker
+> forecast at long horizons. Both arms use the better model at every horizon,
+> with the crossover recorded. Separately, an early version let the baseline read
+> the *true* intensity for horizons past the crossover, which handed the one-shot
+> LP perfect foresight of 03:00–06:00 — the cleanest stretch of a Spanish night.
+> That bug made MPC look 238% worse; fixing it moved the answer to 28%. The sign
+> did not change, but nearly all of the magnitude did.
+
+> **What was not tried.** This is certainty-equivalent MPC — the standard
+> reading of "re-solve each hour and execute the next step". A controller with a
+> terminal cost, or one penalising deferral to price the optionality it is
+> destroying, would target the diagnosed failure directly. That is a real
+> possibility and is not evidence for the current conclusion, which is only
+> about the formulation actually tested.
+
+Time-consistency is pinned by `test_optimizer_is_time_consistent`, and the
+backtest re-checks it every run: fed perfect forecasts, the rolling machinery
+reproduces the one-shot optimum to 0.0000% on every sampled night. The loss is
+a property of forecasting under commitment, not an implementation artefact.
+
+---
+
 ## Datasets evaluated and rejected
 
 Screened with `screen_dataset.py`, which any candidate must pass before it is
@@ -276,6 +347,33 @@ figure while having learned nothing.
 Separately, all three are **India** and this project's carbon and price series
 are **Spain**. Even had the data been sound, mixing them into the carbon
 forecaster would have corrupted it — the grid mixes are not comparable.
+
+**Grid-India / CEA generation mix — rejected on resolution, not quality.**
+Localising the whole project to India is the strongest differentiator available
+to it, so the official sources were checked properly rather than dismissed.
+Grid-India (formerly POSOCO) and the CEA publish a complete fuel breakdown —
+coal, lignite, gas, nuclear, hydro, solar, wind — for **2,821 days** back to
+2018, mirrored at `robbieandrew.github.io/india/`. The data is real, long, and
+detailed. It is **daily**. This project schedules inside an 18:00–07:00 window,
+and one number per day has no within-night shape to schedule against. Hourly
+Indian generation mix exists only behind ElectricityMaps' paid API or inside
+RLDC 15-minute PSP report PDFs, which would be a scraping project in its own
+right. State SLDCs publish load, and load is not mix.
+
+The level comparison is still worth having, and finding 7 gives it teeth:
+
+| | Carbon intensity | Resolution |
+| --- | --- | --- |
+| Spain | 267 gCO₂eq/kWh | hourly |
+| Germany | 358 gCO₂eq/kWh | hourly |
+| India | **626 gCO₂eq/kWh** | daily |
+
+India runs 2.3× dirtier than Spain on 74% coal, with day-to-day variation of
+only 7.3%. Finding 7 established that the value of carbon-aware charging tracks a
+grid's *shape* rather than its dirtiness, which predicts India would be a **poor**
+candidate despite the filthy power — steady coal offers nothing to shift toward.
+That is a hypothesis, not a result; confirming it needs the hourly data that is
+not available. `ml/india_feasibility.py` reproduces the table.
 
 One earlier check of mine was the wrong test and is worth recording: variance
 explained by hour-of-day gave R² ≈ 0.008 for the India data, which looked
