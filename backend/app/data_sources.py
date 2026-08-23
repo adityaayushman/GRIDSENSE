@@ -95,24 +95,45 @@ def get_price(region: str = "ES", day: str | None = None) -> list[float]:
     return [round(p + PVPC_FIXED_EUR_PER_KWH, 5) for p in hourly]
 
 
+#: Mean Spanish system load by local hour, normalised to a mean of 1.0.
+#:
+#: Derived from 35,056 measured hours of ENTSO-E `total load actual`
+#: (2015-2018), converted to Europe/Madrid. Baked in as constants rather than
+#: read from a file for the same reason the forecaster ships as coefficients:
+#: the serverless bundle stays free of data files and of pandas.
+SPAIN_LOAD_SHAPE = [
+    0.9160, 0.8569, 0.8173, 0.7986, 0.7913, 0.8016,
+    0.8562, 0.9395, 1.0051, 1.0604, 1.0975, 1.1115,
+    1.1177, 1.1214, 1.0944, 1.0672, 1.0555, 1.0562,
+    1.0707, 1.0914, 1.1132, 1.1187, 1.0616, 0.9798,
+]
+
+#: IDAE puts the average Spanish household at ~3,487 kWh a year.
+SPAIN_DAILY_KWH_PER_HOME = 3487 / 365
+
+
 def get_residential_baseline_kw(household_count: int = 1) -> list[float]:
-    """Synthetic residential demand curve (kW), scaled per household.
+    """Residential feeder demand (kW), measured in both shape and magnitude.
 
-    Still synthetic: the ENTSO-E feed reports system-wide load, not the
-    residential share behind a single distribution feeder, so it cannot be
-    scaled down to a neighbourhood without an assumption. Shaped as a morning
-    and an evening peak, which is the standard residential profile.
+    This curve was previously a pair of hand-drawn Gaussians. Its shape was the
+    documented assumption; its *magnitude* was never checked, and it turned out
+    to imply 1,915 kWh per household per month against a measured Spanish
+    average near 291 — a sevenfold overstatement that inflated every hosting
+    capacity figure derived from it. See finding 11.
+
+    Now the shape comes from measured system load and the level from measured
+    household consumption, so only one thing is still assumed.
+
+    **That assumption is that a residential feeder follows system demand.** It
+    does not exactly: system load carries industry, which runs flat around the
+    clock, so a system-shaped profile is *less peaky* than a real street. This
+    understates the evening residential peak, which means it overstates the
+    headroom left for charging. Hosting capacity computed against it should be
+    read as an upper bound. Closing that needs metered feeder data, which no
+    open Spanish source publishes.
     """
-    import math
-
-    return [
-        round(
-            household_count
-            * (2.2 + 1.8 * math.exp(-((h - 19) ** 2) / 8) + 0.6 * math.exp(-((h - 8) ** 2) / 4)),
-            2,
-        )
-        for h in range(24)
-    ]
+    scale = SPAIN_DAILY_KWH_PER_HOME / sum(SPAIN_LOAD_SHAPE)
+    return [round(household_count * s * scale, 3) for s in SPAIN_LOAD_SHAPE]
 
 
 def _fetch_live(region: str) -> list[float]:  # pragma: no cover - network call

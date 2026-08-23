@@ -18,49 +18,66 @@ python export_hosting_capacity.py # -> frontend/src/data/hosting.json
 
 ---
 
-## 1. Coordination buys 6× the hosting capacity of the same transformer
+## 1. Coordination buys 5.3× the hosting capacity of the same transformer
 
 `export_hosting_capacity.py` · **Grid headroom** pane
 
-200 existing homes (800 kW residential peak), EVs arriving into them. Fleet has
-staggered arrivals and departures, mixed energy requirements and a 3.7/7/11 kW
-charger mix; median across 12 measured nights:
+200 existing homes on a measured residential baseline (89 kW peak), EVs arriving
+into them. Fleet has staggered arrivals and departures, mixed energy
+requirements and a 3.7/7/11 kW charger mix; median across 12 measured nights:
 
 | Transformer | Charging on arrival | Coordinated | Gain |
 | --- | --- | --- | --- |
-| 1,000 kW | 70 | 809 | 11.6× |
-| **1,250 kW** | **200** | **1,254** | **6.3×** |
-| 1,500 kW | 340 | 1,700 | 5.0× |
+| 160 kW | 20 | 151 | 7.5× |
+| **250 kW** | **60** | **318** | **5.3×** |
+| 400 kW | 140 | 593 | 4.2× |
+| 630 kW | 250 | 998 | 4.0× |
 
 The mechanism is that the binding constraint moves. Charging on arrival consumes
 one or two hours of a thirteen-hour window and hits the rating on *instantaneous
 power* while most of the night sits empty. Coordinating the street spreads the
 same energy across the window until *energy* binds instead.
 
+**The gain is not one number — it falls as the transformer loosens**, from 7.5×
+on a 160 kW unit to 4.0× on a 630 kW one. Coordination is worth most where the
+headroom is thinnest, so quoting a single figure means quoting a rating with it.
+250 kW is the headline because 200 Spanish dwellings at a measured 0.446 kW
+coincident peak are a plausible load for a European secondary substation of that
+size.
+
 This is the finding with capital attached: it defers a physical upgrade.
 
-> **This number was previously reported as 14.1×, and that was wrong.** The
-> earlier figure assumed every vehicle arrives at exactly 18:00. That is not a
-> harmless simplification — a synchronised arrival maximally penalises the
-> baseline it is measured against. Once arrivals stagger, the coordinated ceiling
-> rises about 27% but charge-on-arrival hosting **triples** (70 → 200 at
-> 1,250 kW), because the arrival spike spreads out on its own. Most of the
-> claimed 14× was the assumption, not the coordination. The identical-fleet
-> figures are kept in the pane as contrast.
+> **Two corrections are folded into this number.**
+>
+> It was once reported as **14.1×**, which assumed every vehicle arrives at
+> exactly 18:00 — a synchronised arrival maximally penalises the baseline it is
+> measured against. Once arrivals stagger, charge-on-arrival hosting triples and
+> most of the claimed 14× turns out to have been the assumption.
+>
+> It was then reported as **6.3×**, measured against a residential baseline that
+> overstated household demand sevenfold (finding 11). Correcting that also
+> forced the transformer ratings down: the old 1,000–1,500 kW series was chosen
+> when the baseline claimed an 800 kW residential peak, and against the measured
+> 89 kW it would have left the unit 7% loaded by houses, which is not a planning
+> case anyone faces.
+>
+> When flagging that error I estimated the corrected headline at "nearer 4×".
+> **That estimate was wrong** — it came from a simplified uniform fleet on the
+> old oversized transformer, and should not have been extrapolated. The actual
+> recompute gives **5.3×**.
 
 Ceilings come from bisecting the solver, bounded above by an energy argument so
 the search can never report its own limit as the answer — an earlier version
 returned exactly 1,500 at the 1,500 kW rating, which was the bisection bound
-rather than a ceiling. `solver_ceiling` now raises instead of returning it.
+rather than a ceiling. `solver_ceiling` raises instead of returning it, and every
+published figure is checked against its own search bound.
 
-> **Remaining caveat.** Vehicles are still drawn from one distribution and every
-> car can wait until morning. A fleet with hard early deadlines would host fewer.
-
-> ⚠️ **Read this number as provisional.** Finding 11 shows the residential
-> baseline these figures are measured against overstates household demand about
-> sevenfold, and that error inflates the coordination gain by roughly 1.5×. The
-> corrected headline is nearer 4× than 6.3×. The table above has not yet been
-> recomputed on a calibrated baseline.
+> **Remaining caveat.** The baseline's *shape* is measured Spanish system load,
+> which carries flat industrial demand and is therefore less peaky than a real
+> street. That understates the evening residential peak and so overstates the
+> headroom left for charging: these figures are an upper bound. Vehicles are also
+> drawn from one distribution and every car can wait until morning; a fleet with
+> hard early deadlines would host fewer.
 
 ## 2. The emissions saving is real but small, and long-tailed
 
@@ -453,17 +470,27 @@ Holding the fleet and the transformer fixed and correcting only the baseline:
 | As shipped | 1,915 kWh/mo | 193 | 988 | **5.1×** |
 | Calibrated | 288 kWh/mo | 465 | 1,635 | **3.5×** |
 
-The published headline is **6.3×** on the realistic staggered fleet. The
-comparison above uses a simplified fleet, so it does not give the corrected
-headline directly — but the direction and rough size are unambiguous: the
-baseline error inflates the coordination gain by about 1.5×, and the real figure
-is nearer 4× than 6.3×.
+**Resolved.** The Spanish pipeline has now been recomputed. `data_sources.py`
+takes its shape from 35,056 measured hours of ENTSO-E `total load actual` and
+its level from IDAE's 3,487 kWh per household per year, giving 287 kWh/month
+against the 291 target. 200 homes peak at **89 kW**, not 800.
 
-The Indian model (finding 10) is calibrated: its profile is scaled so the day
-integrates to Delhi's measured ~260 kWh/month, leaving only the *shape*
-assumed. The Spanish pipeline has not yet been recomputed on a corrected
-baseline, and every capacity figure in finding 1 and the **Grid headroom** pane
-should be read as provisional until it is.
+That also forced the transformer ratings down. The old 1,000–1,500 kW series was
+chosen for an 800 kW residential peak; against 89 kW it would leave the unit 7%
+loaded by houses, which is the same mistake made in the first Indian model and
+corrected there. The series is now 160–630 kW, sized to the street this actually
+models.
+
+The corrected headline is **5.3×**, not the "nearer 4×" estimated above. That
+estimate came from the simplified uniform fleet in the table — a different fleet
+on a differently-sized transformer — and extrapolating from it was a mistake.
+The table is kept because the *mechanism* it isolates is right: holding
+everything else fixed, an inflated baseline does inflate the coordination gain.
+Only the extrapolated magnitude was wrong.
+
+The Indian model (finding 10) was calibrated from the start: its profile is
+scaled so the day integrates to Delhi's measured ~260 kWh/month, leaving only
+the *shape* assumed. Both countries now share one method.
 
 This is the same class of error as finding 3, where a synthetic carbon curve
 turned out to be inverted. The lesson there was applied to the carbon input and

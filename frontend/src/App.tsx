@@ -16,6 +16,7 @@ import Control from "./Control";
 import India from "./India";
 import Segmented from "./Segmented";
 import Landing from "./Landing";
+import hosting from "./data/hosting.json";
 import CommandPalette, { Command as Cmd } from "./CommandPalette";
 import Shortcuts from "./Shortcuts";
 import { ToastHost, useToast } from "./toast";
@@ -478,7 +479,10 @@ function App() {
                 <span className="mastFactKey">nights backtested</span>
               </div>
               <div className="mastFact">
-                <span className="mastFactVal">6.3×</span>
+                {/* Read from the generated data, not typed in: this figure was
+                    hardcoded as 6.3x and went stale the moment the residential
+                    baseline was recalibrated. */}
+                <span className="mastFactVal">{hosting.headline.gain}×</span>
                 <span className="mastFactKey">hosting capacity</span>
               </div>
               <div className="mastFact">
