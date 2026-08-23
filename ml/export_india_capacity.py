@@ -35,12 +35,21 @@ from app.optimizer import Vehicle, naive_schedule, optimize_schedule  # noqa: E4
 from india_fleet import (  # noqa: E402
     DT_RATINGS_KVA, POWER_FACTOR, SEGMENTS, dt_ratings_kw, fleet_summary, indian_fleet,
 )
+from india_load import (  # noqa: E402
+    SEASONS, hourly_shape, load as load_demand, season_levels, window_flatness,
+)
 
 OUT = HERE.parent / "frontend" / "src" / "data" / "india.json"
 
-#: Homes behind one distribution transformer. Indian DTs serve far fewer
-#: consumers than European feeders; 40 is typical for a 100 kVA urban unit.
-HOMES = 40
+#: Homes behind one distribution transformer.
+#:
+#: This was guessed at 40 first, which was wrong in a way that mattered: it put
+#: the houses at 15 kW under a 90 kW unit — 17% loaded — and a transformer that
+#: empty hides every effect worth measuring, seasonal variation included.
+#: A 100 kVA distribution transformer in India is normally sized for 70-80 kW,
+#: and utilities aim for 60-75% loading. At the ~0.385 kW per-home peak implied
+#: by measured Delhi consumption, that is roughly 150-180 homes.
+HOMES = 150
 
 #: Delhi's average electrified household, ~260 kWh/month. Chosen over the
 #: national mean of 98 because EV ownership concentrates in exactly the urban,
@@ -50,27 +59,33 @@ DAILY_KWH_PER_HOME = 260 * 12 / 365
 ARRIVAL, DEADLINE = 18, 7
 
 
-def residential_baseline(homes: int, daily_kwh: float = DAILY_KWH_PER_HOME) -> list[float]:
-    """A household profile whose *energy* is measured and whose shape is assumed.
+def residential_baseline(homes: int, shape: list[float],
+                         daily_kwh: float = DAILY_KWH_PER_HOME,
+                         level: float = 1.0) -> list[float]:
+    """A feeder profile with a measured shape and a measured magnitude.
 
-    Indian residential demand peaks hard in the evening — lighting, fans and
-    air conditioning arriving together — with a smaller morning bump and a low
-    overnight floor. The curve below is normalised and then scaled so the day
-    integrates to the measured consumption, which keeps the one thing that can
-    be checked honest even though the shape cannot be.
+    `shape` comes from 46,728 hours of Grid-India demand, normalised so only its
+    form survives; `daily_kwh` pins the level to measured household consumption;
+    `level` carries the season. Nothing here is drawn by hand, which is the whole
+    point — the Spanish equivalent was, and it was wrong sevenfold.
+
+    The residual assumption is that a residential feeder follows *system* demand.
+    It does not exactly: residential load is peakier, because industry runs flat
+    around the clock. That makes this profile optimistic about evening headroom
+    rather than conservative, and the capacity figures inherit that.
     """
-    shape = [
-        0.55
-        + 1.35 * math.exp(-((h - 20) ** 2) / 6.0)   # evening peak, ~20:00
-        + 0.40 * math.exp(-((h - 8) ** 2) / 3.0)    # morning bump
-        for h in range(24)
-    ]
-    scale = daily_kwh / sum(shape)
+    scale = daily_kwh * level / sum(shape)
     return [round(s * scale * homes, 3) for s in shape]
 
 
 def main() -> None:
-    base = residential_baseline(HOMES)
+    demand = load_demand()
+    window_hours = [h % 24 for h in range(ARRIVAL, ARRIVAL + (24 - ARRIVAL + DEADLINE))]
+    annual_shape = hourly_shape(demand)
+    levels = season_levels(demand, window=window_hours)
+    flatness = window_flatness(demand, window=window_hours)
+
+    base = residential_baseline(HOMES, annual_shape)
     res_peak = max(base)
     res_daily = sum(base)
     ratings_kw = dt_ratings_kw()
@@ -83,7 +98,7 @@ def main() -> None:
     # imply the answer moves with carbon, and it does not.
     carbon = [250.0] * 24
 
-    def dumb_capacity(rating: float) -> int:
+    def dumb_capacity(rating: float, base: list[float] = base) -> int:
         """Largest fleet whose charge-on-arrival peak still fits under the rating."""
         best = 0
         for n in range(1, 4001):
@@ -94,7 +109,7 @@ def main() -> None:
                 return best
         raise RuntimeError(f"dumb sweep hit its 4000 bound at {rating:.0f} kW")
 
-    def coordinated_capacity(rating: float) -> int:
+    def coordinated_capacity(rating: float, base: list[float] = base) -> int:
         """Largest fleet the scheduler can fit, by bisection on the solver."""
         headroom = sum(max(rating - b, 0.0) for b in base)
         mean_need = sum(
@@ -155,6 +170,51 @@ def main() -> None:
         else:
             break
 
+    # ---- seasonal sweep -------------------------------------------------
+    # Capacity is not one number. Indian overnight demand runs 23% higher in
+    # summer than in late autumn and the window is flatter, so the transformer
+    # is most stressed exactly when coordination has least valley to exploit.
+    hk_head = headline["rating_kw"]
+    seasonal = []
+    print()
+    print(f"Seasonal, on the {headline['rating_kva']} kVA unit "
+          "(shape and level both measured):")
+    print(f"{'season':<10}{'level':>7}{'pk/val':>8}{'res peak':>10}{'dumb':>7}"
+          f"{'coord':>8}{'gain':>7}")
+    print("-" * 57)
+    for name in SEASONS:
+        sb = residential_baseline(HOMES, hourly_shape(demand, months=SEASONS[name]),
+                                  level=levels[name])
+        sp = max(sb)
+        if sp >= hk_head:
+            seasonal.append({"season": name, "level": levels[name],
+                             "peak_valley": flatness[name],
+                             "residential_peak_kw": round(sp, 1),
+                             "dumb": 0, "coordinated": 0, "gain": None,
+                             "overloaded": True})
+            print(f"{name:<10}{levels[name]:>7.2f}{flatness[name]:>8.2f}{sp:>10.1f}"
+                  "   houses alone exceed the rating")
+            continue
+        sd = dumb_capacity(hk_head, sb)
+        sc = coordinated_capacity(hk_head, sb)
+        seasonal.append({
+            "season": name, "level": levels[name], "peak_valley": flatness[name],
+            "residential_peak_kw": round(sp, 1), "dumb": sd, "coordinated": sc,
+            "gain": round(sc / max(sd, 1), 1), "overloaded": False,
+        })
+        print(f"{name:<10}{levels[name]:>7.2f}{flatness[name]:>8.2f}{sp:>10.1f}"
+              f"{sd:>7}{sc:>8}{sc / max(sd, 1):>6.1f}x")
+
+    ok = [r for r in seasonal if not r["overloaded"]]
+    worst = min(ok, key=lambda r: r["coordinated"]) if ok else None
+    best = max(ok, key=lambda r: r["coordinated"]) if ok else None
+    if worst and best:
+        print()
+        print(f"  worst season {worst['season']} ({worst['coordinated']} vehicles) - "
+              f"best {best['season']} ({best['coordinated']}) - "
+              f"spread {best['coordinated'] / max(worst['coordinated'], 1):.2f}x")
+        print("  A transformer sized on an annual average is sized for the wrong month.")
+
     summary = fleet_summary(100)
     print(f"\nOn the {headline['rating_kva']} kVA unit: {headline['dumb']} vehicles "
           f"charging on arrival, {headline['coordinated']} coordinated "
@@ -190,6 +250,16 @@ def main() -> None:
         },
         "headline": headline,
         "ratings": rows,
+        "seasonal": seasonal,
+        "seasonal_worst": worst,
+        "seasonal_best": best,
+        "demand_source": {
+            "rows": 46728,
+            "range": "2019-01-01..2024-04-30",
+            "origin": "Grid-India hourly demand via Kaggle "
+                      "shubhamvashisht/hourly-load-india-electrical-load-forecasting",
+            "lag1_autocorr": 0.979,
+        },
     }, indent=1), encoding="utf-8")
     print(f"\nwrote {OUT}")
 

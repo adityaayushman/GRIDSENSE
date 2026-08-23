@@ -12,6 +12,8 @@ const INK3 = "#5F6C7B";
 
 const H = india.headline;
 const E = india.euro_comparison;
+const WORST = india.seasonal_worst!;
+const BEST = india.seasonal_best!;
 
 function Panel({ children }: { children: React.ReactNode }) {
   const reduced = usePrefersReduced();
@@ -22,6 +24,25 @@ function Panel({ children }: { children: React.ReactNode }) {
 function Gain({ v, reduced }: { v: number; reduced: boolean }) {
   const shown = useCountUp(v, reduced);
   return <>{shown.toFixed(1)}×</>;
+}
+
+function SeasonTip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  return (
+    <div className="tip">
+      <div className="tipHour" style={{ textTransform: "capitalize" }}>{label}</div>
+      <div className="tipRow" style={{ color: INK3 }}>
+        level {d.level.toFixed(2)}x · window peak/valley {d.peak_valley.toFixed(2)}
+      </div>
+      {payload.map((p: any) => (
+        <div className="tipRow" key={p.dataKey}>
+          <span className="legendSwatch" style={{ background: p.fill }} />
+          {p.name}<b>{p.value} vehicles</b>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function CapTip({ active, payload, label }: any) {
@@ -49,6 +70,17 @@ export default function India() {
       dumb: r.dumb,
       coordinated: r.coordinated,
       gain: r.gain,
+    }));
+
+  const seasons = india.seasonal
+    .filter((s) => !s.overloaded)
+    .map((s) => ({
+      name: s.season.charAt(0).toUpperCase() + s.season.slice(1),
+      dumb: s.dumb,
+      coordinated: s.coordinated,
+      level: s.level,
+      peak_valley: s.peak_valley,
+      worst: s.season === WORST.season,
     }));
 
   const segs = (["e2w", "e3w", "ecar"] as const).map((k) => {
@@ -170,12 +202,15 @@ export default function India() {
           </BarChart>
         </ResponsiveContainer>
         <p className="calloutText">
-          The gain <strong>rises as the transformer shrinks</strong> —{" "}
-          {caps[0]?.gain}× on the {caps[0]?.name} kVA unit against {caps[caps.length - 1]?.gain}× on
-          the {caps[caps.length - 1]?.name} kVA. On a small unit the houses already occupy most of
-          the rating, so the headroom left for charging on arrival is thin and the overnight valley
-          is proportionally larger. Coordination is worth most exactly where the grid is most
-          constrained, which in India is most of it.
+          The coordination gain is <strong>flat across ratings</strong> — {caps[0]?.gain}× at{" "}
+          {caps[0]?.name} kVA against {caps[caps.length - 1]?.gain}× at{" "}
+          {caps[caps.length - 1]?.name} kVA — because both the arrival peak and the overnight
+          energy scale with the transformer. What does not scale is the houses. The{" "}
+          <strong>63 kVA unit is missing from this chart</strong>: {india.homes} homes draw{" "}
+          {india.residential_peak_kw} kW at their own peak, which already exceeds its{" "}
+          {(63 * india.power_factor).toFixed(0)} kW rating, so it hosts no vehicles at any level of
+          coordination. Below a certain rating the answer is not "coordinate" but "replace the
+          transformer", and scheduling cannot argue with that.
         </p>
       </Panel>
 
@@ -215,6 +250,77 @@ export default function India() {
           the intervention at the wrong problem. A 900 W scooter charger is not a small car
           charger; it is a different class of load, and thirteen overnight hours are enormously
           more than it needs.
+        </p>
+      </Panel>
+
+      <Panel>
+        <div className="chartHeader">
+          <div>
+            <div className="chartTitle">Capacity is not one number — it is seasonal</div>
+            <div className="chartMeta">
+              {H.rating_kva} kVA unit · overnight level and window shape both taken from{" "}
+              {india.demand_source.rows.toLocaleString()} measured hours,{" "}
+              {india.demand_source.range}
+            </div>
+          </div>
+        </div>
+        <ResponsiveContainer width="100%" height={260}>
+          <BarChart data={seasons} margin={{ top: 18, right: 16, left: 0, bottom: 4 }}>
+            <CartesianGrid stroke={GRID} vertical={false} />
+            <XAxis dataKey="name" tick={{ fill: INK3, fontSize: 11 }}
+              axisLine={{ stroke: GRID }} tickLine={false} />
+            <YAxis tick={{ fill: INK3, fontSize: 11 }} axisLine={false} tickLine={false}
+              width={48} />
+            <Tooltip content={<SeasonTip />} cursor={{ fill: "rgba(255,255,255,.03)" }} />
+            <Legend wrapperStyle={{ fontSize: 11, color: INK3 }} />
+            <Bar dataKey="dumb" name="Charging on arrival" fill={DUMB}
+              radius={[4, 4, 0, 0]} isAnimationActive={false} />
+            <Bar dataKey="coordinated" name="Coordinated" radius={[4, 4, 0, 0]}
+              isAnimationActive={false}>
+              {seasons.map((s) => (
+                <Cell key={s.name} fill={s.worst ? "#d03b3b" : COORD} />
+              ))}
+              <LabelList dataKey="coordinated" position="top"
+                style={{ fill: INK3, fontSize: 11 }} />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+        <div className="matrixWrap">
+          <table className="matrix">
+            <thead>
+              <tr>
+                <th />
+                <th>Overnight level</th>
+                <th>Peak / valley in window</th>
+                <th>Houses alone</th>
+                <th>Coordinated</th>
+              </tr>
+            </thead>
+            <tbody>
+              {india.seasonal.map((s) => (
+                <tr key={s.season} className={s.season === WORST.season ? "matrixTotal" : undefined}>
+                  <th scope="row" style={{ textTransform: "capitalize" }}>{s.season}</th>
+                  <td>{s.level.toFixed(2)}×</td>
+                  <td>{s.peak_valley.toFixed(2)}</td>
+                  <td>{s.residential_peak_kw} kW</td>
+                  <td className={s.season === WORST.season ? "mine" : undefined}>
+                    {s.coordinated}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="calloutText">
+          The same transformer hosts <strong>{BEST.coordinated}</strong> vehicles in{" "}
+          {BEST.season} and <strong>{WORST.coordinated}</strong> in {WORST.season} — a{" "}
+          {(BEST.coordinated / Math.max(WORST.coordinated, 1)).toFixed(2)}× spread. Two effects
+          push the same way and neither cancels the other: summer overnight demand runs{" "}
+          <strong>{Math.round((WORST.level / BEST.level - 1) * 100)}% higher</strong>, so there is
+          less headroom, <em>and</em> the window is flatter ({WORST.peak_valley.toFixed(2)} against{" "}
+          {BEST.peak_valley.toFixed(2)}) because air conditioning runs all night, so there is less
+          valley to move load into. Coordination helps least exactly when the transformer is most
+          stressed. Sizing on an annual average sizes for a month that never happens.
         </p>
       </Panel>
 

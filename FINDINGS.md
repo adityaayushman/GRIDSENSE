@@ -368,26 +368,55 @@ hours are far more than it needs. Three-wheelers are the segment that matters:
 35 of the 100 vehicles but 56% of the energy, because a shared rickshaw is
 worked all day and wants most of its pack back.
 
-Capacity on a 40-home feeder:
+Capacity on a 150-home feeder, with the load shape taken from **46,728 measured
+hours** of Grid-India demand (2019-01-01 to 2024-04-30, lag-1 autocorrelation
++0.979, screened by `screen_dataset.py`) rather than drawn by hand:
 
 | Rating | On arrival | Coordinated | Gain |
 | --- | --- | --- | --- |
-| 63 kVA | 24 | 129 | **5.4×** |
-| 100 kVA | 60 | 236 | 3.9× |
-| 160 kVA | 116 | 410 | 3.5× |
-| 250 kVA | 194 | 672 | 3.5× |
-| 400 kVA | 331 | 1,111 | 3.4× |
+| 63 kVA | — | — | houses alone exceed it |
+| **100 kVA** | **35** | **123** | **3.5×** |
+| 160 kVA | 91 | 296 | 3.3× |
+| 250 kVA | 171 | 561 | 3.3× |
+| 400 kVA | 304 | 997 | 3.3× |
 
-**The gain rises as the transformer shrinks.** On a small unit the houses
-already occupy most of the rating, so the headroom for charging on arrival is
-thin while the overnight valley is proportionally larger. Coordination is worth
-most exactly where the grid is most constrained — which in India is most of it.
-That is the opposite of where a European reading would point the intervention.
+The gain is flat across ratings, because the arrival peak and the overnight
+energy both scale with the transformer. What does not scale is the houses: 150
+homes draw 57.6 kW at their own peak, past the 63 kVA unit's 56.7 kW rating, so
+that unit hosts nothing at any level of coordination. Below some rating the
+answer is not "coordinate" but "replace the transformer".
 
-On the same 100 kVA unit, the Indian fleet fits 60 vehicles charging on arrival
-against 25 European cars. Modelling India with European vehicles would have
-understated one transformer's capacity 2.4× and aimed the fix at the wrong
+**Capacity is seasonal, and the two mechanisms compound.** Overnight demand and
+window shape both come from the measured series:
+
+| Season | Overnight level | Peak/valley in window | Coordinated |
+| --- | --- | --- | --- |
+| Winter | 0.92× | 1.32 | **143** |
+| Autumn | 0.93× | 1.25 | 137 |
+| Spring | 1.03× | 1.13 | 118 |
+| Summer | 1.06× | 1.11 | **107** |
+| Monsoon | 1.07× | 1.12 | 107 |
+
+The same transformer hosts **143 vehicles in winter and 107 in summer, a 1.34×
+spread**. Summer overnight demand runs 15% higher, so there is less headroom —
+*and* the window is flatter (1.11 against winter's 1.32), because air
+conditioning runs all night, so there is less valley to move load into.
+Coordination helps least exactly when the transformer is most stressed. Sizing
+on an annual average sizes for a month that never occurs.
+
+On the same 100 kVA unit, the Indian fleet fits 35 vehicles charging on arrival
+against 13 European cars. Modelling India with European vehicles would have
+understated one transformer's capacity 2.7× and aimed the fix at the wrong
 problem.
+
+> **Two parameters here were guessed first and corrected after.** The feeder
+> shape was a pair of Gaussians until the measured series replaced it, which
+> moved the residential peak from 32.2 kW to 15.4 kW for the same energy — the
+> freehand curve was far too peaky. And homes-per-transformer was set at 40,
+> leaving a 90 kW unit 17% loaded, which suppressed every seasonal effect worth
+> measuring; Indian 100 kVA units are sized for 70-80 kW at 60-75% loading, so
+> 150 homes is the realistic figure. Both corrections changed the answer, and
+> the second changed the seasonal spread from 1.04× to 1.34×.
 
 > **Carbon is still open.** Grid-India and the CEA publish generation mix only
 > daily, but Electricity Maps' data portal offers free historical CSV at hourly
