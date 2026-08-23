@@ -178,6 +178,10 @@ because a project that only displays its successes is a brochure.
   every deploy.
 - Styled empty/error states — a cold API or a rejected night currently renders a
   bare text block.
+- **Frontend linting.** `package.json` carried a `lint` script that could never
+  run — eslint was in neither dependency list and no config file existed. The
+  script was removed rather than left advertising a check the project does not
+  perform; `tsc -b` during the build is the only static analysis in place.
 
 ## Out of scope
 
