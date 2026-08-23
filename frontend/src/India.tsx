@@ -1,8 +1,9 @@
 import {
-  BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, LabelList, Legend,
+  BarChart, Bar, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, LabelList, Legend, ReferenceArea, ReferenceLine,
 } from "recharts";
 import india from "./data/india.json";
+import carbon from "./data/india_carbon.json";
 import { usePrefersReduced, useReveal, useCountUp } from "./motion";
 
 const DUMB = "#d95926";
@@ -14,6 +15,7 @@ const H = india.headline;
 const E = india.euro_comparison;
 const WORST = india.seasonal_worst!;
 const BEST = india.seasonal_best!;
+const C = carbon;
 
 function Panel({ children }: { children: React.ReactNode }) {
   const reduced = usePrefersReduced();
@@ -24,6 +26,23 @@ function Panel({ children }: { children: React.ReactNode }) {
 function Gain({ v, reduced }: { v: number; reduced: boolean }) {
   const shown = useCountUp(v, reduced);
   return <>{shown.toFixed(1)}×</>;
+}
+
+function CiTip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  const inWindow = label >= 18 || label < 7;
+  return (
+    <div className="tip">
+      <div className="tipHour">{String(label).padStart(2, "0")}:00</div>
+      <div className="tipRow">
+        <span className="legendSwatch" style={{ background: DUMB }} />
+        Carbon intensity<b>{Number(payload[0].value).toFixed(0)} g</b>
+      </div>
+      <div className="tipRow" style={{ color: INK3 }}>
+        {inWindow ? "inside the 18-07 charging window" : "outside the window"}
+      </div>
+    </div>
+  );
 }
 
 function SeasonTip({ active, payload, label }: any) {
@@ -321,6 +340,131 @@ export default function India() {
           {BEST.peak_valley.toFixed(2)}) because air conditioning runs all night, so there is less
           valley to move load into. Coordination helps least exactly when the transformer is most
           stressed. Sizing on an annual average sizes for a month that never happens.
+        </p>
+      </Panel>
+
+      <Panel>
+        <div className="chartHeader">
+          <div>
+            <div className="chartTitle">India's clean hours are at midday, not at night</div>
+            <div className="chartMeta">
+              Mean carbon intensity by hour · derived from {C.days} days of Grid-India
+              15-minute generation ({C.span}) with the same IPCC AR5 factors used for Spain
+            </div>
+          </div>
+        </div>
+        <ResponsiveContainer width="100%" height={260}>
+          <AreaChart data={C.diurnal} margin={{ top: 8, right: 18, left: 0, bottom: 4 }}>
+            <defs>
+              <linearGradient id="inCi" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={DUMB} stopOpacity={0.35} />
+                <stop offset="100%" stopColor={DUMB} stopOpacity={0.02} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid stroke={GRID} vertical={false} />
+            <XAxis dataKey="hour" tick={{ fill: INK3, fontSize: 11 }} interval={1}
+              axisLine={{ stroke: GRID }} tickLine={false}
+              tickFormatter={(v: number) => `${String(v).padStart(2, "0")}`} />
+            <YAxis domain={["dataMin - 15", "dataMax + 10"]} width={52}
+              tick={{ fill: INK3, fontSize: 11 }} axisLine={false} tickLine={false}
+              tickFormatter={(v: number) => `${Math.round(v)}`} />
+            <Tooltip content={<CiTip />} cursor={{ stroke: GRID }} />
+            {/* The window every other result in this project schedules in. */}
+            <ReferenceArea x1={18} x2={23} fill="#d95926" fillOpacity={0.07} />
+            <ReferenceArea x1={0} x2={7} fill="#d95926" fillOpacity={0.07} />
+            <ReferenceLine y={C.mean_ci} stroke={INK3} strokeDasharray="4 4"
+              label={{ value: `mean ${C.mean_ci}`, position: "insideTopRight",
+                fill: INK3, fontSize: 10 }} />
+            <Area type="monotone" dataKey="ci" stroke={DUMB} strokeWidth={2.5}
+              fill="url(#inCi)" isAnimationActive={false} />
+          </AreaChart>
+        </ResponsiveContainer>
+        <p className="calloutText">
+          The shaded bands are the <strong>18:00–07:00 window</strong> this project schedules in
+          everywhere else. In India that is the <em>dirtiest</em> and <em>flattest</em> part of the
+          day: intensity climbs steadily from {C.diurnal[18].ci} at 18:00 to a peak of{" "}
+          {C.diurnal[C.dirtiest_hour].ci} at {String(C.dirtiest_hour).padStart(2, "0")}:00, while
+          the real trough — {C.diurnal[C.cleanest_hour].ci} at{" "}
+          {String(C.cleanest_hour).padStart(2, "0")}:00 — sits in the middle of the day, where the
+          solar is. A European charging habit points Indian drivers at exactly the wrong hours.
+        </p>
+      </Panel>
+
+      <Panel>
+        <div className="chartHeader">
+          <div>
+            <div className="chartTitle">
+              Twice as dirty as Spain, and worth a twentieth as much to schedule
+            </div>
+            <div className="chartMeta">
+              100 Indian EVs · {C.days} days · median CO₂ cut against charging on arrival
+            </div>
+          </div>
+        </div>
+        <div className="matrixWrap">
+          <table className="matrix">
+            <thead>
+              <tr>
+                <th>Window</th>
+                <th>Mean intensity</th>
+                <th>Spread</th>
+                <th>Median cut</th>
+                <th>Days under 1%</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="matrixTotal">
+                <th scope="row">Overnight 18–07 <em>(this project's default)</em></th>
+                <td>{C.windows.overnight.mean_window_ci}</td>
+                <td>{C.windows.overnight.window_spread_pct}%</td>
+                <td className="mine">{C.windows.overnight.median_cut_pct}%</td>
+                <td>{C.windows.overnight.under_1pct}%</td>
+              </tr>
+              <tr>
+                <th scope="row">Daytime 09–17</th>
+                <td>{C.windows.daytime.mean_window_ci}</td>
+                <td>{C.windows.daytime.window_spread_pct}%</td>
+                <td>{C.windows.daytime.median_cut_pct}%</td>
+                <td>{C.windows.daytime.under_1pct}%</td>
+              </tr>
+              <tr>
+                <th scope="row">Afternoon 12–18</th>
+                <td>{C.windows.afternoon.mean_window_ci}</td>
+                <td>{C.windows.afternoon.window_spread_pct}%</td>
+                <td>{C.windows.afternoon.median_cut_pct}%</td>
+                <td>{C.windows.afternoon.under_1pct}%</td>
+              </tr>
+              <tr>
+                <th scope="row">Spain, overnight, for comparison</th>
+                <td>{C.reference.spain_mean_ci}</td>
+                <td>—</td>
+                <td>{C.reference.spain_median_cut}%</td>
+                <td>38.0%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p className="calloutText">
+          India runs at <strong>{C.mean_ci} gCO₂eq/kWh</strong> against Spain's{" "}
+          {C.reference.spain_mean_ci} — twice as dirty — and overnight carbon-aware charging saves
+          a median of <strong>{C.windows.overnight.median_cut_pct}%</strong>, with{" "}
+          {C.windows.overnight.under_1pct}% of days offering under 1%. Spain gets{" "}
+          {C.reference.spain_median_cut}%. This is finding 7 confirmed on measured Indian data:
+          the value of shifting load follows a grid's <em>shape</em>, not how dirty it is.
+        </p>
+        <p className="calloutText">
+          The afternoon row is the sharper lesson. It has the <strong>widest spread of the
+          three</strong> ({C.windows.afternoon.window_spread_pct}%) and saves{" "}
+          <strong>nothing at all</strong>, because six hours barely covers what a three-wheeler
+          needs to charge — there is shape, but no slack to exploit it with. Shape is necessary
+          and not sufficient; a scheduler also needs somewhere to move the load to.
+        </p>
+        <p className="calloutText">
+          The policy reading is uncomfortable for this project's own premise:{" "}
+          <strong>carbon-aware charging is the wrong intervention for India.</strong> Capacity
+          coordination is the right one — the same fleet on the same transformer is worth{" "}
+          {H.gain}× in hosting capacity, which is a real and large number, while the carbon saving
+          rounds to zero.
         </p>
       </Panel>
 

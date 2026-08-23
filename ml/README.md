@@ -186,3 +186,20 @@ nulls and no irregular steps.
 it is published daily, and a daily figure has no within-night shape to schedule
 against. Hourly Indian *carbon intensity* is separately available free from
 Electricity Maps' data portal and has not yet been pulled in.
+
+### Indian carbon intensity
+
+Grid-India's Daily PSP Report carries a `TimeSeries` sheet with 96 fifteen-minute
+intervals of all-India generation by fuel. Free, official, no account — the same
+source Electricity Maps parses, at finer resolution than their hourly export.
+
+```bash
+python fetch_india_psp.py                # ~500 workbooks, cached; -> india_psp_15min.csv
+python screen_dataset.py data/india-grid/india_psp_15min.csv \
+  --time timestamp --value demand_met_mw --value thermal_mw    # PASS, lag-1 +0.997
+python india_carbon.py                   # hourly gCO2eq/kWh, AR5 factors
+python india_backtest.py                 # -> frontend/src/data/india_carbon.json
+```
+
+The host omits an intermediate certificate, so `truststore` is used to verify
+against the OS store rather than disabling verification.
