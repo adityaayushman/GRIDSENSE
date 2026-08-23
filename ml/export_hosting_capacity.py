@@ -52,15 +52,26 @@ OUT = HERE.parent / "frontend" / "src" / "data" / "hosting.json"
 HOMES = 200
 ENERGY_KWH, CHARGER_KW = 9.2, 7.0
 ARRIVAL, DEADLINE = 18, 7
-ADOPTION = list(range(0, 201, 10))
+# Adoption sweep. Raised from 200 once the baseline was calibrated: with houses
+# no longer eating most of the transformer there is room for far more vehicles,
+# and a sweep that stops at 200 would report 200 as the capacity.
+ADOPTION = list(range(0, 601, 20))
 # Heterogeneous fleets cannot be aggregated into one variable, so each solve
 # carries n*24 columns. Sample nights for that model to keep the sweep tractable.
 REALISTIC_NIGHTS = 12
+#: Nights sampled for the adoption curve; see the note in main().
+CURVE_NIGHTS = 12
 ARRIVAL_MIX = ([16, 17, 18, 19, 20, 21, 22], [5, 12, 25, 22, 16, 12, 8])
 DEPART_MIX = ([5, 6, 7, 8, 9], [10, 25, 35, 20, 10])
 CHARGER_MIX = ([3.7, 7.0, 11.0], [25, 60, 15])
-RATINGS = [1000, 1250, 1500]        # typical street-transformer ratings, kW
-HEADLINE_RATING = 1250
+# Ratings sized to the street this models rather than to a district. 200 Spanish
+# homes peak near 89 kW on the calibrated baseline, and European secondary
+# substations serving that many dwellings run 160-630 kVA. The old
+# 1,000-1,500 kW series was chosen when the freehand baseline claimed an 800 kW
+# residential peak; against the measured figure it would leave the transformer
+# 7% loaded by houses, which is not a planning case anyone faces.
+RATINGS = [160, 250, 400, 630]      # European secondary substation ratings, kW
+HEADLINE_RATING = 250
 
 
 def uncoordinated(vehicles, carbon):
@@ -154,13 +165,22 @@ def main() -> None:
     residential_peak = max(base)
     days = ds.available_days()
 
+    # The adoption curve is a median across nights, so it does not need every
+    # night in the record. Calibrating the baseline raised the useful fleet range
+    # from 200 to 600 vehicles, which made each LP ~3x larger; run against all 46
+    # nights and four ratings that is ~5,700 solves of up to 14,400 variables,
+    # and CBC dies partway through. Sampling nights keeps the median honest and
+    # the run finite.
+    curve_days = days[:: max(1, len(days) // CURVE_NIGHTS)][:CURVE_NIGHTS]
+    print(f"  adoption curve over {len(curve_days)} of {len(days)} nights", flush=True)
+
     curve = []
     for n in ADOPTION:
         vs = fleet(n)
         dumb_pks, unco_pks = [], []
         coord = {str(r): [] for r in RATINGS}
 
-        for day in days:
+        for day in curve_days:
             carbon = ds.get_carbon_intensity(day=day)
             dumb = naive_schedule(vs) if n else [0.0] * 24
             unco = uncoordinated(vs, carbon) if n else [0.0] * 24

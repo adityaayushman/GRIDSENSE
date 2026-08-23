@@ -19,17 +19,22 @@ carbon-intensive peaker plants. GridSense reschedules that load using a
 linear-programming optimizer, and shows the before/after impact on a live
 dashboard.
 
-**Hosting capacity.** The finding with money attached: on a 1,250 kW street
-transformer serving 200 homes, charging on arrival supports **200 EVs** before
-the median night exceeds the rating. Coordinating the street against the
-transformer supports **1,254** — a **6.3×** gain — because the binding constraint
-moves from instantaneous power to energy: charging on arrival uses one or two
-hours of a thirteen-hour window and leaves the rest empty. That is a deferred
-capital upgrade, not a rounding error. See the **Grid headroom** pane.
+**Hosting capacity.** The finding with money attached: on a 250 kW street
+transformer serving 200 homes, charging on arrival supports **60 EVs** before the
+median night exceeds the rating. Coordinating the street against the transformer
+supports **318** — a **5.3×** gain — because the binding constraint moves from
+instantaneous power to energy: charging on arrival uses one or two hours of a
+thirteen-hour window and leaves the rest empty. That is a deferred capital
+upgrade, not a rounding error. See the **Grid headroom** pane.
 
-(An earlier version of this claimed 14×, on a fleet where every car arrived at
-exactly 18:00. That assumption inflates it: staggered arrivals triple what dumb
-charging can host. 6.3× is the defensible figure — see [FINDINGS.md](FINDINGS.md).)
+The gain depends on how tight the transformer is — 7.5× at 160 kW, 4.0× at
+630 kW — so the rating belongs with the figure.
+
+(This has been corrected twice. An earlier version claimed **14×**, on a fleet
+where every car arrived at exactly 18:00; staggered arrivals triple what dumb
+charging can host. It then read **6.3×**, measured against a residential baseline
+that overstated household demand sevenfold. Both are documented in
+[FINDINGS.md](FINDINGS.md).)
 
 **What the data says.** Backtested over every complete overnight window in
 ENTSO-E's 2018 Spanish record, the median night saves **3.3%** of charging
