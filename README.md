@@ -26,6 +26,10 @@
 
 ---
 
+<p align="center">
+  <img src="GRIDSENSE/demo.webp" alt="GridSense demo" width="420" />
+</p>
+
 **Live:** https://gridsense-app-adityaasahoo-gmailcoms-projects.vercel.app
 · [Simulator](https://gridsense-app-adityaasahoo-gmailcoms-projects.vercel.app/) · [Existing vs GridSense](https://gridsense-app-adityaasahoo-gmailcoms-projects.vercel.app/#comparison) · [Grid headroom](https://gridsense-app-adityaasahoo-gmailcoms-projects.vercel.app/#hosting)
 · [API health](https://gridsense-app-adityaasahoo-gmailcoms-projects.vercel.app/api/health) · [days](https://gridsense-app-adityaasahoo-gmailcoms-projects.vercel.app/api/days)
