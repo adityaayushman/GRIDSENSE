@@ -72,6 +72,51 @@ returned exactly 1,500 at the 1,500 kW rating, which was the bisection bound
 rather than a ceiling. `solver_ceiling` raises instead of returning it, and every
 published figure is checked against its own search bound.
 
+### How far the assumptions move it
+
+`ml/sensitivity_hosting.py` moves one assumed input at a time and re-runs the
+250 kW headline with the same method (realistic fleet, 12 sampled nights,
+median). The `base` row reproduces 60 → 318 = 5.3×. **This is sensitivity to
+assumptions, not validation or a confidence interval**: the baseline is system
+load rather than a metered feeder, so no sweep shows the true value lies in the
+range, and it would not have caught the earlier structural errors (14×, 6.3×,
+the 7× baseline). Ranges were written down before the run and are judgement.
+
+| Input varied | Setting | Dumb | Coordinated | Gain |
+| --- | --- | --- | --- | --- |
+| **Base** | published | 60 | 318 | **5.3×** |
+| Fleet draw (noise) | 20 seeds | 60-90 | 298-318 | **3.4-5.3×, median 4.3×** |
+| Baseline peakiness | flat / half swing | 60 | 310 / 314 | 5.2× / 5.2× |
+| | double / triple swing | 50 | 325 / 331 | 6.5× / 6.6× |
+| | evening bump 0.5 / 1.0 | 40 / 30 | 310 / 305 | 7.8× / 10.2× |
+| Arrivals | early / late | 60 | 321 / 302 | 5.4× / 5.0× |
+| Departures | hard early / relaxed | 60 | 302 / 318 | 5.0× / 5.3× |
+| Energy per car | 6 / 14 kWh | 80 / 40 | 470 / 200 | 5.9× / 5.0× |
+| Chargers | all 7 kW / slow / fast | 50-60 | 319 / 312 / 320 | 6.4× / 5.2× / 6.4× |
+| Homes on the unit | 100 / 150 / 300 / 400 | 70 / 70 / 30 / 20 | 384 / 352 / 246 / 175 | 5.5× / 5.0× / 8.2× / 8.8× |
+
+What this does and does not say:
+
+- **The published 5.3× is the best of twenty fleet draws.** Redrawing the fleet
+  from the same assumptions (seeds 0-19, nights unchanged) gives a gain between
+  **3.4× and 5.3×**, median **4.3×**; the published run is seed 0, the maximum.
+  The coordinated count barely moves (298-318 vehicles, median 309); all of the
+  spread is the charge-on-arrival ceiling, which ranges 60-92. Part of it is the
+  step-10 grid used to find that ceiling (±17% near 60); re-found on a step-1
+  grid the median is **4.1×**. **"About 4×, between 3.4× and 5.3×" is the honest
+  statement; 5.3× is the favourable end, and was the first draw rather than a
+  chosen one.**
+- **No single input pushes it below the noise floor.** The lowest non-noise move
+  is hard-early deadlines at 5.0×; every row sits inside the 3.4-5.3× band.
+- **The "upper bound" caveat holds for vehicle counts, not for the ratio.** A
+  peakier baseline cuts the coordinated count slightly (318 → 305 at the
+  largest evening bump) but cuts charging-on-arrival capacity much faster
+  (60 → 30), so the *gain rises* to 7.8-10.2×. The system-load baseline therefore
+  likely understates the gain while overstating absolute headroom.
+- **More homes on the unit raises the gain** (8.2× at 300 homes) because the
+  houses eat the rating and arrival charging collapses first. Fewer homes does
+  not lower it below ~5×.
+
 > **Remaining caveat.** The baseline's *shape* is measured Spanish system load,
 > which carries flat industrial demand and is therefore less peaky than a real
 > street. That understates the evening residential peak and so overstates the
@@ -182,8 +227,7 @@ scheduling on it is worse than not scheduling at all. Aggregated by total mass
 across 2018 the forecast captures 71.0%, which hides this split.
 
 The operational reading: act only when the *predicted* spread is large enough to
-survive the model's own error. That is a gate this project does not yet
-implement.
+survive the model's own error. That gate is built and measured in finding 13.
 
 ## 7. A dirtier, more variable grid is not a better one to shift in
 
@@ -403,6 +447,13 @@ homes draw 57.6 kW at their own peak, past the 63 kVA unit's 56.7 kW rating, so
 that unit hosts nothing at any level of coordination. Below some rating the
 answer is not "coordinate" but "replace the transformer".
 
+**Sensitivity to the homes count** (`ml/sensitivity_india.py`, 100 kVA unit,
+everything else held): 100 homes → 54 on arrival / 179 coordinated = **3.3×**;
+150 (base) → 35 / 123 = **3.5×**; 200 → 16 / 68 = **4.3×**. The gain holds at
+3.3-4.3× across the plausible range and rises as the unit gets more loaded.
+This varies one assumed input, not the fleet or the baseline shape, and is
+sensitivity to an assumption, not validation.
+
 **Capacity is seasonal, and the two mechanisms compound.** Overnight demand and
 window shape both come from the measured series:
 
@@ -437,8 +488,8 @@ problem.
 
 > **Carbon is no longer open — see finding 12.** Grid-India's aggregate tables
 > are daily, but its Daily PSP Report carries a 15-minute generation-by-fuel
-> sheet. Finding 7's prediction has now been tested on 506 days of it: India
-> saves a median 0.05% overnight against Spain's 3.30%, on a grid twice as dirty.
+> sheet. Finding 7's prediction has now been tested on 556 days of it: India
+> saves a median 0.12% overnight against Spain's 3.30%, on a grid 2.2× as dirty.
 
 ---
 
@@ -498,7 +549,7 @@ not to this one.
 
 ---
 
-## 12. India is twice as dirty as Spain and carbon-aware charging saves nothing there
+## 12. India is twice as dirty as Spain and overnight carbon-aware charging saves almost nothing there
 
 `ml/fetch_india_psp.py`, `ml/india_carbon.py`, `ml/india_backtest.py` · **India** pane
 
@@ -506,49 +557,62 @@ Finding 7 predicted that a dirtier grid is not a better one to shift load in,
 because value follows a grid's *shape* rather than its level. India is the test
 case that prediction deserved, and it now has measured data behind it.
 
+> **Corrected.** This finding was first written on a mislabelled series; the
+> numbers below are recomputed on the repaired one (finding 14). The direction
+> held and the magnitudes did not: the overnight window saves 0.12% rather than
+> 0.05%, and the daytime window turns out to be worth something.
+
 **The data.** Grid-India publishes a Daily PSP Report whose `TimeSeries` sheet
 carries 96 fifteen-minute intervals of all-India generation split by fuel. It is
 free, official, and needs no account — it is the primary source Electricity Maps
 itself parses for Indian zones, so going straight to it gives finer resolution
-than their hourly export. **48,538 fifteen-minute rows across 506 days**,
-2025-04-01 to 2026-08-22, screened at lag-1 +0.997. Carbon intensity is derived
-from the mix with the same IPCC AR5 factors used for Spain, so the two are
-comparable by construction rather than by assertion.
+than their hourly export. **53,338 fifteen-minute rows across 556 days**,
+2025-04-01 to 2026-10-11; the hourly intensity derived from it has lag-1
+autocorrelation +0.955 and lag-24 +0.981. Carbon intensity uses the same IPCC AR5
+factors as Spain, so the two are comparable by construction rather than by
+assertion. Two independent sources agree with it where they overlap (finding 14).
 
-**India runs at 541 gCO₂eq/kWh** against Spain's 267 — a little over twice as
-dirty, on 13.4% renewable share.
+**India runs at 592 gCO₂eq/kWh** against Spain's 267 — about 2.2× as dirty, on a
+25.1% wind, solar and hydro share of generation.
 
 And the overnight window is the worst part of its day:
 
 | Window | Mean intensity | Spread | Median CO₂ cut | Days under 1% |
 | --- | --- | --- | --- | --- |
-| **Overnight 18–07** (this project's default) | 567 | 3.4% | **0.05%** | **98.4%** |
-| Daytime 09–17 | 499 | 6.5% | 0.57% | 78.0% |
-| Afternoon 12–18 | 506 | 10.2% | **0.00%** | 100.0% |
+| **Overnight 18–07** (this project's default) | 649 | 5.9% | **0.12%** | **87.0%** |
+| Daytime 09–17 | 498 | 15.6% | **1.51%** | 26.7% |
+| Afternoon 12–18 | 514 | 23.7% | **0.00%** | 99.8% |
 | Spain, overnight | 267 | — | 3.30% | 38.0% |
 
-Intensity climbs steadily from 554 at 18:00 to 573 at 05:00, then falls to a
-trough of **488 at midday**, where the solar is. India's clean hours are the
-middle of the day. A European charging habit points Indian drivers at precisely
-the wrong end of the clock, and scheduling inside that window recovers a median
-of **0.05%** — twenty-fold less than Spain, on a grid twice as dirty. Finding 7
-holds, and holds hard.
+Intensity sits at about 650-660 from 18:00 through the small hours and peaks at
+**660 at 03:00-05:00**, then falls to a trough of **472 at midday**, where the
+solar is. India's clean hours are the middle of the day. A European charging
+habit points Indian drivers at precisely the wrong end of the clock, and
+scheduling inside that window recovers a median of **0.12%** — about 27× less
+than Spain, on a grid twice as dirty. Finding 7 holds.
+
+**Where there is a saving, it is in the daytime window**: 1.51% median, 1.74% mean,
+and only 27% of days under 1% — twelve times the overnight figure. That is the
+charging a workplace or a depot does, not the habit this project was built around,
+and it is still modest next to Spain's overnight 3.3%.
 
 **The afternoon row is the sharper lesson, and it corrects finding 7.** That
-window has the *widest* spread of the three — 10.2% against the overnight
-window's 3.4% — and saves **nothing at all**. Six hours barely covers what a
+window has the *widest* spread of the three — 23.7% against the overnight
+window's 5.9% — and saves **nothing at all**. Six hours barely covers what a
 three-wheeler needs at 1.9 kW, so the fleet must charge almost continuously and
 there is nowhere to move load to. Shape is **necessary but not sufficient**: a
 scheduler needs slack as well, and the two can point in opposite directions.
 Finding 7's rule as originally stated would have predicted the afternoon window
-to be the best of the three. It is the worst.
+to be the best of the three. It is the worst, and the corrected data makes the
+gap larger, not smaller.
 
 **The policy reading is uncomfortable for this project's own premise.**
-Carbon-aware charging is the wrong intervention for India. Capacity coordination
-is the right one: the same fleet on the same transformer is worth 3.5× in
-hosting capacity (finding 10), a real and large number, while the carbon saving
-rounds to zero. A project that exists to schedule charging against carbon has
-measured its way to the conclusion that in India it should not.
+Carbon-aware charging is the wrong intervention for overnight India. Capacity
+coordination is the right one: the same fleet on the same transformer is worth
+3.5× in hosting capacity (finding 10), a real and large number, while the
+overnight carbon saving rounds to a tenth of a percent. A project that exists to
+schedule charging against carbon has measured its way to the conclusion that in
+India it should not, at night.
 
 > Two modelling choices are stated rather than buried. The sheet reports a single
 > THERMAL column, treated here as coal at 820 — it includes some lignite at 1054,
@@ -561,6 +625,224 @@ measured its way to the conclusion that in India it should not.
 > available only behind a paid API. That was wrong twice over: Electricity Maps
 > publishes free hourly CSV for Indian zones, *and* the underlying Grid-India
 > source used here is free and finer-grained than either.
+
+---
+
+## 13. Gating on the expected saving removes most of the harm, and costs nothing in Spain
+
+`ml/spread_gate.py` · wired into the API as `gate_min_saving_pct` and the Simulator's forecast toggle
+
+Finding 6 left a gap: scheduling on a forecast is worse than charging on arrival
+on flat nights, and the remedy ("act only when the predicted spread is large")
+was named but not built. The gate here computes, at 18:00, the saving it
+*expects* — forecast-optimal against charge-on-arrival, both scored on the
+forecast — and acts only if that is at least τ; below τ it charges on arrival.
+Everything is scored against what actually happened.
+
+**Spain**, deployed ridge forecaster, 361 held-out 2018 nights. The ungated row
+reproduces the published 71.0% of achievable saving, which is the check that the
+harness measures the same thing as finding 3:
+
+| Gate τ (expected saving) | Nights acted on | Fleet-total saving | Share of oracle | Nights worse than nothing |
+| --- | --- | --- | --- | --- |
+| none | 100% | 7.83% | 71.0% | **27.4%** |
+| 2% | 58% | 8.12% | 73.6% | 16.6% |
+| 5% | 48% | 8.08% | 73.3% | 10.2% |
+| **7.5%** | **41%** | **8.18%** | **74.2%** | **5.8%** |
+| 15% | 27% | 6.88% | 62.4% | 3.0% |
+
+Perfect foresight saves 11.03%. A moderate gate *removes four in five of the
+harmful nights and slightly raises the total*, because the nights it skips are
+the ones that were losing. Push τ too high (15%+) and it starts discarding real
+savings. τ was chosen on the first 180 held-out nights and scored on the other
+181 so the figure is not tuned on its own test: ungated 7.91% with 27.1% worse
+nights, gated at 7.5% **8.16% with 4.4% worse**, acting on 41%.
+
+**The expected saving is the right thing to gate on; the window spread is not.**
+Gating on the forecast's (max-min)/mean — the wording in finding 6 — chose τ=15%,
+acted on 62% of nights, cut worse nights only to 12.7% and *lowered* the total to
+7.50%. A wide predicted spread does not mean a profitable shift: a spread can sit
+in hours the charger cannot reach.
+
+**Germany and India are a weaker test, and the result is more mixed.** Neither has
+a deployed forecaster, so each uses a plain lag ridge (24-168 h lags, previous-day
+mean/max/min) trained on the first 70% of its record. They are worse forecasters
+than Spain's, and the three grids are not a like-for-like forecast comparison.
+
+- **Germany** (341 nights): the plain forecaster is actively harmful ungated, a
+  net **-1.23%** over the held-out span with 35% of nights worse than nothing. The
+  gate turns that to roughly zero (+0.06%) by acting on 6% of nights at τ=20%,
+  but the half it was scored on happened to be a good one for the ungated schedule
+  (+1.45%), so out of sample the gate gave up total saving (1.45% → 0.38%) to cut
+  worse nights from 32% to 4%. The selection half and the reporting half do not
+  look alike, which is itself the finding: a gate tuned on one stretch of a
+  non-stationary grid does not transfer cleanly.
+- **India** (160 nights, on the repaired series): perfect foresight saves
+  **0.05%** in total, so there is almost nothing to gate toward. The saving gate
+  fires on 1% of the held-out nights; ungated scheduling loses 0.08% and the
+  gated schedule loses 0.05%, and the share of nights worse than charging on
+  arrival falls from 7.5% to 1.2%. This is finding 12 seen from the
+  controller's side — on that grid, overnight, the right decision is almost
+  always "charge on arrival".
+
+**What this does and does not establish.** The gate is a safety measure for a
+scheduler that is driven by an imperfect forecast. In Spain it is close to free;
+elsewhere it mainly stops the scheduler doing damage. It does not make carbon
+scheduling a large lever — the oracle ceiling is still 11% in Spain and 0.05% in
+India. The Spanish result uses the project's one real forecaster; the German and
+Indian results use throwaway ones, and a better German forecaster would change
+that row. All grids use one identical-vehicle fleet (9.2 kWh at 7 kW), for which
+a greedy fill equals the LP (cross-checked to 1e-16 on 12 nights per grid), so the
+Indian fleet's real mix of scooters and rickshaws is not represented.
+
+---
+
+## 14. The India parser read the wrong column for 84% of days, and findings 10 and 12 were built on it
+
+`ml/fetch_india_psp.py` · found while merging more Indian sources
+
+Grid-India's Daily PSP workbook changed layout twice inside the archive:
+
+| Dates | Days | Column order after DEMAND MET |
+| --- | --- | --- |
+| 2025-04-01 → 2026-05-05 | 399 | NUCLEAR, WIND, SOLAR, HYDRO, GAS, THERMAL, OTHERS |
+| 2026-05-06 → 2026-05-31 | 26 | … THERMAL, **STORAGE**, OTHERS |
+| 2026-06-01 → | 83+ | **STORAGE DEMAND**, NUCLEAR, WIND, SOLAR, HYDRO, GAS, THERMAL, STORAGE, OTHERS |
+
+The parser used one positional map, correct only for the last layout. For the
+other **425 of 508 days** every fuel was read from its neighbour's column: wind
+labelled nuclear, solar labelled wind, hydro labelled solar, and — the one that
+mattered — **coal labelled gas**, so the dominant generator was weighted at 490
+instead of 820. Nothing failed: the values were numeric, the rows were complete,
+and the series was smooth enough to pass the autocorrelation screen.
+
+**How it surfaced.** Merging more sources, an hour-of-day profile showed "solar"
+at 15.7 GW at midnight and "gas" at 125 GW. Neither is physically possible; the
+raw workbook headers confirmed the shift. The two checks that would have caught
+it in minutes are the ones to run on any new fuel series: each fuel's diurnal
+shape (solar must vanish at night) and closure (the fuels must sum to the
+sheet's own total).
+
+**The fix.** Columns are now found by their printed header, never by position,
+and a file missing a required fuel is rejected rather than filled. All cached
+workbooks were re-parsed: 556 days, 53,338 rows; closure median 0 MW.
+
+**Independent confirmation** that the repaired series is right, where unrelated
+sources overlap:
+
+| Check | Days | Correlation | Level |
+| --- | --- | --- | --- |
+| Daily mean of PSP intensity vs CEA daily-generation intensity | 500 | 0.73 | 594 vs 592 gCO₂/kWh |
+| PSP hourly demand vs POSOCO daily energy met | 505 | 0.999 | ratio 0.999 |
+| Kaggle hourly demand vs POSOCO daily energy met | 1,946 | 0.994 | ratio 0.993 |
+
+**What changed (finding 12, overnight window unless stated):**
+
+| | As first reported (mislabelled) | Repaired |
+| --- | --- | --- |
+| Mean intensity | 541 | **592** |
+| Wind + solar + hydro share | 13.4% | **25.1%** |
+| Overnight mean intensity | 567 | **649** |
+| Overnight median cut / days under 1% | 0.05% / 98.4% | **0.12% / 87.0%** |
+| Daytime 09-17 median cut / days under 1% | 0.57% / 78.0% | **1.51% / 26.7%** |
+| Afternoon 12-18 median cut | 0.00% | 0.00% |
+| Cleanest hour | 488 at midday | 472 at 12:00 |
+
+The conclusion survives and one detail sharpens: the overnight window is still
+nearly worthless, but the daytime window is a real if modest opportunity rather
+than a second dead end, and the grid is dirtier than reported (2.2× Spain's, not
+2.0×).
+
+**Not affected.** Spain and Germany (different sources); hosting capacity,
+including India's 3.5× (finding 10), which uses a demand shape and a fleet and no
+fuel mix; the Spanish forecaster. Only the Indian carbon figures were wrong.
+
+This is the same class of error as findings 3 and 11 — a derived input accepted
+without checking that it is physically sensible — and the third time it has cost
+a published number. A sheet that "looks right" is not a check; a fuel that cannot
+exist at that hour is.
+
+---
+
+## 15. More data is not the lever for the forecasters; the day-ahead inputs are
+
+`ml/learning_curve.py`, `ml/train_long.py`, `ml/train_india.py`
+
+The obvious fix for a forecaster that captures 71% of the achievable saving is
+more training data. Four experiments say it is the wrong place to look.
+
+**Spain, the deployed model, 2018 test year** (`learning_curve.py`). Ridge trained
+on 1, 2 and 3 years before 2018:
+
+| Training | Rows | MAE | Share of saving captured |
+| --- | --- | --- | --- |
+| 2017 only | 8,760 | 26.90 | 72.8% |
+| 2016-2017 | 17,544 | 23.40 | 71.0% |
+| 2015-2017 | 26,114 | 23.70 | 71.0% |
+
+Error falls from one year to two, then stops. The model is not data-starved.
+
+**Spain, eleven years, tested on 2025** (`train_long.py`). The Spanish record was
+extended from 2015-2018 to 2015-2026 (103,006 hourly rows, Energy-Charts, free,
+no key). Spain's grid has changed enormously over that span — mean intensity fell
+from 274 in 2015 to 132 in 2025 — so this is a test of whether history still
+describes today. Ridge and gradient boosting, trained on the N years before 2025:
+
+| Training years | Ridge MAE | Ridge captured | GBM MAE | GBM captured |
+| --- | --- | --- | --- | --- |
+| 1 (2024) | 20.84 | 66.1% | 24.57 | 57.1% |
+| 2 | **20.27** | 66.5% | 21.58 | 63.1% |
+| 3 | 20.94 | **69.2%** | 21.79 | 63.7% |
+| 5 | 21.22 | 67.6% | 21.58 | 63.9% |
+| 8 | 21.82 | 68.5% | 21.13 | 66.2% |
+| 10 | 22.22 | 68.2% | **21.08** | 67.9% |
+
+Ridge is best on the **most recent two to three years** and gets *worse* as older,
+dirtier-grid history is added (20.3 → 22.2 MAE). Only the flexible model, which
+can learn that old and new years differ, keeps improving with volume (24.6 →
+21.1), and it only just catches the short-window ridge. Perfect foresight saves
+11.8% on 2025, so the ceiling is about where it was in 2018. The 2015-2017 model
+applied unchanged to 2025 still captures 67.0% of it: the daily solar shape that
+matters for a night-time window has survived the transition.
+
+**What does matter: the day-ahead inputs.** Moving the *same* 2015-2017 → 2018
+split onto the new source, which has lags and calendar but **none of the TSO
+day-ahead solar, wind and load forecasts** the deployed model uses, drops
+the captured saving from **71.0% to 40.6%** (MAE 23.7 → 28.5). Those three
+inputs are worth about thirty points of decision quality; a decade of extra
+history is worth about two. The extended record cannot supply them for Spain, so
+it cannot improve the deployed model. ENTSO-E can (its day-ahead forecasts are
+free with an API token), and that — not more of the same history — is the data
+to fetch.
+
+**India demand, 46,728 hours** (`train_india.py`; tested on the final 12 months):
+
+| Features | Ridge MAPE | GBM MAPE |
+| --- | --- | --- |
+| Lags only | 2.52% | 2.93% |
+| + calendar and holidays | **2.35%** | 2.68% |
+| + 12-city weather | 2.36% | 2.82% |
+
+Weather does not help a national day-ahead demand forecast once yesterday's and
+last week's demand are known: the lags already carry the season and the heat.
+Gradient boosting is worse than ridge, and training volume is flat (2.84% on one
+year, 2.80% on four). Weather here is observed, which flatters it, so the real
+effect would be no larger. A 2.4% MAPE from a ridge on lags and a holiday flag
+is the result to keep.
+
+**India carbon, 556 days** (trained on 2025-04 to 2026-03, tested on the rest).
+Perfect foresight saves **0.06%** overnight over the test span, so there is
+nothing for a forecaster to find. Every forecaster scheduled on it makes things
+worse than charging on arrival (captured share between -59% and -173%), and
+adding weather made the ridge worse, not better (MAE 10.2 → 11.0). The gate
+turns all of them into roughly zero, which is the right answer. The thing worth
+forecasting for Indian charging is demand, not carbon.
+
+**What this changes.** The remaining accuracy gap in Spain is closed by better
+*inputs*, specifically day-ahead forecasts for a modern grid, not by a bigger
+history, and for India by forecasting demand rather than carbon. All of the
+data behind these experiments is reproducible from the scripts above; the raw
+files are not committed (`ml/data/` is gitignored).
 
 ---
 

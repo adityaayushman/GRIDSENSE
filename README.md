@@ -22,13 +22,18 @@ dashboard.
 **Hosting capacity.** The finding with money attached: on a 250 kW street
 transformer serving 200 homes, charging on arrival supports **60 EVs** before the
 median night exceeds the rating. Coordinating the street against the transformer
-supports **318** — a **5.3×** gain — because the binding constraint moves from
-instantaneous power to energy: charging on arrival uses one or two hours of a
-thirteen-hour window and leaves the rest empty. That is a deferred capital
+supports **318**. That is a **5.3×** gain on the published run, which is the best of
+twenty fleet draws (median **about 4×**, range 3.4–5.3×), because the binding constraint moves
+from instantaneous power to energy: charging on arrival uses one or two hours of
+a thirteen-hour window and leaves the rest empty. That is a deferred capital
 upgrade, not a rounding error. See the **Grid headroom** pane.
 
 The gain depends on how tight the transformer is — 7.5× at 160 kW, 4.0× at
-630 kW — so the rating belongs with the figure.
+630 kW — so the rating belongs with the figure. It also rests on assumed inputs
+(baseline shape, fleet mix, homes per transformer). A one-at-a-time sweep moved it
+no lower than the noise band and *raised* it for a peakier street, but that is
+sensitivity to assumptions, not validation against a real feeder; see
+[FINDINGS.md](FINDINGS.md) finding 1.
 
 (This has been corrected twice. An earlier version claimed **14×**, on a fleet
 where every car arrived at exactly 18:00; staggered arrivals triple what dumb
@@ -250,7 +255,17 @@ npm cannot write its own cache.
 
 ## Data sources
 
-In use:
+In use (India, merged by `ml/build_india_dataset.py` into one 74,784-hour table with 184 columns):
+- [Grid-India Daily PSP reports](https://webcdn.grid-india.in) — 15-minute all-India
+  generation by fuel, April 2025 onward (`ml/fetch_india_psp.py`)
+- Grid-India hourly demand, national and five regions, 2019-2024 (Kaggle)
+- CEA Daily Generation Report and POSOCO/Grid-India daily tables, 2013-2026
+  (via [robbieandrew.github.io/india](https://robbieandrew.github.io/india/))
+- [Open-Meteo](https://open-meteo.com) ERA5 hourly weather for 13 cities (CC BY 4.0)
+- [Energy-Charts](https://www.energy-charts.info) Spanish generation by fuel,
+  2015-2026 (Fraunhofer ISE, CC BY 4.0), used for the long-record experiments
+
+In use (Spain):
 - [ENTSO-E via Kaggle](https://www.kaggle.com/datasets/nicholasjhana/energy-consumption-generation-prices-and-weather)
   (CC0) — hourly Spanish generation mix and day-ahead prices, 2015-2018
 - IPCC AR5 WG3 Annex III — lifecycle emission factors per fuel

@@ -23,7 +23,7 @@ Current state of the repo. Findings and their reproduction steps live in
   `max_deliverable_kwh` bounds what fits under the limit and the error reports
   both numbers.
 - Naive-schedule simulator for the "before" case.
-- **36 unit tests**, including regression guards for the defects found in this
+- **59 tests** (optimizer, ENTSO-E parser and the HTTP API), including regression guards for the defects found in this
   codebase: the cost objective silently having no price curve, the LP matching
   greedy whenever no constraint couples vehicles, and every ENTSO-E parse
   failure mode that would otherwise return a plausible but wrong curve.
@@ -47,6 +47,12 @@ Current state of the repo. Findings and their reproduction steps live in
   hours, objective, region, **measured night**, and **feeder capacity**; returns
   hourly naive vs optimized load, carbon intensity, price, peak/CO₂/cost deltas,
   and how far naive breaches the feeder.
+- `gate_min_saving_pct` (optional) turns on the **forecast gate**: when scheduling
+  on the day-ahead forecast, charge on arrival unless the forecast expects at
+  least that saving. The response reports whether the gate was applied, whether
+  it acted, the saving it expected, and — when it is ignored (cost/peak
+  objective, feeder limit, V2G, or no forecast) — why. The Simulator exposes it
+  as a toggle beside the carbon-signal switch. See FINDINGS.md finding 13.
 - `GET /api/days` lists the nights available to simulate.
 - `GET /api/health`. Swagger at `/docs`.
 - CORS via an exact allowlist **and** an anchored origin pattern, since Vercel
@@ -131,7 +137,10 @@ carbon chart overlays the forecast the scheduler saw against the actual curve.
 > achievable saving the forecast captures 92-98% of it, but on nearly flat
 > nights forecast error exceeds the real spread and scheduling on it can do
 > worse than nothing. A production system should act only when the predicted
-> spread is worth acting on.
+> spread is worth acting on. `ml/spread_gate.py` measures that gate (finding 13):
+> in Spain gating on the expected saving cuts the harmful nights from 27% to 6%
+> at no cost to the total. It is wired into the API (`gate_min_saving_pct`) and
+> the Simulator's forecast toggle.
 
 ## Rolling-horizon control — built, and measured as a negative result
 
