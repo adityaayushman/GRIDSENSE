@@ -33,6 +33,11 @@ export interface ScenarioRequest {
   feeder_capacity_kw?: number;
   /** Schedule against the day-ahead forecast instead of the measured curve. */
   use_forecast?: boolean;
+  /**
+   * Forecast gate: charge on arrival unless the forecast expects at least this
+   * many percent saving. Only meaningful with `use_forecast`.
+   */
+  gate_min_saving_pct?: number;
   /** Let vehicles discharge back to the grid. */
   allow_v2g?: boolean;
 }
@@ -77,7 +82,15 @@ export interface ScenarioResponse {
   exported_kwh: number;
   forecast_available: boolean;
   hourly_forecast: number[] | null;
+  gate_applied: boolean;
+  /** False when the gate stepped aside and the fleet charged on arrival. */
+  gate_acted: boolean;
+  gate_expected_saving_pct: number | null;
+  gate_reason: string | null;
 }
+
+/** The threshold finding 13 settled on for Spain. */
+export const GATE_MIN_SAVING_PCT = 7.5;
 
 /**
  * Fire-and-forget ping to warm the API before the first real request.

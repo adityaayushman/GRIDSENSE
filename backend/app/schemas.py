@@ -21,6 +21,16 @@ class ScenarioRequest(BaseModel):
                     "this is what a real scheduler could have achieved; leaving it off is "
                     "perfect foresight and an upper bound.",
     )
+    gate_min_saving_pct: float | None = Field(
+        None, ge=0, le=50,
+        description="Forecast gate. When scheduling on the day-ahead forecast, charge on "
+                    "arrival instead unless the saving the forecast expects is at least this "
+                    "many percent. Guards against the forecast's own error on flat nights, "
+                    "where scheduling on it can be worse than not scheduling. 7.5 is the "
+                    "value finding 13 settled on for Spain. Applies only with the emissions "
+                    "objective, use_forecast, no feeder limit and no V2G; otherwise ignored "
+                    "and the response says why.",
+    )
     allow_v2g: bool = Field(
         False,
         description="Let vehicles discharge back to the grid. Round-trip losses are "
@@ -77,3 +87,7 @@ class ScenarioResponse(BaseModel):
     used_forecast: bool
     forecast_available: bool
     hourly_forecast: list[float] | None
+    gate_applied: bool = False
+    gate_acted: bool = True
+    gate_expected_saving_pct: float | None = None
+    gate_reason: str | None = None

@@ -69,6 +69,12 @@ class ScenarioResult:
     feeder_capacity_kw: float | None
     naive_overload_hours: int
     naive_overload_peak_kw: float
+    # The forecast gate (see `run_scenario`). `gate_applied` is False when the gate
+    # was not requested or cannot be used; `gate_reason` says why.
+    gate_applied: bool = False
+    gate_acted: bool = True
+    gate_expected_saving_pct: float | None = None
+    gate_reason: str | None = None
 
 
 def _available_hours(vehicle: Vehicle) -> list[int]:
@@ -262,6 +268,7 @@ def run_scenario(
     feeder_capacity_kw: float | None = None,
     schedule_carbon: list[float] | None = None,
     allow_v2g: bool = False,
+    gate_min_saving_pct: float | None = None,
 ) -> ScenarioResult:
     """Run a naive-vs-optimized comparison for one night.
 
@@ -270,20 +277,50 @@ def run_scenario(
     see when choosing hours — pass a day-ahead forecast to measure the schedule
     a real system could have produced. Left unset the two are the same, which is
     perfect foresight and an upper bound rather than an achievable result.
+
+    `gate_min_saving_pct` turns on the forecast gate (FINDINGS.md finding 13).
+    A schedule chosen on a forecast can be worse than charging on arrival when
+    the forecast's own error exceeds the spread being chased. The gate computes
+    the saving the forecast *expects* — optimized against charge-on-arrival, both
+    scored on the forecast — and charges on arrival instead when that falls below
+    the threshold. It applies only where falling back is safe and meaningful:
+    the emissions objective, a forecast to gate on, no feeder limit (charging on
+    arrival would breach it) and no V2G (the fallback has no export). Otherwise
+    the schedule is the ungated one and `gate_reason` says why.
     """
     if price is None:
         price = [1.0] * 24
 
     naive_ev = naive_schedule(vehicles)
+    seen_carbon = schedule_carbon if schedule_carbon is not None else carbon_intensity
     optimized_ev = optimize_schedule(
         vehicles,
-        schedule_carbon if schedule_carbon is not None else carbon_intensity,
+        seen_carbon,
         price=price,
         objective=objective,
         residential_baseline_kw=residential_baseline_kw,
         feeder_capacity_kw=feeder_capacity_kw,
         allow_v2g=allow_v2g,
     )
+
+    gate_applied, gate_acted, gate_expected, gate_reason = False, True, None, None
+    if gate_min_saving_pct is not None:
+        if objective != "emissions":
+            gate_reason = "the gate applies to the emissions objective only"
+        elif schedule_carbon is None:
+            gate_reason = "the gate needs a forecast to gate on; this run has perfect foresight"
+        elif feeder_capacity_kw is not None:
+            gate_reason = "a feeder limit is set, and charging on arrival would breach it"
+        elif allow_v2g:
+            gate_reason = "the fallback schedule cannot export, so the gate is off with V2G"
+        else:
+            gate_applied = True
+            e_naive_f = sum(naive_ev[h] * seen_carbon[h] for h in HOURS)
+            e_opt_f = sum(optimized_ev[h] * seen_carbon[h] for h in HOURS)
+            gate_expected = round((1 - e_opt_f / e_naive_f) * 100, 2) if e_naive_f > 0 else 0.0
+            if gate_expected < gate_min_saving_pct:
+                gate_acted = False
+                optimized_ev = naive_ev
 
     naive_total = [naive_ev[h] + residential_baseline_kw[h] for h in HOURS]
     optimized_total = [optimized_ev[h] + residential_baseline_kw[h] for h in HOURS]
@@ -330,4 +367,8 @@ def run_scenario(
         feeder_capacity_kw=feeder_capacity_kw,
         naive_overload_hours=overload_hours,
         naive_overload_peak_kw=round(overload_peak, 2),
+        gate_applied=gate_applied,
+        gate_acted=gate_acted,
+        gate_expected_saving_pct=gate_expected,
+        gate_reason=gate_reason,
     )

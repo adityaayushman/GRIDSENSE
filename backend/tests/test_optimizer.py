@@ -428,3 +428,71 @@ def test_optimizer_is_time_consistent():
     e_upfront = sum(l * c for l, c in zip(upfront, carbon))
     e_rolling = sum(l * c for l, c in zip(rolling, carbon))
     assert e_rolling == pytest.approx(e_upfront, rel=1e-9)
+
+
+# --- forecast gate (FINDINGS.md finding 13) ---------------------------------
+
+def _gate_run(forecast, actual, **kw):
+    v = Vehicle(id="v1", energy_needed_kwh=7.0, charger_kw=7.0, arrival_hour=18, deadline_hour=7)
+    return run_scenario(
+        vehicles=[v], carbon_intensity=actual, residential_baseline_kw=[0.0] * 24,
+        schedule_carbon=forecast, **kw,
+    )
+
+
+def test_gate_charges_on_arrival_when_expected_saving_is_below_threshold():
+    """A forecast that sees a 3% edge elsewhere is chasing noise. Here the edge is
+    wrong — the arrival hour really is the cleanest — so scheduling on it loses,
+    and the gate should step aside."""
+    actual = [400.0] * 24
+    actual[18] = 100.0
+    forecast = [400.0] * 24
+    forecast[18], forecast[3] = 300.0, 290.0
+
+    ungated = _gate_run(forecast, actual)
+    gated = _gate_run(forecast, actual, gate_min_saving_pct=7.5)
+
+    assert ungated.emissions_reduction_pct < 0          # the harm the gate exists to stop
+    assert gated.gate_applied and not gated.gate_acted
+    assert gated.gate_expected_saving_pct == pytest.approx(3.33, abs=0.01)
+    assert gated.emissions_reduction_pct == 0.0
+    assert gated.hourly_optimized_load_kw == gated.hourly_naive_load_kw
+
+
+def test_gate_leaves_the_schedule_alone_when_the_expected_saving_is_large():
+    actual = [400.0] * 24
+    actual[3] = 100.0
+    ungated = _gate_run(actual, actual)
+    gated = _gate_run(actual, actual, gate_min_saving_pct=7.5)
+
+    assert gated.gate_applied and gated.gate_acted
+    assert gated.gate_expected_saving_pct == pytest.approx(75.0)
+    assert gated.hourly_optimized_load_kw == ungated.hourly_optimized_load_kw
+
+
+@pytest.mark.parametrize("kw, fragment", [
+    ({"objective": "cost"}, "emissions objective"),
+    ({"feeder_capacity_kw": 500.0}, "feeder limit"),
+    ({"allow_v2g": True}, "V2G"),
+])
+def test_gate_is_ignored_where_falling_back_is_not_safe(kw, fragment):
+    forecast = [400.0] * 24
+    forecast[3] = 100.0
+    r = _gate_run(forecast, forecast, gate_min_saving_pct=50.0, **kw)
+    assert not r.gate_applied
+    assert fragment in r.gate_reason
+
+
+def test_gate_needs_a_forecast_to_gate_on():
+    v = Vehicle(id="v1", energy_needed_kwh=7.0, charger_kw=7.0, arrival_hour=18, deadline_hour=7)
+    r = run_scenario(vehicles=[v], carbon_intensity=[400.0] * 24, residential_baseline_kw=[0.0] * 24,
+                     gate_min_saving_pct=7.5)
+    assert not r.gate_applied
+    assert "forecast" in r.gate_reason
+
+
+def test_gate_off_by_default_changes_nothing():
+    forecast = [400.0] * 24
+    forecast[3] = 100.0
+    r = _gate_run(forecast, forecast)
+    assert not r.gate_applied and r.gate_acted and r.gate_reason is None
