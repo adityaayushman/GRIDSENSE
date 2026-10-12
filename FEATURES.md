@@ -161,9 +161,10 @@ optimistically biased) and the bug that nearly inflated it — a baseline that w
 accidentally reading true intensities at long horizons. Kept as a shipped pane
 because a project that only displays its successes is a brochure.
 
-> Certainty-equivalent MPC only. A controller with a terminal cost, or one that
-> prices the optionality it destroys by deferring, is the obvious next attempt
-> and was not tested; the conclusion covers the formulation that was.
+> A deferral penalty (λ × the forecast's MAE added to hours still ahead) was
+> then tried, λ from 0 to 2, and raised regret monotonically (2.6% → 5.6%, against
+> the one-shot's 2.0%): the refreshed controller was not over-deferring. See
+> finding 9.
 
 ## Infrastructure — built
 

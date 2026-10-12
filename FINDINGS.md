@@ -382,12 +382,31 @@ irreversible decisions instead of one.
 > That bug made MPC look 238% worse; fixing it moved the answer to 28%. The sign
 > did not change, but nearly all of the magnitude did.
 
-> **What was not tried.** This is certainty-equivalent MPC — the standard
-> reading of "re-solve each hour and execute the next step". A controller with a
-> terminal cost, or one penalising deferral to price the optionality it is
-> destroying, would target the diagnosed failure directly. That is a real
-> possibility and is not evidence for the current conclusion, which is only
-> about the formulation actually tested.
+> **The obvious repair was tried, and made it worse.** The diagnosis points at
+> pricing the optionality the controller destroys by waiting, so a deferral
+> penalty was added: λ × the forecast's own MAE at that horizon is added to every
+> forecast hour still ahead, which makes distant, uncertain hours look dirtier and
+> removes the optimistic bias of the minimum. Same 362 nights, same controller, λ
+> from 0 to 2 (`mpc.py`; the greedy solver used for the sweep reproduces the LP
+> controller to 0.0000%):
+>
+> | λ | Mean regret | vs one-shot | Mean position |
+> | --- | --- | --- | --- |
+> | 0 (unmodified) | 2.615% | +0.566pp | 4.52 |
+> | 0.5 | 2.951% | +0.902pp | 3.45 |
+> | 1.0 | 3.675% | +1.626pp | 2.58 |
+> | 1.5 | 4.578% | +2.529pp | 2.05 |
+> | 2.0 | 5.627% | +3.577pp | 1.66 |
+>
+> Regret rises monotonically with the penalty; no λ beats the one-shot LP's
+> 2.049%. The reason is in the position column. The over-deferral diagnosis
+> describes the *static* arm (position 5.28, later than perfect foresight's 5.05).
+> The refreshed controller that is actually compared sits at 4.52, *earlier* than
+> the oracle, so it was not over-deferring on average, and pushing it earlier still
+> only moves energy into dirtier hours. The penalty repairs a failure this
+> controller does not have. This closes the question for this formulation: a
+> deferral penalty does not rescue rolling control here. A terminal cost shaped
+> differently, or a controller with the true value of waiting, remains untested.
 
 Time-consistency is pinned by `test_optimizer_is_time_consistent`, and the
 backtest re-checks it every run: fed perfect forecasts, the rolling machinery
