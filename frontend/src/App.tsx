@@ -7,7 +7,7 @@ import {
   ChevronDown, Zap, Github, AlertTriangle,
   Command, Link2, Download, Keyboard,
 } from "lucide-react";
-import { runScenario, fetchDays, warmUp, ScenarioResponse } from "./api";
+import { runScenario, fetchDays, warmUp, ScenarioResponse, GATE_MIN_SAVING_PCT } from "./api";
 import Comparison from "./Comparison";
 import Hosting from "./Hosting";
 import HeroScene from "./HeroScene";
@@ -121,6 +121,9 @@ function App() {
   // Off by default so the landing view is the theoretical best; switching it on
   // is what a real scheduler, which cannot see tomorrow, would actually get.
   const [useForecast, setUseForecast] = useState(() => flag("fc"));
+  // The forecast gate only means something when scheduling on a forecast; it
+  // stays off by default so the plain forecast result remains visible.
+  const [gate, setGate] = useState(() => flag("gate"));
   const [v2g, setV2g] = useState(() => flag("v2g"));
   const [objective, setObjective] = useState<Objective>(() => {
     const o = PARAMS.get("obj");
@@ -182,8 +185,8 @@ function App() {
 
   // Keep the latest control values addressable from the mount effect without
   // making it re-run (and re-fire a request) on every slider nudge.
-  const latest = useRef({ evCount, chargerKw, feederKw, objective, day, useForecast, v2g });
-  latest.current = { evCount, chargerKw, feederKw, objective, day, useForecast, v2g };
+  const latest = useRef({ evCount, chargerKw, feederKw, objective, day, useForecast, gate, v2g });
+  latest.current = { evCount, chargerKw, feederKw, objective, day, useForecast, gate, v2g };
 
   const run = useCallback(async (overrideDay?: string) => {
     setLoading(true);
@@ -203,6 +206,7 @@ function App() {
           ...(chosenDay ? { day: chosenDay } : {}),
           ...(c.feederKw > 0 ? { feeder_capacity_kw: c.feederKw } : {}),
         ...(c.useForecast ? { use_forecast: true } : {}),
+        ...(c.useForecast && c.gate ? { gate_min_saving_pct: GATE_MIN_SAVING_PCT } : {}),
         ...(c.v2g ? { allow_v2g: true } : {}),
         }),
       );
@@ -224,13 +228,14 @@ function App() {
     if (feederKw > 0) p.set("feeder", String(feederKw));
     if (objective !== "emissions") p.set("obj", objective);
     if (useForecast) p.set("fc", "1");
+    if (useForecast && gate) p.set("gate", "1");
     if (v2g) p.set("v2g", "1");
     if (day) p.set("day", day);
     const qs = p.toString();
     window.history.replaceState(
       null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}#${tab}`,
     );
-  }, [entered, evCount, chargerKw, feederKw, objective, useForecast, v2g, day, tab]);
+  }, [entered, evCount, chargerKw, feederKw, objective, useForecast, gate, v2g, day, tab]);
 
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -551,6 +556,22 @@ function App() {
                 <em>{useForecast ? "what a real scheduler sees" : "upper bound"}</em>
               </div>
             </div>
+            {useForecast && (
+              <div className="field">
+                <label>Forecast gate</label>
+                <Segmented
+                  options={[
+                    { key: "off", label: "Always schedule" },
+                    { key: "on", label: `Gate at ${GATE_MIN_SAVING_PCT}%` },
+                  ]}
+                  value={gate ? "on" : "off"}
+                  onChange={(x) => setGate(x === "on")}
+                />
+                <div className="fieldValue">
+                  <em>{gate ? "charge on arrival if the forecast sees little to gain" : "trust the forecast every night"}</em>
+                </div>
+              </div>
+            )}
             <div className="field">
               <label>Vehicle-to-grid</label>
               <Segmented
@@ -598,6 +619,16 @@ function App() {
                   <div className="heroSub" style={{ color: NAIVE }}>
                     scheduled on the day-ahead forecast, scored on what happened
                   </div>
+                )}
+                {result.gate_applied && (
+                  <div className="heroSub" style={{ color: NAIVE }}>
+                    {result.gate_acted
+                      ? `gate open: the forecast expected a ${result.gate_expected_saving_pct}% saving, so it scheduled`
+                      : `gate closed: the forecast expected only ${result.gate_expected_saving_pct}%, so the fleet charged on arrival`}
+                  </div>
+                )}
+                {!result.gate_applied && result.gate_reason && gate && (
+                  <div className="heroSub">gate off here: {result.gate_reason}</div>
                 )}
               </div>
               <div className="heroNote">

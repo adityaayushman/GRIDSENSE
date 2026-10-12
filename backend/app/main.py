@@ -103,6 +103,7 @@ def run_scenario_endpoint(req: ScenarioRequest):
             feeder_capacity_kw=req.feeder_capacity_kw,
             schedule_carbon=forecast if use_forecast else None,
             allow_v2g=req.allow_v2g,
+            gate_min_saving_pct=req.gate_min_saving_pct,
         )
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
@@ -143,4 +144,8 @@ def run_scenario_endpoint(req: ScenarioRequest):
         used_forecast=use_forecast,
         forecast_available=forecast is not None,
         hourly_forecast=forecast,
+        gate_applied=result.gate_applied,
+        gate_acted=result.gate_acted,
+        gate_expected_saving_pct=result.gate_expected_saving_pct,
+        gate_reason=result.gate_reason,
     )
