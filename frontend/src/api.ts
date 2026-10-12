@@ -112,15 +112,42 @@ export async function fetchDays(): Promise<DaysResponse> {
   return res.json();
 }
 
+/** Why a request failed, in terms a visitor can act on. */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    /** "unreachable": no response (offline, cold start, blocked); "rejected": the API said no; "server": it broke. */
+    public kind: "unreachable" | "rejected" | "server",
+    public status?: number,
+  ) {
+    super(message);
+  }
+}
+
+/** The API's own explanation, when it gave one (FastAPI puts it in `detail`). */
+function detailOf(body: string): string {
+  try {
+    const d = JSON.parse(body)?.detail;
+    if (typeof d === "string") return d;
+    if (Array.isArray(d)) return d.map((x) => x?.msg ?? String(x)).join("; ");
+  } catch { /* not JSON */ }
+  return body.slice(0, 200);
+}
+
 export async function runScenario(req: ScenarioRequest): Promise<ScenarioResponse> {
-  const res = await fetch(`${API_BASE}/api/scenario`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(req),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/api/scenario`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req),
+    });
+  } catch {
+    throw new ApiError("The scheduling API did not respond.", "unreachable");
+  }
   if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(`Scenario request failed (${res.status}): ${detail}`);
+    const detail = detailOf(await res.text());
+    throw new ApiError(detail || `Request failed (${res.status})`, res.status >= 500 ? "server" : "rejected", res.status);
   }
   return res.json();
 }

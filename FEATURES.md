@@ -178,19 +178,44 @@ because a project that only displays its successes is a brochure.
 
 ---
 
+## Added since the first release
+
+- **Forecast gate** (`gate_min_saving_pct`) on the API and a Simulator toggle.
+- **Mixed fleets**: `fleet` takes groups of identical vehicles (scooters,
+  rickshaws, cars) with their own energy, charger rating and window.
+- **Optional run persistence**: set `DATABASE_URL` and every scenario is recorded;
+  read them back at `GET /api/runs`. Off by default; SQLAlchemy and a driver are
+  in `requirements-db.txt`, not the runtime requirements. A failed write never
+  fails a simulation.
+- **Styled error and empty states** in the Simulator, which tell "cannot reach
+  the API" from "that scenario cannot be scheduled" from "the solver failed".
+- **Frontend linting** (`npm run lint`, run in CI), clean.
+- **A merged India dataset**: 74,784 hourly rows by 184 columns from five sources,
+  with provenance flags and cross-source agreement checks (`ml/build_india_dataset.py`).
+- **Physical sanity checks in the India fetcher**, so a mislabelled fuel column is
+  rejected at the door (finding 14).
+
 ## Not yet built
 
-- **Marginal rather than average carbon intensity** — needs MOER data.
-- **Heterogeneous fleets** — supported by the optimizer, not exposed by the API.
-- **Postgres persistence** of simulation runs. `sqlalchemy`/`psycopg2` were
-  *removed* from requirements: nothing imported them and they cost build time on
-  every deploy.
-- Styled empty/error states — a cold API or a rejected night currently renders a
-  bare text block.
-- **Frontend linting.** `package.json` carried a `lint` script that could never
-  run — eslint was in neither dependency list and no config file existed. The
-  script was removed rather than left advertising a check the project does not
-  perform; `tsc -b` during the build is the only static analysis in place.
+Blocked on something outside the code:
+
+- **Real inputs for the hosting-capacity figure** (charging sessions for this
+  fleet, a metered feeder). `ml/sensitivity_hosting.py --feeder-csv --sessions-csv`
+  re-runs the headline on them the moment they exist; none are in hand. ACN-Data is
+  US cars and needs a free account.
+- **Spanish day-ahead forecasts for a modern grid** (finding 15 shows these, not
+  more history, are what limit accuracy). Needs a free ENTSO-E API token.
+- **A live test of the ENTSO-E client.** Same token.
+- **Marginal rather than average carbon intensity.** Needs MOER data this
+  project does not have.
+- **The rupee value of avoided transformer upgrades.** Needs sourced cost data;
+  a number without one would be invented.
+
+Not blocked, not done:
+
+- A UI for mixed fleets (the API takes them).
+- The gate threshold tuned on more than Spain.
+- A front end for the persisted runs.
 
 ## Out of scope
 

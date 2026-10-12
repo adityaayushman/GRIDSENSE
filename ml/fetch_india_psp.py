@@ -150,6 +150,26 @@ def label_of(cell) -> str:
     return " ".join(s.upper().split())
 
 
+def plausible(frame: pd.DataFrame) -> bool:
+    """Physical sanity checks on one day's rows. A fuel in the wrong column passes every
+    format check; it does not pass these.
+
+      * solar cannot generate at night (finding 14: "solar" held 15 GW at midnight);
+      * the fuels must add up to the sheet's own total generation, when it has one.
+    """
+    solar = frame["solar_mw"]
+    if solar.max() > 5000:
+        night = frame[frame["timestamp"].dt.hour < 4]["solar_mw"]
+        if len(night) and night.mean() > 0.05 * solar.max():
+            return False
+    if "total_generation_mw" in frame.columns:
+        fuels = frame[["nuclear_mw", "wind_mw", "solar_mw", "hydro_mw", "gas_mw", "thermal_mw", "others_mw"]].sum(axis=1)
+        gap = (fuels - frame["total_generation_mw"]).abs().median()
+        if frame["total_generation_mw"].mean() > 0 and gap > 0.02 * frame["total_generation_mw"].mean():
+            return False
+    return True
+
+
 def parse(local: Path, day: date) -> pd.DataFrame | None:
     """The TimeSeries sheet as tidy 15-minute rows, or None if unusable."""
     try:
@@ -188,7 +208,8 @@ def parse(local: Path, day: date) -> pd.DataFrame | None:
     for c in frame.columns:
         if c != "timestamp":
             frame[c] = pd.to_numeric(frame[c], errors="coerce")
-    return frame.dropna(subset=["demand_met_mw"])
+    frame = frame.dropna(subset=["demand_met_mw"])
+    return frame if plausible(frame) else None
 
 
 def main() -> None:

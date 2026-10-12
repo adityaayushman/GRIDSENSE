@@ -1,5 +1,11 @@
 # GridSense
 
+**In one line:** GridSense schedules home EV charging against real grid data and
+measures what that is worth — little for carbon, and a lot for how many EVs one
+street transformer can carry (about 4× on the median draw; an estimate that rests on
+assumed inputs, stated as such below). Seven of its own published numbers were wrong
+at some point; [LESSONS.md](LESSONS.md) records how each was caught.
+
 **Live:** https://gridsense-app-adityaasahoo-gmailcoms-projects.vercel.app
 · [Simulator](https://gridsense-app-adityaasahoo-gmailcoms-projects.vercel.app/) · [Existing vs GridSense](https://gridsense-app-adityaasahoo-gmailcoms-projects.vercel.app/#comparison) · [Grid headroom](https://gridsense-app-adityaasahoo-gmailcoms-projects.vercel.app/#hosting)
 · [API health](https://gridsense-app-adityaasahoo-gmailcoms-projects.vercel.app/api/health) · [days](https://gridsense-app-adityaasahoo-gmailcoms-projects.vercel.app/api/days)

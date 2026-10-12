@@ -7,7 +7,7 @@ import {
   ChevronDown, Zap, Github, AlertTriangle,
   Command, Link2, Download, Keyboard,
 } from "lucide-react";
-import { runScenario, fetchDays, warmUp, ScenarioResponse, GATE_MIN_SAVING_PCT } from "./api";
+import { runScenario, fetchDays, warmUp, ApiError, ScenarioResponse, GATE_MIN_SAVING_PCT } from "./api";
 import Comparison from "./Comparison";
 import Hosting from "./Hosting";
 import HeroScene from "./HeroScene";
@@ -20,7 +20,7 @@ import hosting from "./data/hosting.json";
 import CommandPalette, { Command as Cmd } from "./CommandPalette";
 import Shortcuts from "./Shortcuts";
 import { ToastHost, useToast } from "./toast";
-import { usePrefersReduced, useCountUp, useReveal } from "./motion";
+import { usePrefersReduced, useCountUp } from "./motion";
 import "./design.css";
 import "./index.css";
 import "./ev-theme.css";
@@ -40,12 +40,6 @@ const OBJECTIVES: { key: Objective; label: string }[] = [
   { key: "cost", label: "Min. Cost" },
   { key: "peak", label: "Min. Peak" },
 ];
-
-/** A reduction can be negative: optimizing one objective often worsens another
- *  on real grid data. Show that as an increase rather than a bare minus sign. */
-function signed(pct: number) {
-  return pct >= 0 ? `${pct}%` : `+${Math.abs(pct)}%`;
-}
 
 /** The same, counted up. Sign is taken from the target so the label never
  *  flickers between "increase" and "reduction" while the number travels. */
@@ -161,7 +155,7 @@ function App() {
   }, []);
   const [result, setResult] = useState<ScenarioResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string; kind: ApiError["kind"] | "other" } | null>(null);
   // SMIL and rAF-driven motion sit outside the reach of the CSS media query,
   // so the preference is read in JS and threaded through.
   const prefersReduced = usePrefersReduced();
@@ -211,7 +205,9 @@ function App() {
         }),
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
+      setError(e instanceof ApiError
+        ? { message: e.message, kind: e.kind }
+        : { message: e instanceof Error ? e.message : "Something went wrong", kind: "other" });
       setResult(null);
     } finally {
       setLoading(false);
@@ -301,6 +297,12 @@ function App() {
     { id: "t-fc", group: "Toggle",
       label: `${useForecast ? "Use perfect foresight" : "Use the day-ahead forecast"}`,
       hint: "F", keywords: "forecast prediction foresight", run: () => setUseForecast((x) => !x) },
+    ...(useForecast ? [{
+      id: "t-gate", group: "Toggle",
+      label: `${gate ? "Turn off" : "Turn on"} the forecast gate`,
+      hint: "G", keywords: "gate threshold flat nights safety expected saving",
+      run: () => setGate((x) => !x),
+    }] : []),
     { id: "a-run", group: "Actions", label: "Re-run this scenario", hint: "R",
       keywords: "solve refresh compute", run: () => run() },
     { id: "a-next", group: "Actions", label: "Next night", hint: "]",
@@ -348,6 +350,7 @@ function App() {
       else if (k === "e") exportCsv();
       else if (k === "v") setV2g((x) => !x);
       else if (k === "f") setUseForecast((x) => !x);
+      else if (k === "g") setGate((x) => !x);
       else if (e.key === "[") stepDay(-1);
       else if (e.key === "]") stepDay(1);
       else if (k === "c") {
@@ -597,8 +600,36 @@ function App() {
               ) : "Run simulation"}
             </button>
           </div>
-          {error && <div className="errorText">{error}</div>}
+          {error && (
+            <div className="errorState" role="alert">
+              <AlertTriangle size={18} className="errorStateIcon" />
+              <div className="errorStateBody">
+                <strong>
+                  {error.kind === "unreachable" ? "Can't reach the scheduling API"
+                    : error.kind === "rejected" ? "That scenario can't be scheduled"
+                    : "The solver hit a problem"}
+                </strong>
+                <p>{error.message}</p>
+                <p className="errorStateHint">
+                  {error.kind === "unreachable"
+                    ? "The API sleeps when idle and can take up to a minute to wake. Try again in a moment."
+                    : error.kind === "rejected"
+                    ? "Try fewer vehicles, a lower charger rating, or a larger transformer limit."
+                    : "This is on our side, not yours. Try again, or pick a different night."}
+                </p>
+              </div>
+              <button className="errorStateBtn" onClick={() => run()} disabled={loading}>Try again</button>
+            </div>
+          )}
         </section>
+
+        {!result && !loading && !error && (
+          <div className="emptyState">
+            <Zap size={20} />
+            <strong>No simulation yet</strong>
+            <p>Choose a night and a fleet above, then press Run simulation.</p>
+          </div>
+        )}
 
         {result && head && (
           <>

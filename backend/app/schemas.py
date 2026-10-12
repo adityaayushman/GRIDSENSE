@@ -1,6 +1,16 @@
 from pydantic import BaseModel, Field
 
 
+class FleetGroup(BaseModel):
+    """One kind of vehicle in a mixed fleet: scooters, rickshaws and cars differ in
+    energy, charger rating and when they are parked."""
+    count: int = Field(..., ge=1, le=1000)
+    energy_per_vehicle_kwh: float = Field(..., ge=0.5, le=100.0)
+    charger_kw: float = Field(..., ge=0.3, le=22.0)
+    arrival_hour: int = Field(18, ge=0, le=23)
+    deadline_hour: int = Field(7, ge=0, le=23)
+
+
 class ScenarioRequest(BaseModel):
     ev_count: int = Field(80, ge=1, le=1000)
     charger_kw: float = Field(7.0, ge=1.4, le=22.0)
@@ -30,6 +40,13 @@ class ScenarioRequest(BaseModel):
                     "value finding 13 settled on for Spain. Applies only with the emissions "
                     "objective, use_forecast, no feeder limit and no V2G; otherwise ignored "
                     "and the response says why.",
+    )
+    fleet: list[FleetGroup] | None = Field(
+        None, max_length=12,
+        description="A mixed fleet, as groups of identical vehicles. When given it replaces "
+                    "ev_count, charger_kw, energy_per_vehicle_kwh, arrival_hour and "
+                    "deadline_hour. The optimizer always supported heterogeneous vehicles; "
+                    "this exposes it. The group sizes must total at most 1000.",
     )
     allow_v2g: bool = Field(
         False,
@@ -91,3 +108,4 @@ class ScenarioResponse(BaseModel):
     gate_acted: bool = True
     gate_expected_saving_pct: float | None = None
     gate_reason: str | None = None
+    run_id: int | None = None

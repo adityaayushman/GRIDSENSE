@@ -157,6 +157,31 @@ body {
   border-radius: var(--radius-sm); padding: 12px 14px;
 }
 
+.errorState {
+  display: flex; gap: 14px; align-items: flex-start; margin-top: 14px;
+  background: rgba(217, 89, 38, 0.08); border: 1px solid rgba(217, 89, 38, 0.34);
+  border-radius: var(--radius-sm); padding: 14px 16px;
+}
+.errorStateIcon { flex: none; margin-top: 2px; color: #D95926; }
+.errorStateBody { flex: 1; min-width: 0; }
+.errorStateBody strong { display: block; font-size: 13.5px; margin-bottom: 2px; }
+.errorStateBody p { margin: 4px 0 0; font-size: 12.5px; line-height: 1.55; overflow-wrap: anywhere; }
+.errorStateHint { opacity: 0.75; }
+.errorStateBtn {
+  flex: none; font: inherit; font-size: 12.5px; padding: 7px 14px; cursor: pointer;
+  color: inherit; background: transparent; border: 1px solid rgba(217, 89, 38, 0.5);
+  border-radius: var(--radius-sm);
+}
+.errorStateBtn:hover:not(:disabled) { background: rgba(217, 89, 38, 0.14); }
+.errorStateBtn:disabled { opacity: 0.5; cursor: default; }
+.emptyState {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center;
+  padding: 44px 20px; margin-bottom: 16px; opacity: 0.8;
+  border: 1px dashed currentColor; border-radius: var(--radius-sm);
+}
+.emptyState p { margin: 0; font-size: 12.5px; }
+@media (max-width: 560px) { .errorState { flex-wrap: wrap; } }
+
 /* Hero */
 .hero {
   padding: 26px 26px 22px; margin-bottom: 16px;

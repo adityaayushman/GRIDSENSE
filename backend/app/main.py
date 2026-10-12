@@ -3,9 +3,9 @@ import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from app import data_sources
+from app import data_sources, store
 from app.optimizer import Vehicle, run_scenario
-from app.schemas import HourlySeries, ScenarioRequest, ScenarioResponse
+from app.schemas import FleetGroup, HourlySeries, ScenarioRequest, ScenarioResponse
 
 app = FastAPI(
     title="GridSense API",
@@ -65,14 +65,22 @@ def days():
 @app.post("/api/scenario", response_model=ScenarioResponse)
 def run_scenario_endpoint(req: ScenarioRequest):
     try:
+        groups = req.fleet or [FleetGroup(
+            count=req.ev_count, energy_per_vehicle_kwh=req.energy_per_vehicle_kwh,
+            charger_kw=req.charger_kw, arrival_hour=req.arrival_hour,
+            deadline_hour=req.deadline_hour,
+        )]
+        total_vehicles = sum(g.count for g in groups)
+        if total_vehicles > 1000:
+            raise ValueError(f"fleet totals {total_vehicles} vehicles; the limit is 1000")
         vehicles = [
             Vehicle(
-                id=f"v{i}",
-                energy_needed_kwh=req.energy_per_vehicle_kwh,
-                charger_kw=req.charger_kw,
-                arrival_hour=req.arrival_hour,
-                deadline_hour=req.deadline_hour,
-                discharge_kw=req.charger_kw if req.allow_v2g else 0.0,
+                id=f"g{gi}v{i}",
+                energy_needed_kwh=g.energy_per_vehicle_kwh,
+                charger_kw=g.charger_kw,
+                arrival_hour=g.arrival_hour,
+                deadline_hour=g.deadline_hour,
+                discharge_kw=g.charger_kw if req.allow_v2g else 0.0,
                 battery_kwh=60.0,
                 # Arriving part-charged: a pack that is already full has nothing
                 # to lend, and one that is empty cannot lend before it charges.
@@ -80,13 +88,14 @@ def run_scenario_endpoint(req: ScenarioRequest):
                 reserve_kwh=12.0,
                 max_export_kwh=req.v2g_export_cap_kwh,
             )
-            for i in range(req.ev_count)
+            for gi, g in enumerate(groups)
+            for i in range(g.count)
         ]
 
         day = data_sources.resolve_day(req.day)
         carbon = data_sources.get_carbon_intensity(req.region, day)
         price = data_sources.get_price(req.region, day)
-        baseline = data_sources.get_residential_baseline_kw(household_count=req.ev_count)
+        baseline = data_sources.get_residential_baseline_kw(household_count=total_vehicles)
 
         forecast = data_sources.get_carbon_forecast(req.region, day)
         # Schedule on the forecast when asked, but always score against `carbon`,
@@ -120,7 +129,7 @@ def run_scenario_endpoint(req: ScenarioRequest):
         for h in range(24)
     ]
 
-    return ScenarioResponse(
+    response = ScenarioResponse(
         hourly=hourly,
         peak_naive_kw=round(result.peak_naive_kw, 2),
         peak_optimized_kw=round(result.peak_optimized_kw, 2),
@@ -134,8 +143,8 @@ def run_scenario_endpoint(req: ScenarioRequest):
         used_v2g=req.allow_v2g,
         cost_reduction_pct=result.cost_reduction_pct,
         currency=data_sources.CURRENCY,
-        energy_scheduled_kwh=round(req.ev_count * req.energy_per_vehicle_kwh, 1),
-        ev_count=req.ev_count,
+        energy_scheduled_kwh=round(sum(g.count * g.energy_per_vehicle_kwh for g in groups), 1),
+        ev_count=total_vehicles,
         region=req.region,
         day=day,
         feeder_capacity_kw=result.feeder_capacity_kw,
@@ -149,3 +158,25 @@ def run_scenario_endpoint(req: ScenarioRequest):
         gate_expected_saving_pct=result.gate_expected_saving_pct,
         gate_reason=result.gate_reason,
     )
+    run_id = store.save_run(req.model_dump(exclude_none=True), response.model_dump(exclude={"hourly", "hourly_forecast"}))
+    response.run_id = run_id
+    return response
+
+
+@app.get("/api/runs")
+def list_runs(limit: int = 20):
+    """Recently recorded runs, newest first. Needs DATABASE_URL (see app/store.py)."""
+    if not store.enabled():
+        raise HTTPException(status_code=501, detail=store.why_disabled())
+    return {"runs": store.recent(max(1, min(limit, 200)))}
+
+
+@app.get("/api/runs/{run_id}")
+def get_run(run_id: int):
+    if not store.enabled():
+        raise HTTPException(status_code=501, detail=store.why_disabled())
+    run = store.get(run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail=f"no run {run_id}")
+    return run
+

@@ -21,6 +21,7 @@ const GROUPS = [
       { keys: ["C"], what: "Cycle objective — carbon, cost, peak" },
       { keys: ["V"], what: "Toggle vehicle-to-grid" },
       { keys: ["F"], what: "Toggle day-ahead forecast" },
+      { keys: ["G"], what: "Toggle the forecast gate (with the forecast on)" },
       { keys: ["["], what: "Previous night" },
       { keys: ["]"], what: "Next night" },
     ],
