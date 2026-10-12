@@ -71,8 +71,6 @@ export default function Hosting() {
     return hit ? hit.evs : null;
   };
 
-  const ratio = caps.gain != null ? caps.gain.toFixed(1) : "—";
-
   return (
     <>
       <section className="hero">

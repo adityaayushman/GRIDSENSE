@@ -119,6 +119,54 @@ for _s in range(5, 20):
     ROWS[f"seed_{_s}"] = ("noise", f"fleet seed {_s}", {"seed": _s})
 
 
+def baseline_from_csv(path: str) -> list[float]:
+    """A metered feeder's mean demand by hour of day, in kW for the whole transformer.
+
+    Accepts either 24 rows (`hour,kw`) or a longer time series (`timestamp,kw`), which
+    is averaged by hour. Pass the *street's* demand, not per-household.
+    """
+    import pandas as pd
+
+    d = pd.read_csv(path)
+    cols = [c.lower() for c in d.columns]
+    d.columns = cols
+    if "hour" in cols and len(d) == 24:
+        by_hour = d.sort_values("hour")["kw"].tolist()
+    else:
+        ts = pd.to_datetime(d[cols[0]])
+        by_hour = d.groupby(ts.dt.hour)["kw"].mean().reindex(range(24)).interpolate().tolist()
+    if len(by_hour) != 24 or any(v != v for v in by_hour):
+        raise SystemExit(f"{path}: could not form 24 hourly values")
+    return [round(float(v), 3) for v in by_hour]
+
+
+def fleet_from_sessions(path: str) -> dict:
+    """Empirical fleet inputs from real charging sessions.
+
+    Columns: arrival_hour, departure_hour, energy_kwh, charger_kw (one row per session).
+    Arrival and departure hours become the sampling mixes; chargers are rounded to
+    0.1 kW; energy supplies the mean (the generator keeps its own spread).
+    """
+    import pandas as pd
+
+    d = pd.read_csv(path)
+    d.columns = [c.lower() for c in d.columns]
+    need = {"arrival_hour", "departure_hour", "energy_kwh", "charger_kw"}
+    if not need <= set(d.columns):
+        raise SystemExit(f"{path}: needs columns {sorted(need)}")
+
+    def mix(series):
+        vc = series.round().astype(int).value_counts().sort_index()
+        return (vc.index.tolist(), vc.values.tolist())
+
+    chargers = d["charger_kw"].round(1).value_counts().sort_index()
+    return {
+        "arrival": mix(d["arrival_hour"]), "depart": mix(d["departure_hour"]),
+        "charger": (chargers.index.tolist(), chargers.values.tolist()),
+        "energy": float(d["energy_kwh"].mean()),
+    }
+
+
 def baseline(homes: int, stretch: float, bump: float) -> list[float]:
     """The residential baseline with its shape perturbed at constant daily energy."""
     shape = [1.0 + stretch * (s - 1.0) for s in ds.SPAIN_LOAD_SHAPE]
@@ -134,7 +182,7 @@ def patched(cfg: dict):
     saved = (hc.ARRIVAL_MIX, hc.DEPART_MIX, hc.CHARGER_MIX, hc.ENERGY_KWH, hc.base_global)
     hc.ARRIVAL_MIX, hc.DEPART_MIX, hc.CHARGER_MIX = cfg["arrival"], cfg["depart"], cfg["charger"]
     hc.ENERGY_KWH = cfg["energy"]
-    hc.base_global = baseline(cfg["homes"], cfg["stretch"], cfg["bump"])
+    hc.base_global = cfg.get("baseline_kw") or baseline(cfg["homes"], cfg["stretch"], cfg["bump"])
     try:
         yield hc.base_global
     finally:
@@ -231,12 +279,22 @@ def main() -> None:
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--only", help="comma-separated row names")
     ap.add_argument("--redo", action="store_true", help="recompute rows already saved")
+    ap.add_argument("--feeder-csv", help="metered feeder demand (hour,kw or timestamp,kw): adds a `real_feeder` row")
+    ap.add_argument("--sessions-csv", help="real charging sessions: adds a `real_sessions` row")
     a = ap.parse_args()
+    if a.feeder_csv:
+        ROWS["real_feeder"] = ("real", f"metered feeder shape from {Path(a.feeder_csv).name}",
+                               {"baseline_kw": baseline_from_csv(a.feeder_csv)})
+    if a.sessions_csv:
+        ROWS["real_sessions"] = ("real", f"fleet from {Path(a.sessions_csv).name}", fleet_from_sessions(a.sessions_csv))
+    if a.feeder_csv and a.sessions_csv:
+        ROWS["real_both"] = ("real", "metered feeder and real sessions together",
+                             {"baseline_kw": baseline_from_csv(a.feeder_csv), **fleet_from_sessions(a.sessions_csv)})
     if a.list:
         for k, (g, w, _) in ROWS.items():
             print(f"{k:<14} {g:<10} {w}")
         return
-    names = a.only.split(",") if a.only else list(ROWS)
+    names = a.only.split(",") if a.only else ([k for k in ROWS if ROWS[k][0] == "real"] if (a.feeder_csv or a.sessions_csv) else list(ROWS))
     bad = [n for n in names if n not in ROWS]
     if bad:
         sys.exit(f"unknown row(s): {bad}")

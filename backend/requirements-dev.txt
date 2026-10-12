@@ -2,3 +2,4 @@
 -r requirements.txt
 
 pytest==8.3.3
+sqlalchemy==2.0.35   # exercises the optional persistence layer in tests

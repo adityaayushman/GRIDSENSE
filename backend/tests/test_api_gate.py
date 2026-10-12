@@ -52,3 +52,41 @@ def test_gate_is_ignored_under_a_feeder_limit():
 def test_threshold_is_validated():
     assert _post(gate_min_saving_pct=-1).status_code == 422
     assert _post(gate_min_saving_pct=80).status_code == 422
+
+
+# --- mixed fleets -----------------------------------------------------------
+
+def test_mixed_fleet_schedules_every_group_and_reports_the_totals():
+    fleet = [
+        {"count": 30, "energy_per_vehicle_kwh": 2.0, "charger_kw": 0.9},      # scooters
+        {"count": 10, "energy_per_vehicle_kwh": 7.0, "charger_kw": 1.9},      # rickshaws
+        {"count": 5, "energy_per_vehicle_kwh": 20.0, "charger_kw": 7.0},      # cars
+    ]
+    r = client.post("/api/scenario", json={"fleet": fleet})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["ev_count"] == 45
+    assert body["energy_scheduled_kwh"] == pytest.approx(30 * 2 + 10 * 7 + 5 * 20)
+    delivered = sum(h["optimized_kw"] for h in body["hourly"])   # baseline-free check below
+    assert delivered > 0
+
+
+def test_fleet_replaces_the_single_group_fields():
+    one = client.post("/api/scenario", json={"ev_count": 80}).json()
+    mixed = client.post("/api/scenario", json={
+        "ev_count": 80, "fleet": [{"count": 3, "energy_per_vehicle_kwh": 5.0, "charger_kw": 3.0}],
+    }).json()
+    assert mixed["ev_count"] == 3 and one["ev_count"] == 80
+
+
+def test_fleet_over_the_vehicle_limit_is_rejected():
+    big = [{"count": 600, "energy_per_vehicle_kwh": 5.0, "charger_kw": 3.0}] * 2
+    assert client.post("/api/scenario", json={"fleet": big}).status_code == 422
+
+
+def test_a_group_that_cannot_charge_in_its_window_is_a_clear_error():
+    # 40 kWh through a 1 kW charger in a one-hour window is physically impossible.
+    r = client.post("/api/scenario", json={"fleet": [
+        {"count": 2, "energy_per_vehicle_kwh": 40.0, "charger_kw": 1.0, "arrival_hour": 18, "deadline_hour": 19},
+    ]})
+    assert r.status_code == 422
