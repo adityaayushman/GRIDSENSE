@@ -446,7 +446,7 @@ export default function India() {
         </div>
         <p className="calloutText">
           India runs at <strong>{C.mean_ci} gCO₂eq/kWh</strong> against Spain's{" "}
-          {C.reference.spain_mean_ci} — twice as dirty — and overnight carbon-aware charging saves
+          {C.reference.spain_mean_ci} — about {(C.mean_ci / C.reference.spain_mean_ci).toFixed(1)}× as dirty — and overnight carbon-aware charging saves
           a median of <strong>{C.windows.overnight.median_cut_pct}%</strong>, with{" "}
           {C.windows.overnight.under_1pct}% of days offering under 1%. Spain gets{" "}
           {C.reference.spain_median_cut}%. This is finding 7 confirmed on measured Indian data:
@@ -461,10 +461,12 @@ export default function India() {
         </p>
         <p className="calloutText">
           The policy reading is uncomfortable for this project's own premise:{" "}
-          <strong>carbon-aware charging is the wrong intervention for India.</strong> Capacity
-          coordination is the right one — the same fleet on the same transformer is worth{" "}
-          {H.gain}× in hosting capacity, which is a real and large number, while the carbon saving
-          rounds to zero.
+          <strong>carbon-aware charging is the wrong intervention for overnight India.</strong>{" "}
+          Capacity coordination is the right one — the same fleet on the same transformer is worth{" "}
+          {H.gain}× in hosting capacity, which is a real and large number, while the overnight
+          carbon saving is about a tenth of a percent. The daytime window is the one place a
+          saving exists ({C.windows.daytime.median_cut_pct}% median) — the charging a workplace or
+          depot does, not the habit this project was built around.
         </p>
       </Panel>
 

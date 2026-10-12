@@ -123,7 +123,7 @@ def main() -> None:
               "gCO2eq/kWh.")
 
     print(f"\n  Finding 7 predicted India would save less than Spain despite being "
-          f"{541 / 267:.1f}x dirtier.")
+          f"{h['ci'].mean() / 266.6:.1f}x dirtier.")
     print("  It does. The dirt is real; the shape is not there to exploit.")
 
     OUT.parent.mkdir(parents=True, exist_ok=True)

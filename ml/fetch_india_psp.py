@@ -58,14 +58,30 @@ LIST_URL = "https://webapi.grid-india.in/api/v1/file"
 CDN = "https://webcdn.grid-india.in/"
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Gecko/20100101 Firefox/144.0"
 
-#: Column positions in the TimeSeries sheet, verified against the published
-#: letter codes in the row beneath the headers: (C)..(J) are the generation
-#: modes, (A) is demand met.
-COLS = {
-    "time": 0, "frequency_hz": 1, "demand_met_mw": 2, "storage_discharge_mw": 3,
-    "nuclear_mw": 4, "wind_mw": 5, "solar_mw": 6, "hydro_mw": 7,
-    "gas_mw": 8, "thermal_mw": 9, "storage_mw": 10, "others_mw": 11,
+#: Output column name for each header label in the TimeSeries sheet.
+#:
+#: Columns are found by their printed header, never by position. The workbook
+#: layout changed twice inside the archive this reads:
+#:
+#:   2025-04-01 .. 2026-05-05   TIME FREQ DEMAND NUCLEAR WIND SOLAR HYDRO GAS THERMAL OTHERS ...
+#:   2026-05-06 .. 2026-05-31   ... THERMAL STORAGE OTHERS ...             (storage discharge added)
+#:   2026-06-01 ..              ... DEMAND STORAGE-DEMAND NUCLEAR ... THERMAL STORAGE OTHERS ...
+#:
+#: An earlier version of this file used one fixed positional map, correct only
+#: for the last layout. For the other 425 of 508 days every fuel was read from the
+#: neighbouring column - wind labelled nuclear, hydro labelled solar, coal
+#: labelled gas - and the carbon intensity derived from it was wrong. See
+#: FINDINGS.md finding 14.
+LABELS = {
+    "FREQUENCY": "frequency_hz", "DEMAND MET": "demand_met_mw",
+    "STORAGE DEMAND": "storage_demand_mw", "NUCLEAR": "nuclear_mw", "WIND": "wind_mw",
+    "SOLAR": "solar_mw", "HYDRO": "hydro_mw", "GAS": "gas_mw", "THERMAL": "thermal_mw",
+    "STORAGE": "storage_mw", "OTHERS": "others_mw",
+    "NET DEMAND MET": "net_demand_met_mw", "TOTAL GENERATION": "total_generation_mw",
+    "NET TRANSNATIONAL EXCHANGE": "net_exchange_mw",
 }
+REQUIRED = ["frequency_hz", "demand_met_mw", "nuclear_mw", "wind_mw", "solar_mw",
+            "hydro_mw", "gas_mw", "thermal_mw", "others_mw"]
 
 #: The sheet only appears in reports from roughly April 2025 onward; earlier
 #: workbooks carry MOP_E and IR-Line alone.
@@ -125,6 +141,15 @@ def download(session: requests.Session, day: date, path: str) -> Path | None:
     return local
 
 
+def label_of(cell) -> str:
+    """Normalise a header cell: drop the unit, footnote marks and the (A)-style code."""
+    # Names can wrap onto a second line ("DEMAND\nMET"), so take everything up to
+    # the unit's opening bracket rather than the first line.
+    s = str(cell).split("(")[0].replace("\n", " ")
+    s = "".join(ch for ch in s if ch.isalpha() or ch == " ")   # footnote digits / * / superscripts
+    return " ".join(s.upper().split())
+
+
 def parse(local: Path, day: date) -> pd.DataFrame | None:
     """The TimeSeries sheet as tidy 15-minute rows, or None if unusable."""
     try:
@@ -135,27 +160,31 @@ def parse(local: Path, day: date) -> pd.DataFrame | None:
         return None
 
     raw = pd.read_excel(book, "TimeSeries", header=None)
-    # Data starts under the header and letter-code rows; the trailing rows are
-    # footnotes and a disclaimer, which the time parse discards.
-    body = raw.iloc[4:].copy()
+    head = next((i for i in range(min(10, len(raw))) if label_of(raw.iat[i, 0]) == "TIME"), None)
+    if head is None:
+        return None
 
-    frame = pd.DataFrame()
-    for name, idx in COLS.items():
-        if idx >= body.shape[1]:
-            return None
-        frame[name] = body.iloc[:, idx]
+    # Map each header to its column by name. Duplicated or unknown labels are
+    # ignored; a missing required fuel makes the whole file unusable rather than
+    # silently filled, since a wrong fuel mix is worse than a missing day.
+    cols: dict[str, int] = {}
+    for idx in range(1, raw.shape[1]):
+        name = LABELS.get(label_of(raw.iat[head, idx]))
+        if name and name not in cols:
+            cols[name] = idx
+    if any(c not in cols for c in REQUIRED):
+        return None
 
-    stamps = pd.to_datetime(frame["time"].astype(str).str.strip(),
-                            format="%H:%M", errors="coerce")
-    frame = frame[stamps.notna()].copy()
+    # Data starts below the letter-code row; trailing rows are footnotes.
+    body = raw.iloc[head + 2:].copy()
+    frame = pd.DataFrame({name: body.iloc[:, idx] for name, idx in cols.items()})
+    stamps = pd.to_datetime(body.iloc[:, 0].astype(str).str.strip(), format="%H:%M", errors="coerce")
+    frame = frame[stamps.notna().values].copy()
     if frame.empty:
         return None
 
     stamps = stamps[stamps.notna()]
-    frame["timestamp"] = [
-        datetime.combine(day, t.time()) for t in stamps
-    ]
-    frame = frame.drop(columns=["time"])
+    frame["timestamp"] = [datetime.combine(day, t.time()) for t in stamps]
     for c in frame.columns:
         if c != "timestamp":
             frame[c] = pd.to_numeric(frame[c], errors="coerce")
