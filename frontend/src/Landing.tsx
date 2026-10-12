@@ -111,9 +111,10 @@ const FINDINGS = [
 
 const REJECTED = [
   {
-    head: "Indian grid data", meta: "2,821 days · daily resolution",
-    body: "Grid-India and the CEA publish a complete fuel mix back to 2018 — daily. This project " +
-      "schedules inside a single night, and one number per day has no shape to schedule against.",
+    head: "Indian daily grid data", meta: "2,821 days · daily resolution",
+    body: "Grid-India and the CEA publish a complete fuel mix back to 2018 — daily. One number per " +
+      "day has no shape to schedule a night against, so it was set aside until 15-minute reports " +
+      "turned up. It is now kept as an independent cross-check on them.",
   },
   {
     head: "A plausible-looking Kaggle dataset", meta: "lag-1 autocorrelation −0.025",
@@ -302,7 +303,7 @@ export default function Landing({
               Carbon is the more fashionable framing, and this project measures it carefully.
               But the honest headline is capacity: the same steel absorbs{" "}
               <strong>{cap.gain}× more vehicles</strong> when their charging is coordinated
-              than when it is not. That is the result worth defending, and it is not the one the
+              than when it is not — on the first fleet draw; across twenty draws the median is about 4×. That is the result worth defending, and it is not the one the
               project set out to find.
             </p>
           </div>

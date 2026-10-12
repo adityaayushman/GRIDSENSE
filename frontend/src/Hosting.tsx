@@ -214,6 +214,14 @@ export default function Hosting() {
           against. That assumption was inflating this figure, which is why the realistic fleet
           is the one quoted.
         </p>
+        <p className="calloutText">
+          The gain is not a single number. The figure above is the first fleet draw, and the
+          most favourable of twenty: redrawing the fleet from the same assumptions gives 3.4×
+          to 5.3×, median about 4×. Read the headline as roughly 4×. The baseline
+          shape, fleet mix and homes per transformer are assumed, not measured; moving each one
+          at a time did not push the gain below that band, and a peakier street raised it. That
+          is sensitivity to assumptions, not validation against a real feeder.
+        </p>
       </Panel>
 
       <p className="provenance">
