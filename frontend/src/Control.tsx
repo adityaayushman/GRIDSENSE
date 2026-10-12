@@ -250,9 +250,12 @@ export default function Control() {
         </p>
         <p className="calloutText">
           This is <em>certainty-equivalent</em> MPC — the standard reading of "re-solve each hour,
-          execute the next step". A controller carrying a terminal cost, or one priced for the
-          optionality it destroys by deferring, targets the diagnosed failure directly and was not
-          tested. That remains open, and it is not evidence for the conclusion above.
+          execute the next step". A deferral penalty, which prices the optionality the controller
+          destroys by waiting, was then tried at five strengths and made regret worse every time
+          ({mpc.deferral_penalty.results["0.5"].mean_regret_pct}% to{" "}
+          {mpc.deferral_penalty.results["2.0"].mean_regret_pct}%, against the one-shot's{" "}
+          {mpc.deferral_penalty.oneshot_regret_pct}%): the refreshed controller was not
+          over-deferring in the first place.
         </p>
       </Panel>
 

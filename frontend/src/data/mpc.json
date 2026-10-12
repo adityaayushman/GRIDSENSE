@@ -62,6 +62,60 @@
   "fresher_forecast": -0.796,
   "net": 0.566
  },
+ "deferral_penalty": {
+  "lambdas": [
+   0.0,
+   0.5,
+   1.0,
+   1.5,
+   2.0
+  ],
+  "greedy_vs_lp_gap_pct": 0.0,
+  "results": {
+   "0.0": {
+    "mean_regret_pct": 2.615,
+    "vs_oneshot_pp": 0.566,
+    "mean_position": 4.52,
+    "better": 65,
+    "same": 189,
+    "worse": 108
+   },
+   "0.5": {
+    "mean_regret_pct": 2.951,
+    "vs_oneshot_pp": 0.902,
+    "mean_position": 3.45,
+    "better": 61,
+    "same": 171,
+    "worse": 130
+   },
+   "1.0": {
+    "mean_regret_pct": 3.675,
+    "vs_oneshot_pp": 1.626,
+    "mean_position": 2.58,
+    "better": 57,
+    "same": 158,
+    "worse": 147
+   },
+   "1.5": {
+    "mean_regret_pct": 4.578,
+    "vs_oneshot_pp": 2.529,
+    "mean_position": 2.05,
+    "better": 58,
+    "same": 158,
+    "worse": 146
+   },
+   "2.0": {
+    "mean_regret_pct": 5.627,
+    "vs_oneshot_pp": 3.577,
+    "mean_position": 1.66,
+    "better": 55,
+    "same": 154,
+    "worse": 153
+   }
+  },
+  "best_lambda": 0.0,
+  "oneshot_regret_pct": 2.049
+ },
  "mpc_closes_gap_pct": -27.6,
  "mpc_better_nights": 65,
  "mpc_tied_nights": 189,

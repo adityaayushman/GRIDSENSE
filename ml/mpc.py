@@ -39,7 +39,7 @@ HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE / "src"))
 sys.path.insert(0, str(HERE.parent / "backend"))
 
-from app.optimizer import Vehicle, naive_schedule, optimize_schedule  # noqa: E402
+from app.optimizer import Vehicle, _available_hours, naive_schedule, optimize_schedule  # noqa: E402
 from carbon import carbon_intensity  # noqa: E402
 from train_horizon import EXOG, MAX_HORIZON, TRAIN_END, build, load_frame  # noqa: E402
 from train_v2 import build as build_day_ahead  # noqa: E402
@@ -99,6 +99,62 @@ def solve_from(hour: int, remaining_kwh: float, curve: list[float]) -> list[floa
         return [0.0] * 24
     v = Vehicle("agg", remaining_kwh, FLEET_KW, hour, DEADLINE)
     return optimize_schedule([v], curve, objective="emissions")
+
+
+#: Deferral penalties tried, in units of the horizon's own forecast MAE. The diagnosis
+#: (FINDINGS.md finding 9) is that the minimum of a dozen noisy forecasts is
+#: optimistically biased, so the controller keeps waiting for a clean hour that
+#: turns out to be ordinary. Adding lambda * MAE(h) to a forecast h hours out prices
+#: that optionality: farther, less certain hours must look cleaner by more to be
+#: worth waiting for. lambda = 0 is the unmodified controller.
+PENALTIES = (0.0, 0.5, 1.0, 1.5, 2.0)
+
+
+def solve_from_fast(hour: int, remaining_kwh: float, curve: list[float]) -> list[float]:
+    """The same plan as `solve_from`, by greedy fill.
+
+    With one aggregated fleet and no coupling constraint the problem separates, so
+    the cheapest-hours-first fill is the LP optimum (finding 4). Used for the
+    penalty sweep, which needs ~10x more solves than the original arms; the control
+    in main() checks it against the LP.
+    """
+    plan = [0.0] * 24
+    if remaining_kwh <= 1e-9:
+        return plan
+    left = remaining_kwh
+    for h in sorted(_available_hours(Vehicle("agg", remaining_kwh, FLEET_KW, hour, DEADLINE)),
+                    key=lambda x: curve[x]):
+        take = min(FLEET_KW, left)
+        plan[h] = take
+        left -= take
+        if left <= 1e-12:
+            break
+    return plan
+
+
+def run_mpc_fast(window_hours: list[int], forecasts: dict[int, list[float]]) -> list[float]:
+    load = [0.0] * 24
+    remaining = FLEET_KWH
+    for h in window_hours:
+        if remaining <= 1e-9:
+            break
+        plan = solve_from_fast(h, remaining, forecasts.get(h, forecasts[window_hours[0]]))
+        commit = min(plan[h], remaining, FLEET_KW)
+        load[h] = commit
+        remaining -= commit
+    return load
+
+
+def penalised(believed: dict[int, list[float]], lam: float, mae_at,
+              window_hours: list[int]) -> dict[int, list[float]]:
+    """Add lam * (forecast MAE at that horizon) to every forecast hour still ahead."""
+    out = {}
+    for i, t in enumerate(window_hours):
+        curve = list(believed[t])
+        for j in range(i, len(window_hours)):
+            curve[window_hours[j]] += lam * mae_at(j - i + 1)
+        out[t] = curve
+    return out
 
 
 def run_mpc(window_hours: list[int], actual: list[float],
@@ -230,13 +286,16 @@ def main() -> None:
         # property of forecasting. Sampled — it costs a full extra solve per
         # hour and one night in ten is enough to catch a structural error.
         mpc_static = run_mpc(WINDOW, actual, static)
+        mae_at = lambda k: hf.mae[k] if k < crossover else day_ahead_mae  # noqa: E731
+        pen = {lam: run_mpc_fast(WINDOW, penalised(believed, lam, mae_at, WINDOW)) for lam in PENALTIES}
         check = len(rows) % 25 == 0
         mpc_perfect = run_mpc(WINDOW, actual, {h: actual for h in WINDOW}) if check else None
 
         # Every strategy must deliver the same energy under the same power cap,
         # or the emissions comparison is meaningless.
         for name, sched in (("oneshot", oneshot), ("mpc", mpc),
-                            ("mpc_static", mpc_static), ("oracle", oracle)):
+                            ("mpc_static", mpc_static), ("oracle", oracle),
+                            *((f"pen_{lam}", s) for lam, s in pen.items())):
             if abs(sum(sched) - FLEET_KWH) > 1e-3:
                 raise RuntimeError(f"{name} delivered {sum(sched):.3f} of {FLEET_KWH} kWh")
             if max(sched) > FLEET_KW + 1e-6:
@@ -245,6 +304,9 @@ def main() -> None:
         e = {k: emissions(v, actual) for k, v in
              (("naive", naive), ("oneshot", oneshot), ("mpc", mpc),
               ("mpc_static", mpc_static), ("oracle", oracle))}
+        for lam, sched in pen.items():
+            e[f"pen_{lam}"] = emissions(sched, actual)
+            e[f"pos_pen_{lam}"] = sum(i * sched[h] for i, h in enumerate(WINDOW)) / FLEET_KWH
         if mpc_perfect is not None:
             e["mpc_perfect"] = emissions(mpc_perfect, actual)
         if e["naive"] <= 0:
@@ -304,6 +366,30 @@ def main() -> None:
     print(f"  MPC better on {wins}/{n} nights · identical on {ties} · "
           f"worse on {n - wins - ties}")
 
+    # ---- the deferral penalty ------------------------------------------
+    # Control first: lambda = 0 through the greedy solver must reproduce the LP
+    # controller, or the sweep is measuring the solver and not the penalty.
+    tie_gap = max(abs(r["pen_0.0"] - r["mpc"]) / r["naive"] for r in rows)
+    print("\ndeferral penalty (lambda x horizon MAE added to forecasts of hours still ahead)")
+    print(f"  control: lambda=0 via greedy vs the LP controller differ by at most {tie_gap * 100:.4f}% of naive")
+    print(f"  {'lambda':>7} {'mean regret':>12} {'vs one-shot':>12} {'position':>9} {'better/same/worse than one-shot':>34}")
+    pen_summary = {}
+    for lam in PENALTIES:
+        k = f"pen_{lam}"
+        rg = statistics.mean(regret(k))
+        b = sum(1 for r in rows if r[k] < r["oneshot"] - 1e-6)
+        s = sum(1 for r in rows if abs(r[k] - r["oneshot"]) <= 1e-6)
+        pen_summary[str(lam)] = {
+            "mean_regret_pct": round(rg, 3), "vs_oneshot_pp": round(rg - r1, 3),
+            "mean_position": round(statistics.mean(r[f"pos_{k}"] for r in rows), 2),
+            "better": b, "same": s, "worse": n - b - s,
+        }
+        print(f"  {lam:>7} {rg:>11.3f}% {rg - r1:>+11.3f}pp {pen_summary[str(lam)]['mean_position']:>9.2f} "
+              f"{b:>12}/{s}/{n - b - s}")
+    best_lam = min(PENALTIES, key=lambda l: statistics.mean(regret(f"pen_{l}")))
+    print(f"  best lambda {best_lam}: regret {statistics.mean(regret(f'pen_{best_lam}')):.3f}% "
+          f"against one-shot {r1:.3f}%")
+
     if closed < 5:
         print("\n  Refreshing the forecast helps; committing hour by hour costs more")
         print("  than it buys. The one-shot LP stays the better design on this grid.")
@@ -336,6 +422,9 @@ def main() -> None:
             "fresher_forecast": round(rm - rs, 3),
             "net": round(rm - r1, 3),
         },
+        "deferral_penalty": {"lambdas": list(PENALTIES), "greedy_vs_lp_gap_pct": round(tie_gap * 100, 5),
+                             "results": pen_summary, "best_lambda": best_lam,
+                             "oneshot_regret_pct": round(r1, 3)},
         "mpc_closes_gap_pct": round(closed, 1),
         "mpc_better_nights": wins,
         "mpc_tied_nights": ties,
