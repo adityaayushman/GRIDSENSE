@@ -38,8 +38,41 @@ export interface ScenarioRequest {
    * many percent saving. Only meaningful with `use_forecast`.
    */
   gate_min_saving_pct?: number;
+  /** A mixed fleet as groups of identical vehicles; replaces the single-group fields. */
+  fleet?: FleetGroup[];
   /** Let vehicles discharge back to the grid. */
   allow_v2g?: boolean;
+}
+
+export interface FleetGroup {
+  count: number;
+  energy_per_vehicle_kwh: number;
+  charger_kw: number;
+  arrival_hour?: number;
+  deadline_hour?: number;
+}
+
+/**
+ * India's fleet, by FADA calendar-2025 registrations: 56% two-wheelers, 35%
+ * three-wheelers, 8% cars. Energy and charger ratings mirror ml/india_fleet.py.
+ */
+const INDIAN_SEGMENTS = [
+  { share: 0.564, energy: 1.8, charger: 0.9 },   // e-2W
+  { share: 0.351, energy: 6.5, charger: 1.9 },   // e-3W
+  { share: 0.085, energy: 9.2, charger: 3.3 },   // e-car (remainder, so the total is exact)
+];
+
+/** `n` vehicles in the national mix, by largest-remainder allocation. */
+export function indianFleet(n: number): FleetGroup[] {
+  const exact = INDIAN_SEGMENTS.map((s) => n * s.share);
+  const counts = exact.map(Math.floor);
+  let left = n - counts.reduce((a, b) => a + b, 0);
+  [...exact.keys()]
+    .sort((a, b) => (exact[b] - counts[b]) - (exact[a] - counts[a]))
+    .forEach((i) => { if (left > 0) { counts[i] += 1; left -= 1; } });
+  return INDIAN_SEGMENTS
+    .map((s, i) => ({ count: counts[i], energy_per_vehicle_kwh: s.energy, charger_kw: s.charger }))
+    .filter((g) => g.count > 0);
 }
 
 export interface HourlyPoint {
@@ -87,6 +120,7 @@ export interface ScenarioResponse {
   gate_acted: boolean;
   gate_expected_saving_pct: number | null;
   gate_reason: string | null;
+  run_id: number | null;
 }
 
 /** The threshold finding 13 settled on for Spain. */
@@ -150,4 +184,26 @@ export async function runScenario(req: ScenarioRequest): Promise<ScenarioRespons
     throw new ApiError(detail || `Request failed (${res.status})`, res.status >= 500 ? "server" : "rejected", res.status);
   }
   return res.json();
+}
+
+export interface RunRow {
+  id: number;
+  created_at: string;
+  day: string | null;
+  objective: string | null;
+  ev_count: number | null;
+  emissions_reduction_pct: number | null;
+  cost_reduction_pct: number | null;
+  peak_reduction_pct: number | null;
+}
+
+/** Recent recorded runs, or [] when the API has no database behind it (it answers 501). */
+export async function fetchRuns(limit = 10): Promise<RunRow[]> {
+  try {
+    const res = await fetch(`${API_BASE}/api/runs?limit=${limit}`);
+    if (!res.ok) return [];
+    return (await res.json()).runs ?? [];
+  } catch {
+    return [];
+  }
 }
