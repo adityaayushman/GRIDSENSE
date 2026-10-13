@@ -7,7 +7,8 @@ import {
   ChevronDown, Zap, Github, AlertTriangle,
   Command, Link2, Download, Keyboard,
 } from "lucide-react";
-import { runScenario, fetchDays, warmUp, ApiError, ScenarioResponse, GATE_MIN_SAVING_PCT } from "./api";
+import { runScenario, fetchDays, warmUp, ApiError, indianFleet, ScenarioResponse, GATE_MIN_SAVING_PCT } from "./api";
+import Runs from "./Runs";
 import Comparison from "./Comparison";
 import Hosting from "./Hosting";
 import HeroScene from "./HeroScene";
@@ -119,6 +120,8 @@ function App() {
   // stays off by default so the plain forecast result remains visible.
   const [gate, setGate] = useState(() => flag("gate"));
   const [v2g, setV2g] = useState(() => flag("v2g"));
+  // "cars": identical cars (the default). "india": scooters, rickshaws and cars in the FADA mix.
+  const [fleetKind, setFleetKind] = useState<"cars" | "india">(() => (PARAMS.get("fleet") === "india" ? "india" : "cars"));
   const [objective, setObjective] = useState<Objective>(() => {
     const o = PARAMS.get("obj");
     return o === "cost" || o === "peak" || o === "emissions" ? o : "emissions";
@@ -179,8 +182,8 @@ function App() {
 
   // Keep the latest control values addressable from the mount effect without
   // making it re-run (and re-fire a request) on every slider nudge.
-  const latest = useRef({ evCount, chargerKw, feederKw, objective, day, useForecast, gate, v2g });
-  latest.current = { evCount, chargerKw, feederKw, objective, day, useForecast, gate, v2g };
+  const latest = useRef({ evCount, chargerKw, feederKw, objective, day, useForecast, gate, v2g, fleetKind });
+  latest.current = { evCount, chargerKw, feederKw, objective, day, useForecast, gate, v2g, fleetKind };
 
   const run = useCallback(async (overrideDay?: string) => {
     setLoading(true);
@@ -201,6 +204,7 @@ function App() {
           ...(c.feederKw > 0 ? { feeder_capacity_kw: c.feederKw } : {}),
         ...(c.useForecast ? { use_forecast: true } : {}),
         ...(c.useForecast && c.gate ? { gate_min_saving_pct: GATE_MIN_SAVING_PCT } : {}),
+        ...(c.fleetKind === "india" ? { fleet: indianFleet(c.evCount) } : {}),
         ...(c.v2g ? { allow_v2g: true } : {}),
         }),
       );
@@ -226,12 +230,13 @@ function App() {
     if (useForecast) p.set("fc", "1");
     if (useForecast && gate) p.set("gate", "1");
     if (v2g) p.set("v2g", "1");
+    if (fleetKind === "india") p.set("fleet", "india");
     if (day) p.set("day", day);
     const qs = p.toString();
     window.history.replaceState(
       null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}#${tab}`,
     );
-  }, [entered, evCount, chargerKw, feederKw, objective, useForecast, gate, v2g, day, tab]);
+  }, [entered, evCount, chargerKw, feederKw, objective, useForecast, gate, v2g, fleetKind, day, tab]);
 
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -576,6 +581,20 @@ function App() {
               </div>
             )}
             <div className="field">
+              <label>Fleet</label>
+              <Segmented
+                options={[
+                  { key: "cars", label: "Identical cars" },
+                  { key: "india", label: "Indian mix" },
+                ]}
+                value={fleetKind}
+                onChange={(x) => setFleetKind(x as "cars" | "india")}
+              />
+              <div className="fieldValue">
+                <em>{fleetKind === "india" ? "56% scooters · 35% rickshaws · 8% cars" : `all ${chargerKw} kW cars`}</em>
+              </div>
+            </div>
+            <div className="field">
               <label>Vehicle-to-grid</label>
               <Segmented
                 options={[
@@ -816,6 +835,8 @@ function App() {
 
         </>
         )}
+
+        {tab === "simulator" && <Runs refreshKey={result?.run_id} />}
 
         {tab === "simulator" && (
         <section className="card">

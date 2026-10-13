@@ -183,9 +183,10 @@ because a project that only displays its successes is a brochure.
 
 - **Forecast gate** (`gate_min_saving_pct`) on the API and a Simulator toggle.
 - **Mixed fleets**: `fleet` takes groups of identical vehicles (scooters,
-  rickshaws, cars) with their own energy, charger rating and window.
+  rickshaws, cars) with their own energy, charger rating and window. The Simulator's
+  Fleet switch sends India's FADA mix (56% scooters, 35% rickshaws, 8% cars).
 - **Optional run persistence**: set `DATABASE_URL` and every scenario is recorded;
-  read them back at `GET /api/runs`. Off by default; SQLAlchemy and a driver are
+  read them back at `GET /api/runs` and in a Recent runs panel (hidden when off). Off by default; SQLAlchemy and a driver are
   in `requirements-db.txt`, not the runtime requirements. A failed write never
   fails a simulation.
 - **Styled error and empty states** in the Simulator, which tell "cannot reach
@@ -198,25 +199,25 @@ because a project that only displays its successes is a brochure.
 
 ## Not yet built
 
-Blocked on something outside the code:
+Blocked on something outside the code (each was attempted):
 
 - **Real inputs for the hosting-capacity figure** (charging sessions for this
   fleet, a metered feeder). `ml/sensitivity_hosting.py --feeder-csv --sessions-csv`
-  re-runs the headline on them the moment they exist; none are in hand. ACN-Data is
-  US cars and needs a free account.
+  re-runs the headline on them the moment they exist. ACN-Data is US cars and needs
+  a free account. Spain's regulated residential profile (REE's P2.0TD coefficients)
+  is the right open source for the baseline shape, but a search found the
+  methodology documents and not a downloadable file; fetching it needs the exact
+  REE/e-sios URL or a token.
 - **Spanish day-ahead forecasts for a modern grid** (finding 15 shows these, not
   more history, are what limit accuracy). Needs a free ENTSO-E API token.
 - **A live test of the ENTSO-E client.** Same token.
 - **Marginal rather than average carbon intensity.** Needs MOER data this
-  project does not have.
-- **The rupee value of avoided transformer upgrades.** Needs sourced cost data;
-  a number without one would be invented.
-
-Not blocked, not done:
-
-- A UI for mixed fleets (the API takes them).
-- The gate threshold tuned on more than Spain.
-- A front end for the persisted runs.
+  project does not have; an estimate built from the generation mix would be a
+  modelling exercise of its own, not the measurement the limitation asks for.
+- **The rupee value of avoided transformer upgrades.** Needs a sourced price list.
+  A search found one undated vendor quote (about Rs 2.65 lakh incl. GST for 100 kVA)
+  and tender notices without award prices, which is not enough to put a figure on
+  a headline. The route is a DISCOM letter-of-award for 100, 160 and 250 kVA units.
 
 ## Out of scope
 
