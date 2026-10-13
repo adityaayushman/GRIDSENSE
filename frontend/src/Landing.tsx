@@ -303,7 +303,7 @@ export default function Landing({
               Carbon is the more fashionable framing, and this project measures it carefully.
               But the honest headline is capacity: the same steel absorbs{" "}
               <strong>{cap.gain}× more vehicles</strong> when their charging is coordinated
-              than when it is not — on the first fleet draw; across twenty draws the median is about 4×. That is the result worth defending, and it is not the one the
+              than when it is not — the median over twenty draws of the fleet, which individually range from {cap.gain_min}× to {cap.gain_max}×. That is the result worth defending, and it is not the one the
               project set out to find.
             </p>
           </div>

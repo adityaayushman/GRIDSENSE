@@ -28,6 +28,10 @@ The identical model inflates the coordination gain badly. It makes every car
 spike at the same instant, which maximally penalises charge-on-arrival — dumb
 hosting triples once arrivals spread out, while the coordinated ceiling rises
 only ~25%. The realistic model is the headline; identical is kept for contrast.
+ 
+
+    python export_hosting_capacity.py                   # everything
+    python export_hosting_capacity.py --realistic-only  # refresh the headline only, from fleet draws
 """
 
 from __future__ import annotations
@@ -156,6 +160,105 @@ def solver_ceiling(builder, carbon, rating: float, hi: int | None = None) -> int
 
 
 base_global: list[float] = []
+
+
+#: Fleet draws behind the headline. A single draw is not a result: across twenty
+#: seeds the 250 kW gain ran 3.4-5.3x, and the first draw published was the best
+#: of them (FINDINGS.md finding 1). The headline rating gets many draws; the
+#: others get fewer because each costs minutes of LP time.
+SEEDS_HEADLINE = 20
+SEEDS_OTHER = 6
+SEED_CACHE = HERE / "artifacts" / "hosting_seeds.json"
+SENSITIVITY = HERE / "artifacts" / "sensitivity_hosting.json"
+
+
+def dumb_ceiling(rating: float, builder, base: list[float]) -> int:
+    """Largest fleet whose charge-on-arrival peak fits the rating, on a step-1 grid.
+
+    The earlier step-10 grid put +-17% of quantisation on a denominator near 60.
+    """
+    best = 0
+    for n in range(1, 801):
+        if max(naive_schedule(builder(n))[h] + base[h] for h in range(24)) <= rating:
+            best = n
+        else:
+            break
+    return best
+
+
+def realistic_by_seeds(base: list[float], days: list[str]) -> list[dict]:
+    """Realistic-fleet capacity per rating as a median over fleet draws, with the range.
+
+    Resumable: finished (rating, seed) pairs are cached in artifacts/hosting_seeds.json.
+    The 250 kW pairs are taken from artifacts/sensitivity_hosting.json when it has
+    them, since that run used the identical method and cost an hour.
+    """
+    sample = days[:: max(1, len(days) // REALISTIC_NIGHTS)][:REALISTIC_NIGHTS]
+    cache = json.loads(SEED_CACHE.read_text(encoding="utf-8")) if SEED_CACHE.exists() else {}
+    if SENSITIVITY.exists():
+        for row in json.loads(SENSITIVITY.read_text(encoding="utf-8"))["rows"].values():
+            if row["group"] in ("base", "noise"):
+                seed = int(row["name"].split("_")[1]) if row["name"].startswith("seed_") else 0
+                cache.setdefault(f"{HEADLINE_RATING}:{seed}", {"dumb": row["dumb_fine"], "coordinated": row["coordinated"]})
+
+    out = []
+    for r in RATINGS:
+        n_seeds = SEEDS_HEADLINE if r == HEADLINE_RATING else SEEDS_OTHER
+        draws = []
+        for seed in range(n_seeds):
+            key = f"{r}:{seed}"
+            if key not in cache:
+                builder = lambda n, s=seed: realistic_fleet(n, s)  # noqa: E731
+                d = dumb_ceiling(float(r), builder, base)
+                c = int(statistics.median(
+                    solver_ceiling(builder, ds.get_carbon_intensity(day=day), float(r)) for day in sample))
+                cache[key] = {"dumb": d, "coordinated": c}
+                SEED_CACHE.parent.mkdir(parents=True, exist_ok=True)
+                SEED_CACHE.write_text(json.dumps(cache, indent=1), encoding="utf-8")
+                print(f"  {r} kW seed {seed}: dumb {d} coordinated {c} ({c / max(d, 1):.2f}x)", flush=True)
+            draws.append(cache[key])
+        gains = [x["coordinated"] / max(x["dumb"], 1) for x in draws]
+        out.append({
+            "rating_kw": r,
+            "dumb": int(statistics.median(x["dumb"] for x in draws)),
+            "coordinated": int(statistics.median(x["coordinated"] for x in draws)),
+            "gain": round(statistics.median(gains), 1),
+            "gain_min": round(min(gains), 1),
+            "gain_max": round(max(gains), 1),
+            "seeds": len(draws),
+            "nights_sampled": len(sample),
+            "dumb_first_draw": draws[0]["dumb"],
+            "coordinated_first_draw": draws[0]["coordinated"],
+            "gain_first_draw": round(draws[0]["coordinated"] / max(draws[0]["dumb"], 1), 1),
+        })
+        print(f"  realistic @ {r} kW: median gain {out[-1]['gain']}x "
+              f"(range {out[-1]['gain_min']}-{out[-1]['gain_max']}, {len(draws)} draws)", flush=True)
+    return out
+
+
+def refresh_realistic_only() -> None:
+    """Replace the realistic section of an existing hosting.json with the seed-median figures."""
+    global base_global
+    base_global = ds.get_residential_baseline_kw(HOMES)
+    bundle = json.loads(OUT.read_text(encoding="utf-8"))
+    realistic = realistic_by_seeds(base_global, ds.available_days())
+    bundle["realistic"] = realistic
+    bundle["headline"] = next(c for c in realistic if c["rating_kw"] == HEADLINE_RATING)
+    bundle["generated_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    bundle["git_rev"] = (subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=HERE,
+                                        capture_output=True, text=True).stdout.strip() or None)
+    bundle["fleet_note"] = (
+        "Headline figures are the median over several draws of a realistic fleet "
+        "(staggered arrivals and departures, mixed energy requirements, 3.7/7/11 kW "
+        "chargers), reported with the range across draws. A single draw is not a "
+        "result: the first draw published earlier was the most favourable of twenty. "
+        "The identical-fleet figures are kept for contrast and overstate the gain."
+    )
+    OUT.write_text(json.dumps(bundle, indent=2), encoding="utf-8")
+    h = bundle["headline"]
+    print(f"\nAt {HEADLINE_RATING} kW: {h['dumb']} on arrival, {h['coordinated']} coordinated = "
+          f"{h['gain']}x (range {h['gain_min']}-{h['gain_max']} over {h['seeds']} draws)")
+    print(f"wrote {OUT}")
 
 
 def main() -> None:
@@ -325,4 +428,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    if "--realistic-only" in sys.argv:
+        refresh_realistic_only()
+    else:
+        main()

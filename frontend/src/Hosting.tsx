@@ -213,11 +213,11 @@ export default function Hosting() {
           is the one quoted.
         </p>
         <p className="calloutText">
-          The gain is not a single number. The figure above is the first fleet draw, and the
-          most favourable of twenty: redrawing the fleet from the same assumptions gives 3.4×
-          to 5.3×, median about 4×. Read the headline as roughly 4×. The baseline
-          shape, fleet mix and homes per transformer are assumed, not measured; moving each one
-          at a time did not push the gain below that band, and a peakier street raised it. That
+          The gain is not a single number. The figure above is the median over{" "}
+          {hosting.headline.seeds} draws of the fleet at this rating, and individual draws run
+          from {hosting.headline.gain_min}× to {hosting.headline.gain_max}×. The first draw
+          published earlier, 5.3×, was the most favourable of them. The baseline shape, fleet
+          mix and homes per transformer are assumed, not measured; moving each one at a time did not push the gain below that band, and a peakier street raised it. That
           is sensitivity to assumptions, not validation against a real feeder.
         </p>
       </Panel>

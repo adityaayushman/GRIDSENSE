@@ -1,0 +1,154 @@
+{
+ "250:0": {
+  "dumb": 60,
+  "coordinated": 318
+ },
+ "250:1": {
+  "dumb": 63,
+  "coordinated": 308
+ },
+ "250:2": {
+  "dumb": 75,
+  "coordinated": 302
+ },
+ "250:3": {
+  "dumb": 69,
+  "coordinated": 315
+ },
+ "250:4": {
+  "dumb": 72,
+  "coordinated": 298
+ },
+ "250:5": {
+  "dumb": 92,
+  "coordinated": 308
+ },
+ "250:6": {
+  "dumb": 60,
+  "coordinated": 310
+ },
+ "250:7": {
+  "dumb": 87,
+  "coordinated": 309
+ },
+ "250:8": {
+  "dumb": 76,
+  "coordinated": 317
+ },
+ "250:9": {
+  "dumb": 84,
+  "coordinated": 308
+ },
+ "250:10": {
+  "dumb": 88,
+  "coordinated": 312
+ },
+ "250:11": {
+  "dumb": 71,
+  "coordinated": 298
+ },
+ "250:12": {
+  "dumb": 76,
+  "coordinated": 309
+ },
+ "250:13": {
+  "dumb": 81,
+  "coordinated": 307
+ },
+ "250:14": {
+  "dumb": 84,
+  "coordinated": 304
+ },
+ "250:15": {
+  "dumb": 90,
+  "coordinated": 316
+ },
+ "250:16": {
+  "dumb": 72,
+  "coordinated": 303
+ },
+ "250:17": {
+  "dumb": 72,
+  "coordinated": 307
+ },
+ "250:18": {
+  "dumb": 71,
+  "coordinated": 311
+ },
+ "250:19": {
+  "dumb": 78,
+  "coordinated": 317
+ },
+ "160:0": {
+  "dumb": 22,
+  "coordinated": 151
+ },
+ "160:1": {
+  "dumb": 21,
+  "coordinated": 143
+ },
+ "160:2": {
+  "dumb": 32,
+  "coordinated": 149
+ },
+ "160:3": {
+  "dumb": 25,
+  "coordinated": 155
+ },
+ "160:4": {
+  "dumb": 26,
+  "coordinated": 139
+ },
+ "160:5": {
+  "dumb": 37,
+  "coordinated": 148
+ },
+ "400:0": {
+  "dumb": 143,
+  "coordinated": 593
+ },
+ "400:1": {
+  "dumb": 141,
+  "coordinated": 574
+ },
+ "400:2": {
+  "dumb": 133,
+  "coordinated": 587
+ },
+ "400:3": {
+  "dumb": 163,
+  "coordinated": 570
+ },
+ "400:4": {
+  "dumb": 159,
+  "coordinated": 577
+ },
+ "400:5": {
+  "dumb": 176,
+  "coordinated": 584
+ },
+ "630:0": {
+  "dumb": 254,
+  "coordinated": 998
+ },
+ "630:1": {
+  "dumb": 263,
+  "coordinated": 984
+ },
+ "630:2": {
+  "dumb": 274,
+  "coordinated": 1005
+ },
+ "630:3": {
+  "dumb": 275,
+  "coordinated": 970
+ },
+ "630:4": {
+  "dumb": 270,
+  "coordinated": 996
+ },
+ "630:5": {
+  "dumb": 309,
+  "coordinated": 981
+ }
+}
