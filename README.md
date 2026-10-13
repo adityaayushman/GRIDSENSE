@@ -2,7 +2,7 @@
 
 # ⚡ GridSense
 
-**Carbon-aware EV charging optimizer: schedules home charging against real grid carbon and price data, and lets one street transformer host 5.3× more EVs.**
+**Carbon-aware EV charging optimizer: schedules home charging against real grid carbon and price data, and lets one street transformer host about 4× more EVs (median of 20 fleet draws).**
 
 <p>
   <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" />
