@@ -1,7 +1,7 @@
 import { Component, lazy, Suspense, type ReactNode } from "react";
 
 /**
- * The six analysis panes are loaded on demand. Together they carry Recharts and most of
+ * The analysis panes are loaded on demand. Together they carry Recharts and most of
  * the app's code, and a visitor on the landing page or the Simulator needs none of it, so
  * keeping them out of the first bundle is the largest single speed-up available.
  *
@@ -10,7 +10,7 @@ import { Component, lazy, Suspense, type ReactNode } from "react";
  * that has usually already arrived. If it has not, a skeleton the same shape as the pane
  * holds the space so nothing jumps.
  */
-export type PaneKey = "comparison" | "hosting" | "regions" | "control" | "results" | "india";
+export type PaneKey = "comparison" | "hosting" | "regions" | "control" | "results" | "signals" | "india";
 
 const loaders: Record<PaneKey, () => Promise<unknown>> = {
   comparison: () => import("./Comparison"),
@@ -18,6 +18,7 @@ const loaders: Record<PaneKey, () => Promise<unknown>> = {
   regions: () => import("./Regions"),
   control: () => import("./Control"),
   results: () => import("./Results"),
+  signals: () => import("./Signals"),
   india: () => import("./India"),
 };
 
@@ -26,6 +27,7 @@ export const Hosting = lazy(() => import("./Hosting"));
 export const Regions = lazy(() => import("./Regions"));
 export const Control = lazy(() => import("./Control"));
 export const Results = lazy(() => import("./Results"));
+export const Signals = lazy(() => import("./Signals"));
 export const India = lazy(() => import("./India"));
 
 /** Start fetching one pane's code. Safe to call repeatedly; the browser caches the module. */

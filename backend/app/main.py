@@ -3,7 +3,7 @@ import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from app import data_sources, india_live, store
+from app import data_sources, india_live, marginal, store, upgrade_value
 from app.optimizer import Vehicle, run_scenario
 from app.schemas import FleetGroup, HourlySeries, ScenarioRequest, ScenarioResponse
 
@@ -120,6 +120,13 @@ def run_scenario_endpoint(req: ScenarioRequest):
         baseline = data_sources.get_residential_baseline_kw(household_count=total_vehicles)
 
         forecast = data_sources.get_carbon_forecast(req.region, day, req.era)
+        if req.signal == "marginal":
+            # The proxy was estimated on the 2015-2018 Spanish record, so it describes that grid
+            # only. Scheduling and scoring both use it; there is no forecast of it.
+            if req.era != "2018" or req.region.upper() != "ES":
+                raise ValueError("the marginal signal is estimated for the Spanish 2018-era record only")
+            carbon = marginal.curve("ES", day)
+            forecast = None
         # Schedule on the forecast when asked, but always score against `carbon`,
         # which is what actually happened. Falls back to perfect foresight when a
         # night has no forecast attached rather than failing the request.
@@ -180,10 +187,39 @@ def run_scenario_endpoint(req: ScenarioRequest):
         gate_expected_saving_pct=result.gate_expected_saving_pct,
         gate_reason=result.gate_reason,
         era=req.era,
+        signal=req.signal,
     )
     run_id = store.save_run(req.model_dump(exclude_none=True), response.model_dump(exclude={"hourly", "hourly_forecast"}))
     response.run_id = run_id
     return response
+
+
+@app.get("/api/marginal")
+def marginal_estimate(region: str | None = None):
+    """The marginal-emissions proxy: summary for every grid, or the full table for one.
+
+    An estimate from public generation data, not WattTime's MOER. Check `median_r2_overnight`
+    before leaning on a grid's numbers.
+    """
+    try:
+        if region is None:
+            return marginal.summary()
+        return marginal.grid(region)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.get("/api/upgrade-value")
+def upgrade_value_endpoint(evs: int, installed_multiplier: float | None = None):
+    """Rupees of transformer upgrade avoided by coordinating `evs` vehicles instead of charging on arrival.
+
+    An estimate: modelled fleet, vendor asking prices for equipment, installation as a multiplier.
+    Returns a low/base/high range and says when coordination avoids nothing.
+    """
+    try:
+        return upgrade_value.avoided_upgrade(evs, installed_multiplier)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
 
 
 @app.get("/api/runs")

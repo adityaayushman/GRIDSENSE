@@ -1040,6 +1040,68 @@ That caveat was moving the headline by a third.
 
 ---
 
+## 18. The average signal and a marginal one only loosely agree
+
+`ml/marginal.py` · **Signals & value** pane · `GET /api/marginal`, `signal: "marginal"` on the scenario API
+
+GridSense schedules against *average* carbon intensity. Shifting load moves the *marginal* plant, which
+WattTime publishes as MOER behind a paid plan. This estimates a marginal rate from the same public
+data instead: the slope of dispatchable-plant emissions against residual load (demand minus wind and
+solar), from hour-to-hour differences, per season and 3-hour block, bounded by the dirtiest dispatchable
+fuel. **It is a proxy, not MOER.**
+
+| Grid | Overnight mean, average | Overnight mean, marginal | Correlation | Median fit R² |
+| --- | --- | --- | --- | --- |
+| Spain | 258 | 214 | 0.49 | 0.43 |
+| Germany | 399 | 237 | -0.14 | 0.45 |
+| India | 656 | 561 | 0.08 | 0.86 |
+
+The two signals only loosely agree. Over every complete overnight window, judged on the *marginal* proxy
+instead of the average it was built on:
+
+| Grid | Built on average, judged on average | Built on average, judged on marginal | Built on marginal, judged on average |
+| --- | --- | --- | --- |
+| Spain | 2.0% | **-19.2%** | 0.0% |
+| Germany | 1.0% | 0.0% | 0.0% |
+| India | 0.0% | 0.0% | -2.6% |
+
+**How much to believe the Spanish -19%.** Not much, yet. The fit is modest (R² 0.43), and the figure rests on
+a few evening blocks being estimated far cleaner than the rest of the night (winter 21:00-23:00 carries a
+standard error of about 61 g on an estimate near 98). Charging on arrival lands on exactly those hours, so it
+wins under the proxy. That is a reason to want a real MOER series, not a finding that carbon scheduling is
+harmful. What the table supports is narrower: **Germany and India are unchanged**, and in Spain the
+conclusion depends on which signal is used.
+
+What it does not do: see transmission limits, outages or imports; treat each season and hour block as one
+regime; or replace MOER. The API serves the Spanish 2018-era nights with `signal: "marginal"` and refuses it
+elsewhere.
+
+---
+
+## 19. An avoided transformer upgrade is worth thousands of rupees per neighbourhood, with wide error bars
+
+`ml/export_upgrade_inputs.py`, `backend/app/upgrade_value.py` · **Signals & value** pane · `GET /api/upgrade-value`
+
+For an Indian neighbourhood of N vehicles on one transformer (150 homes), find the smallest standard rating
+that hosts N when cars charge on arrival and the smallest that hosts N when coordinated (finding 10), and price
+the difference. At 100 vehicles that is 250 kVA against 100 kVA: **about ₹1.15 lakh avoided in the base case,
+a range of ₹24,000 to ₹2.07 lakh**, about ₹1,155 a vehicle, with installed cost taken as 1.5 times the
+equipment price.
+
+Three things limit it, and the pane shows them:
+
+- **The prices are vendor asking prices** from IndiaMART listings (₹1.7-3.5 lakh for 100 kVA, ₹1.8-4.5 lakh
+  for 200 kVA). I found no CEA or DISCOM schedule of rates. Only those two ratings are anchors; the rest are
+  extrapolated.
+- **The installation multiplier is a guess**, exposed as a slider.
+- **Hosting counts come from a modelled fleet**, not measured sessions.
+
+The saving arrives in steps. At 30 vehicles both approaches fit a 100 kVA unit and coordination avoids
+nothing; the answer is zero until the neighbourhood crosses a rating. Above about 300 vehicles charging on
+arrival exceeds every rating modelled, so the avoided cost cannot be priced from this table.
+
+---
+
 ## Datasets evaluated and rejected
 
 Screened with `screen_dataset.py`, which any candidate must pass before it is

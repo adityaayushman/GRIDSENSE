@@ -48,15 +48,17 @@ export default function Regions() {
       <section className="hero">
         <div className="heroMain">
           <div className="eyebrow">Two grids · same optimizer</div>
-          <div className="heroValue" style={{ color: ES }}>3.3<span style={{ fontSize: 30 }}>%</span></div>
+          <div className="heroValue" style={{ color: ES }}>{es.median_saving.toFixed(1)}<span style={{ fontSize: 30 }}>%</span></div>
           <div className="heroLabel">median night saving in Spain</div>
           <div className="heroSub">Germany, on the same model: {de.median_saving.toFixed(1)}%</div>
         </div>
         <div className="heroNote">
           Germany's grid is <strong>dirtier</strong> ({de.mean} vs {es.mean} gCO₂eq/kWh) and{" "}
           <strong>swings harder</strong> (σ {de.std} vs {es.std}), which ought to make it the better
-          place to shift load. It is worse — <strong>{de.under_1pct}%</strong> of its nights offer
-          under 1%, against {es.under_1pct}% in Spain. The reason is not in these numbers.
+          place to shift load. On a typical night it is: <strong>{de.under_1pct}%</strong> of its nights
+          offer under 1%, against {es.under_1pct}% in Spain. But it has the fatter tail
+          ({de.over_20pct}% of nights over 20%, against {es.over_20pct}%), so its mean night saves {de.mean_saving}%
+          to Spain's {es.mean_saving}%. Dirtiness and variability predict the best nights, not the typical one.
         </div>
       </section>
 
@@ -94,7 +96,7 @@ export default function Regions() {
           plugs in — is already the cleanest hour of the window, and Germany's advantage there is
           larger ({de.shape[0].rel}% against Spain's {es.shape[0].rel}%). Charging on arrival is
           landing on the best hour by accident, which leaves the optimizer less to win back. That,
-          not flatness, is why the dirtier grid saves less.
+          not flatness, is why the dirtier grid saves less on a typical night.
         </p>
       </Panel>
 
