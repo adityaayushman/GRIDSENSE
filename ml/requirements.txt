@@ -1,4 +1,5 @@
 holidays==0.106
+httpx==0.27.2
 numpy==2.5.2
 openpyxl==3.1.5
 pandas==3.0.5

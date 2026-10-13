@@ -33,7 +33,7 @@
 **In one line:** GridSense schedules home EV charging against real grid data and
 measures what that is worth — little for carbon, and a lot for how many EVs one
 street transformer can carry (about 4× on the median draw; an estimate that rests on
-assumed inputs, stated as such below). Seven of its own published numbers were wrong
+assumed inputs, stated as such below). Eight of its own published claims were wrong
 at some point; [LESSONS.md](LESSONS.md) records how each was caught.
 
 **Live:** https://gridsense-app-adityaasahoo-gmailcoms-projects.vercel.app
@@ -92,7 +92,7 @@ rather than hiding them. See [`ml/README.md`](ml/README.md) for the analysis.
 - [FEATURES.md](FEATURES.md) — what is built, what is not, what is out of scope
 - [FINDINGS.md](FINDINGS.md) — every result with the script that reproduces it,
   including the hypotheses that failed
-- [LESSONS.md](LESSONS.md) — the seven things I got wrong, how each was caught, and
+- [LESSONS.md](LESSONS.md) — the eight things I got wrong, how each was caught, and
   what I check now
 - [ml/README.md](ml/README.md) — the analysis and how to re-run it
 
@@ -302,7 +302,8 @@ In use (India, merged by `ml/build_india_dataset.py` into one 74,784-hour table 
   (via [robbieandrew.github.io/india](https://robbieandrew.github.io/india/))
 - [Open-Meteo](https://open-meteo.com) ERA5 hourly weather for 13 cities (CC BY 4.0)
 - [Energy-Charts](https://www.energy-charts.info) Spanish generation by fuel,
-  2015-2026 (Fraunhofer ISE, CC BY 4.0), used for the long-record experiments
+  day-ahead solar/wind/load forecasts and day-ahead prices, 2015-2026 (Fraunhofer ISE,
+  CC BY 4.0; republished ENTSO-E data). It serves the **2025 grid era** and trains its forecaster
 
 In use (Spain):
 - [ENTSO-E via Kaggle](https://www.kaggle.com/datasets/nicholasjhana/energy-consumption-generation-prices-and-weather)

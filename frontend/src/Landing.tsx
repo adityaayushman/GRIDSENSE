@@ -258,7 +258,7 @@ export default function Landing({
               { v: `${cap.gain}×`, k: "hosting capacity" },
               { v: `${es.median_saving}%`, k: "median CO₂ cut" },
               { v: "71%", k: "captured by forecast" },
-              { v: "7", k: "published numbers corrected" },
+              { v: "8", k: "published claims corrected" },
             ].map((s) => (
               <div className="ldStat" key={s.k}>
                 <span className="ldStatVal">{s.v}</span>

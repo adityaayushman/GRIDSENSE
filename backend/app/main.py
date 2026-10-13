@@ -45,21 +45,30 @@ def health():
 
 
 @app.get("/api/forecast")
-def forecast_info():
+def forecast_info(era: str = "2018"):
     """Provenance of the day-ahead forecast the scheduler can run against."""
-    return data_sources.forecast_meta()
+    try:
+        return data_sources.forecast_meta(era)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @app.get("/api/days")
-def days():
-    """Charging nights available to simulate, and which one is served by default."""
-    available = data_sources.available_days()
-    return {
-        "days": available,
-        "default": data_sources.default_day(),
-        "count": len(available),
-        "region": "ES",
-    }
+def days(era: str = "2018"):
+    """Charging nights available to simulate in an era, and which one is served by default."""
+    try:
+        available = data_sources.available_days(era)
+        return {
+            "days": available,
+            "default": data_sources.default_day(era),
+            "count": len(available),
+            "region": "ES",
+            "era": era,
+            "eras": data_sources.eras(),
+            "year_stats": data_sources.year_stats(era),
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @app.post("/api/scenario", response_model=ScenarioResponse)
@@ -92,12 +101,12 @@ def run_scenario_endpoint(req: ScenarioRequest):
             for i in range(g.count)
         ]
 
-        day = data_sources.resolve_day(req.day)
-        carbon = data_sources.get_carbon_intensity(req.region, day)
-        price = data_sources.get_price(req.region, day)
+        day = data_sources.resolve_day(req.day, req.era)
+        carbon = data_sources.get_carbon_intensity(req.region, day, req.era)
+        price = data_sources.get_price(req.region, day, req.era)
         baseline = data_sources.get_residential_baseline_kw(household_count=total_vehicles)
 
-        forecast = data_sources.get_carbon_forecast(req.region, day)
+        forecast = data_sources.get_carbon_forecast(req.region, day, req.era)
         # Schedule on the forecast when asked, but always score against `carbon`,
         # which is what actually happened. Falls back to perfect foresight when a
         # night has no forecast attached rather than failing the request.
@@ -157,6 +166,7 @@ def run_scenario_endpoint(req: ScenarioRequest):
         gate_acted=result.gate_acted,
         gate_expected_saving_pct=result.gate_expected_saving_pct,
         gate_reason=result.gate_reason,
+        era=req.era,
     )
     run_id = store.save_run(req.model_dump(exclude_none=True), response.model_dump(exclude={"hourly", "hourly_forecast"}))
     response.run_id = run_id

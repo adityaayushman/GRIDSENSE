@@ -836,12 +836,13 @@ matters for a night-time window has survived the transition.
 **What does matter: the day-ahead inputs.** Moving the *same* 2015-2017 → 2018
 split onto the new source, which has lags and calendar but **none of the TSO
 day-ahead solar, wind and load forecasts** the deployed model uses, drops
-the captured saving from **71.0% to 40.6%** (MAE 23.7 → 28.5). Those three
+the captured saving from **71.0% to 40.6%** (MAE 23.7 → 28.5). On that split those three
 inputs are worth about thirty points of decision quality; a decade of extra
-history is worth about two. The extended record cannot supply them for Spain, so
-it cannot improve the deployed model. ENTSO-E can (its day-ahead forecasts are
-free with an API token), and that — not more of the same history — is the data
-to fetch.
+history is worth about two. The extended record alone cannot supply them for Spain.
+They turned out to be obtainable without a token (Energy-Charts republishes them),
+and finding 16 uses them: on the 2025 grid they are worth about eight points rather
+than thirty, because solar has made the daily shape regular enough for lags to do
+much of the work.
 
 **India demand, 46,728 hours** (`train_india.py`; tested on the final 12 months):
 
@@ -871,6 +872,80 @@ forecasting for Indian charging is demand, not carbon.
 history, and for India by forecasting demand rather than carbon. All of the
 data behind these experiments is reproducible from the scripts above; the raw
 files are not committed (`ml/data/` is gitignored).
+
+---
+
+## 16. On today's grid a day-ahead forecaster captures 81% of the achievable saving
+
+`ml/fetch_spain_forecasts_ec.py`, `ml/train_modern.py`, `ml/export_grid_days_modern.py`
+
+Finding 15 said the limit on the forecaster is its day-ahead inputs, not its history,
+and that the TSO's day-ahead solar, wind and load forecasts were out of reach without
+an ENTSO-E token. They were not: Energy-Charts republishes the same ENTSO-E day-ahead
+series for Spain, and the day-ahead market price, back to 2015, free and without a key
+(CC BY 4.0). 103,294 hourly rows, 99.6-100% complete. With them the model was rebuilt
+on the grid as it is now.
+
+**A. The new source reproduces the old result.** The deployed split (train 2015-2017,
+test 2018) on the new data, with the day-ahead forecasts:
+
+| | MAE | Share of saving captured |
+| --- | --- | --- |
+| Deployed model (Kaggle record) | 23.70 | **71.0%** |
+| New source, with day-ahead forecasts | 15.32 | **68.9%** |
+| New source, lags and calendar only | 28.49 | 40.0% |
+
+The decision metric agrees within about two points. The MAE does not, and is not
+comparable across sources: the two intensity series are built from slightly different
+generation tables, so their variance differs. Captured saving is the number to trust.
+
+**B. What the day-ahead inputs are worth depends on the grid.** Train 2022-2024, test
+2025, ridge:
+
+| Features | MAE | Captured |
+| --- | --- | --- |
+| Lags and calendar only | 21.06 | 68.4% |
+| + day-ahead solar, wind, load | 15.62 | 75.9% |
+| + day-ahead price | 15.16 | 77.4% |
+
+On the 2018 grid the forecasts were worth about thirty points (40% to 71%). On the
+2025 grid they are worth about eight, because lags alone already do well: solar has
+made the daily shape regular enough that yesterday predicts today. Finding 15's
+"thirty points" is true of the 2018 split and should not be carried to the modern grid.
+
+**C. Training window**, chosen on 2024 and scored on 2025 (ridge with forecasts and price):
+
+| Years of history | 2024 validation MAE | Validation captured | 2025 MAE | 2025 captured | GBM MAE | GBM captured |
+| --- | --- | --- | --- | --- | --- | --- |
+| **1** | 16.01 | 73.0% | 15.60 | **80.9%** | 15.77 | 79.7% |
+| 2 | 17.14 | 72.0% | 14.65 | 78.2% | 13.60 | 82.3% |
+| 3 | 16.01 | 71.6% | 15.16 | 77.4% | 12.79 | 80.7% |
+| 5 | 16.28 | 73.5% | 15.39 | 76.7% | 11.95 | 79.3% |
+| 8 | 17.60 | 69.2% | 16.79 | 72.4% | 11.81 | 80.5% |
+
+One year and three tie on validation MAE (16.01); validation captured breaks the tie
+toward one year. Ridge gets steadily worse as older, dirtier-grid years are added
+(80.9% to 72.4%), while gradient boosting holds near 80% at every window and has a
+far lower MAE (11.8 against 15.6) but no better decisions. More history again does
+not help the model that can be served without scikit-learn.
+
+**D. The deployed model**: ridge on the 2024 data alone, scored on 2025, which it has
+never seen: **MAE 15.6, 80.9% of an achievable 11.81% saving**. Behind the forecast
+gate (finding 13) at 7.5% it captures 80.7% and the nights worse than charging on arrival
+fall from 10.0% to 2.5%. A ridge+GBM blend reaches 81.6% and is not shipped, for the
+same reason as before: it needs scikit-learn at inference.
+
+**The grid itself.** Across all 361 nights of 2025 (perfect foresight): median saving
+**2.7%**, fleet total **11.8%**, 44% of nights under 1%, 22% over 20%. Against 2018's
+3.3%, 10.4%, 38% and 17%: a smaller typical night and a longer tail, as a grid with
+much more solar would produce. 46 of those nights are served (`era: "2025"`), with the
+median-saving night as the default.
+
+**Caveats.** One test year. The Energy-Charts archive labels these series day-ahead, but
+that they are the forecasts as originally issued, and never revised afterwards, cannot be
+verified from here; a live ENTSO-E pull would settle it. The flat tariff component added
+to the price (EUR 0.062/kWh) is the 2018 approximation, reused for 2025. And 80.9% was
+reached on a model chosen with 2025 in view, though its window was fixed on 2024.
 
 ---
 

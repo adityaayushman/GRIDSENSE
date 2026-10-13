@@ -25,7 +25,19 @@ from pathlib import Path
 USE_LIVE_DATA = os.getenv("USE_LIVE_DATA", "false").lower() == "true"
 ENTSOE_TOKEN = os.getenv("ENTSOE_TOKEN")
 
-DATA_FILE = Path(__file__).parent / "data" / "grid_days.json"
+DATA_DIR = Path(__file__).parent / "data"
+
+#: The grid in two eras. 2018 is the original served year, backed by the Kaggle ENTSO-E
+#: record. 2025 is the grid as it is now (mean intensity roughly half of 2018's, solar
+#: roughly three times), built by ml/export_grid_days_modern.py.
+ERA_FILES = {"2018": DATA_DIR / "grid_days.json", "2025": DATA_DIR / "grid_days_2025.json"}
+DEFAULT_ERA = "2018"
+DATA_FILE = ERA_FILES[DEFAULT_ERA]   # kept for importers that predate eras
+
+#: Whole-year figures for 2018 from the backtest (FINDINGS.md finding 2). The 2025 file
+#: carries its own `year_stats`.
+YEAR_STATS_2018 = {"year": 2018, "nights": 361, "median_saving_pct": 3.3, "total_saving_pct": 10.4,
+                   "under_1pct": 38, "over_20pct": 17}
 
 # Spain's PVPC bill is an hourly energy term plus access tolls, levies and
 # supplier margin that do not vary by hour. Charging can only shift the hourly
@@ -37,61 +49,71 @@ PVPC_FIXED_EUR_PER_KWH = 0.062
 CURRENCY = "EUR"
 
 
-@lru_cache(maxsize=1)
-def _grid_data() -> dict:
-    with DATA_FILE.open(encoding="utf-8") as fh:
+def eras() -> list[str]:
+    return [e for e, path in ERA_FILES.items() if path.exists()]
+
+
+@lru_cache(maxsize=4)
+def _grid_data(era: str = DEFAULT_ERA) -> dict:
+    if era not in ERA_FILES or not ERA_FILES[era].exists():
+        raise ValueError(f"No grid data for era {era!r}. Available: {eras()}")
+    with ERA_FILES[era].open(encoding="utf-8") as fh:
         return json.load(fh)
 
 
-def available_days() -> list[str]:
+def year_stats(era: str = DEFAULT_ERA) -> dict:
+    """Whole-year saving statistics for the era, for the UI to quote beside a single night."""
+    return _grid_data(era).get("year_stats") or (YEAR_STATS_2018 if era == "2018" else {})
+
+
+def available_days(era: str = DEFAULT_ERA) -> list[str]:
     """Sorted ISO dates for which a complete charging night is available."""
-    return sorted(_grid_data()["days"])
+    return sorted(_grid_data(era)["days"])
 
 
-def default_day() -> str:
+def default_day(era: str = DEFAULT_ERA) -> str:
     """The median-saving night, so the default view is representative."""
-    return _grid_data()["default_day"]
+    return _grid_data(era)["default_day"]
 
 
-def resolve_day(day: str | None) -> str:
+def resolve_day(day: str | None, era: str = DEFAULT_ERA) -> str:
     """Validate a requested day, falling back to the representative default."""
     if day is None:
-        return default_day()
-    if day not in _grid_data()["days"]:
-        raise ValueError(
-            f"No grid data for {day}. Available: {available_days()[0]}..{available_days()[-1]}"
-        )
+        return default_day(era)
+    if day not in _grid_data(era)["days"]:
+        days = available_days(era)
+        raise ValueError(f"No grid data for {day} in {era}. Available: {days[0]}..{days[-1]}")
     return day
 
 
-def get_carbon_intensity(region: str = "ES", day: str | None = None) -> list[float]:
+def get_carbon_intensity(region: str = "ES", day: str | None = None, era: str = DEFAULT_ERA) -> list[float]:
     """Measured grid carbon intensity, gCO2eq/kWh, for each hour 0-23."""
     if USE_LIVE_DATA and ENTSOE_TOKEN:
         return _fetch_live(region)
-    return list(_grid_data()["days"][resolve_day(day)]["carbon"])
+    return list(_grid_data(era)["days"][resolve_day(day, era)]["carbon"])
 
 
-def get_carbon_forecast(region: str = "ES", day: str | None = None) -> list[float] | None:
+def get_carbon_forecast(region: str = "ES", day: str | None = None, era: str = DEFAULT_ERA) -> list[float] | None:
     """The day-ahead prediction for this night, or None if the night has none.
 
     Precomputed by ml/export_forecast_curves.py from the deployed ridge model,
     so serving it needs no ML dependency here.
     """
-    return _grid_data()["days"][resolve_day(day)].get("carbon_forecast")
+    return _grid_data(era)["days"][resolve_day(day, era)].get("carbon_forecast")
 
 
-def forecast_meta() -> dict:
+def forecast_meta(era: str = DEFAULT_ERA) -> dict:
     """Model provenance for the forecast curves, for the UI to cite."""
-    return _grid_data().get("forecast", {})
+    return _grid_data(era).get("forecast", {})
 
 
-def get_price(region: str = "ES", day: str | None = None) -> list[float]:
+def get_price(region: str = "ES", day: str | None = None, era: str = DEFAULT_ERA) -> list[float]:
     """Retail price in EUR/kWh for each hour 0-23.
 
     Day-ahead wholesale price plus the flat PVPC access component — see
     `PVPC_FIXED_EUR_PER_KWH`.
     """
-    hourly = _grid_data()["days"][resolve_day(day)]["price"]
+    hourly = _grid_data(era)["days"][resolve_day(day, era)]["price"]
     return [round(p + PVPC_FIXED_EUR_PER_KWH, 5) for p in hourly]
 
 
