@@ -114,6 +114,8 @@ const FINDINGS = [
   },
 ] as const;
 
+const NEGATIVE = FINDINGS.filter((f) => f.tone === "bad").length;
+
 const REJECTED = [
   {
     head: "Indian daily grid data", meta: "2,821 days · daily resolution",
@@ -127,7 +129,7 @@ const REJECTED = [
       "noise, where measured grid load sits at +0.951. Random draws wearing a schema.",
   },
   {
-    head: "Weather features", meta: "−0.19pp captured saving",
+    head: "Weather features", meta: "−0.6pp captured saving",
     body: "Cloud cover and wind speed looked like the obvious untapped signal. They are already " +
       "inside the TSO's day-ahead forecasts, so the raw columns added only dimensionality.",
   },
@@ -143,8 +145,8 @@ const STACK = [
   { k: "Objectives", v: "Emissions, cost, peak, and a feeder-capacity mode", t: "4 modes" },
   { k: "Carbon", v: "Derived from generation mix × IPCC AR5 lifecycle factors", t: "gCO₂eq/kWh" },
   { k: "Data", v: "ENTSO-E measured Spanish and German grid records", t: "4 years" },
-  { k: "Forecaster", v: "Ridge, exported as coefficients — no ML runtime in the bundle", t: "MAE 23.7" },
-  { k: "API", v: "FastAPI on a Python serverless function", t: "46 tests" },
+  { k: "Forecaster", v: "Ridge, exported as coefficients — no ML runtime in the bundle", t: "MAE 15.3" },
+  { k: "API", v: "FastAPI on a Python serverless function", t: "92 tests" },
   { k: "Frontend", v: "React · TypeScript · Vite · Recharts", t: "one origin" },
 ] as const;
 
@@ -306,13 +308,15 @@ export default function Landing({
           </div>
         </Section>
 
-        <Section id="data" eyebrow="The data" title="Measured, not simulated">
+        <Section id="data" eyebrow="The data" title="Measured grid, modelled fleet">
           <div className="ldCols">
             <p>
               Carbon intensity is not downloaded — it is derived, from ENTSO-E's published
               generation mix weighted by IPCC AR5 lifecycle emission factors, hour by hour. The
               Spanish record runs four years; a German one is carried alongside so a second grid
               can check whether any conclusion is really about scheduling or just about Spain.
+              What is <em>not</em> measured: the cars, the street and the household load around
+              them are modelled, so hosting capacity is a sensitivity result, not a field test.
             </p>
             <p>
               Datasets are screened before they are trusted. A candidate whose hour-to-hour
@@ -337,7 +341,7 @@ export default function Landing({
         </Section>
 
         <Section id="findings" eyebrow="What it found"
-          title="Nine findings, four of them negative" wide>
+          title={`${FINDINGS.length} findings: ${FINDINGS.length - NEGATIVE} held, ${NEGATIVE} did not`} wide>
           <p className="ldNote">
             A findings list containing only confirmations is a marketing document. These are
             ordered as they were established, and the ones that contradict the project's own
@@ -346,7 +350,7 @@ export default function Landing({
           <FindingGrid />
         </Section>
 
-        <Section id="rejected" eyebrow="What did not survive" title="Rejected on evidence" wide>
+        <Section id="rejected" eyebrow="What did not survive" title="Ideas dropped after measuring" wide>
           <p className="ldNote">
             Each of these looked promising enough to spend time on, and each was dropped because
             a measurement said so rather than because it became inconvenient.
