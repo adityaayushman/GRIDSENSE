@@ -209,7 +209,7 @@
 .mastFactKey { font-size: 10.5px; color: var(--ink-3); font-family: var(--mono); }
 
 .heroScene { width: 100%; height: auto; display: block; overflow: visible; }
-.hsTick { fill: #64748A; font-size: 9.5px; font-family: var(--mono); letter-spacing: .06em; }
+.hsTick { fill: #8C8576; font-size: 9.5px; font-family: var(--mono); letter-spacing: .06em; }
 
 @media (prefers-reduced-motion: reduce) { .mastDot { animation: none; } }
 

@@ -21,9 +21,9 @@ const ORANGE = "#d95926";
 const AQUA = "#199e70";
 const GREY = "#4a586b";
 const RANGE = "#66768d";
-const GRID = "#202A36";
+const GRID = "#2C2823";
 const INK2 = "#9DAABB";
-const INK3 = "#64748A";
+const INK3 = "#8C8576";
 const GAP = "#0A0F16";                              // the surface, for the 2px gap between fills
 const BAND_COLOURS = ["#2b5f9e", "#3987e5", "#86b6ef", "#cde2fb"];   // ordinal ramp, brighter = bigger saving
 

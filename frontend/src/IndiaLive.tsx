@@ -3,8 +3,8 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { fetchIndiaLive, IndiaLiveDay } from "./api";
 
 const DUMB = "#d95926";
-const GRID = "#202A36";
-const INK3 = "#5F6C7B";
+const GRID = "#2C2823";
+const INK3 = "#8C8576";
 
 /**
  * The newest day of Indian grid carbon intensity, straight from Grid-India's daily

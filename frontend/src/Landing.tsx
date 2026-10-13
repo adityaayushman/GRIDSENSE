@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect } from "react";
 import { ArrowRight, ChevronDown, Github, Command } from "lucide-react";
-import LandingScene from "./LandingScene";
+import NightCurve from "./NightCurve";
 import { usePrefersReduced, useReveal } from "./motion";
 import { useScrollSpy } from "./useScrollSpy";
 import hosting from "./data/hosting.json";
@@ -93,9 +93,10 @@ const FINDINGS = [
   },
   {
     n: "07", tone: "bad", tag: "Grids",
-    head: "A dirtier, more variable grid is not a better one to shift in",
+    head: "A dirtier, more variable grid saves less on a typical night",
     body: `Germany is dirtier (${de.mean} vs ${es.mean} gCO₂eq/kWh) and swings harder, yet ` +
-      "saves less. What predicts the saving is how good the default behaviour already is.",
+      `its median night saves ${de.median_saving}% against ${es.median_saving}%. A fatter tail of big nights ` +
+      "gives it more in total. The typical saving follows how good charging on arrival already is.",
   },
   {
     n: "08", tone: "bad", tag: "V2G",
@@ -146,30 +147,6 @@ const STACK = [
   { k: "Frontend", v: "React · TypeScript · Vite · Recharts", t: "one origin" },
 ] as const;
 
-/** A button that leans a few pixels toward the cursor. */
-function useMagnetic(reduced: boolean) {
-  const ref = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (reduced) return;
-    const el = ref.current;
-    if (!el) return;
-    const move = (e: PointerEvent) => {
-      const r = el.getBoundingClientRect();
-      const x = (e.clientX - (r.left + r.width / 2)) / r.width;
-      const y = (e.clientY - (r.top + r.height / 2)) / r.height;
-      el.style.transform = `translate(${x * 9}px, ${y * 5}px)`;
-    };
-    const out = () => { el.style.transform = ""; };
-    el.addEventListener("pointermove", move);
-    el.addEventListener("pointerleave", out);
-    return () => {
-      el.removeEventListener("pointermove", move);
-      el.removeEventListener("pointerleave", out);
-    };
-  }, [reduced]);
-  return ref;
-}
-
 export default function Landing({
   onEnter, onPalette,
 }: {
@@ -178,7 +155,6 @@ export default function Landing({
 }) {
   const reduced = usePrefersReduced();
   const { active, progress } = useScrollSpy(SECTION_IDS);
-  const magnet = useMagnetic(reduced);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -199,8 +175,6 @@ export default function Landing({
 
   return (
     <div className="landing">
-      <div className="gridOverlay" />
-
       <div className="ldProgress" style={{ transform: `scaleX(${progress})` }} aria-hidden="true" />
 
       <header className={`ldNav ${past ? "isStuck" : ""}`}>
@@ -237,58 +211,53 @@ export default function Landing({
       </header>
 
       <section className="ldHero">
-        <LandingScene reduced={reduced} />
-
         <div className="ldHeroCopy">
           <span className="ldKicker riseIn" style={{ ["--i" as string]: 0 }}>
-            <span className="mastDot" aria-hidden="true" />
-            Measured grid data · <b>ENTSO-E Spain</b> · four years, hour by hour
+            Research project · measured grid data · Spain, Germany, India
           </span>
 
           <h1 className="ldTitle riseIn" style={{ ["--i" as string]: 1 }}>
-            Charge when the grid is <span className="lit">actually clean</span>.
+            Most nights, charging an EV <em>when</em> it plugs in is already close to best.
           </h1>
 
           <p className="ldLede riseIn" style={{ ["--i" as string]: 2 }}>
-            Most electric cars start charging the moment their owner gets home — straight into
-            the evening peak, on the dirtiest power of the day. GridSense schedules the same
-            energy against real carbon intensity, real prices and a real transformer limit,
-            then reports honestly how little that buys on most nights and where it buys a lot.
+            GridSense schedules the same charging energy against real carbon intensity, real prices
+            and a real transformer limit, then reports how little that buys on a typical night, where
+            it buys a lot, and which of its own published claims turned out to be wrong.
           </p>
 
-          <div className="ldStats riseIn" style={{ ["--i" as string]: 3 }}>
+          <dl className="ldLedger riseIn" style={{ ["--i" as string]: 3 }}>
             {[
-              { v: `${cap.gain}×`, k: "hosting capacity" },
-              { v: `${es.median_saving}%`, k: "median CO₂ cut" },
-              { v: `${CAPTURED}%`, k: "captured by forecast" },
+              { v: `${cap.gain}×`, k: "hosting capacity on one transformer" },
+              { v: `${es.median_saving}%`, k: "median overnight CO₂ cut, Spain" },
+              { v: `${CAPTURED}%`, k: "of the achievable saving, forecast" },
               { v: String(results.corrections_count), k: "published claims corrected" },
             ].map((s) => (
-              <div className="ldStat" key={s.k}>
-                <span className="ldStatVal">{s.v}</span>
-                <span className="ldStatKey">{s.k}</span>
+              <div className="ldLedgerRow" key={s.k}>
+                <dt>{s.k}</dt>
+                <dd>{s.v}</dd>
               </div>
             ))}
-          </div>
+          </dl>
 
           <div className="ldActions riseIn" style={{ ["--i" as string]: 4 }}>
-            <button className="ldEnter magnetic" ref={magnet} onClick={onEnter}>
-              Enter the dashboard <ArrowRight size={16} strokeWidth={2.4} />
+            <button className="ldEnter" onClick={onEnter}>
+              Open the dashboard <ArrowRight size={15} strokeWidth={2.2} />
             </button>
             <button className="ldDive" onClick={() => goto("problem")}>
-              What is this? <ChevronDown size={15} strokeWidth={2.4} />
+              Read the findings <ChevronDown size={14} strokeWidth={2.2} />
             </button>
           </div>
 
           <p className="ldHint riseIn" style={{ ["--i" as string]: 5 }}>
-            Press <span className="kbd">↵</span> to enter · <span className="kbd">⌘</span>
+            <span className="kbd">↵</span> to enter · <span className="kbd">⌘</span>
             <span className="kbd">K</span> for commands
           </p>
         </div>
 
-        <button className="ldScrollCue" onClick={() => goto("problem")}
-          aria-label="Read more about the project">
-          <ChevronDown size={18} strokeWidth={2} />
-        </button>
+        <div className="ldHeroFig riseIn" style={{ ["--i" as string]: 3 }}>
+          <NightCurve reduced={reduced} />
+        </div>
       </section>
 
       <div className="ldDetail">

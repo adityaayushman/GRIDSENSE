@@ -9,8 +9,8 @@ import IndiaLive from "./IndiaLive";
 
 const DUMB = "#d95926";
 const COORD = "#3987e5";
-const GRID = "#202A36";
-const INK3 = "#5F6C7B";
+const GRID = "#2C2823";
+const INK3 = "#8C8576";
 
 const H = india.headline;
 const E = india.euro_comparison;

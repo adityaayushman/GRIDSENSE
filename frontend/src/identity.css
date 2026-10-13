@@ -1,0 +1,208 @@
+/* GridSense — visual identity.
+   A research publication that happens to be interactive, not a SaaS dashboard.
+
+   - Warm charcoal ground, cream ink, one sodium-lamp amber for interface accents.
+   - A serif for headlines and every large figure; a mono for labels; a plain grotesque for text.
+   - Hairline rules instead of cards-with-glow. Square-ish corners. No blur, no gradients,
+     no glow, no floating 3D.
+   - Data-mark hues are untouched: they were chosen by the palette validator, and amber is
+     reserved for interface, never for a series.
+
+   Loaded last so it can retire the earlier "instrument panel" treatment without rewriting
+   every component rule. */
+
+:root {
+  --bg:          #11100E;
+  --bg-2:        #11100E;
+  --surface:     #181614;
+  --surface-2:   #1F1C19;
+  --line:        #34302A;
+  --line-bright: #51493E;
+  --line-soft:   #25221E;
+
+  --ink:   #EFE8DA;
+  --ink-2: #B9B0A0;
+  --ink-3: #8C8576;
+
+  --accent:       #E5A13A;
+  --accent-soft:  rgba(229, 161, 58, 0.12);
+  --accent-glow:  transparent;
+
+  --radius:    3px;
+  --radius-sm: 2px;
+
+  --serif: "Fraunces", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --mono:  "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans:  "IBM Plex Sans", -apple-system, "Segoe UI", sans-serif;
+
+  --e-1: none; --e-2: none; --e-3: 0 18px 40px rgba(0,0,0,.45); --e-glow: none;
+}
+
+body {
+  background: var(--bg);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.6;
+}
+::selection { background: var(--accent); color: #11100E; }
+
+/* retire the old decoration */
+.gridOverlay, .evFloor, .hero::before, .tab.active::after, .brandMark::after,
+.ldDetail::before, .ldDetail::after { display: none !important; }
+* { text-shadow: none !important; }
+.header, .tabs, .ldNav.isStuck, .cmdScrim, .footer {
+  backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+}
+
+/* ---------- type ---------- */
+h1, h2, h3, .ldTitle, .ldH2, .heroValue, .statValue, .mastFactVal, .ldLedger dd,
+.chartTitle { font-family: var(--serif); font-optical-sizing: auto; }
+.eyebrow, .ldEyebrow, .ldKicker, .statLabel, .chartMeta, .brandTag, .heroLabel,
+.legendItem, .provenance, .ldNavLink, .tab {
+  font-family: var(--mono);
+}
+.eyebrow, .ldEyebrow, .ldKicker, .statLabel {
+  text-transform: uppercase; letter-spacing: .12em; font-size: 10.5px; font-weight: 500;
+  color: var(--ink-3);
+}
+.chartTitle { font-size: 19px; font-weight: 500; letter-spacing: -.01em; }
+.heroValue { font-weight: 400; letter-spacing: -.03em; font-variation-settings: "opsz" 144; }
+.statValue { font-weight: 400; letter-spacing: -.02em; }
+
+/* ---------- surfaces: ruled panels, not glowing cards ---------- */
+.card, .hero, .statCard, .strainBanner, .tip, .cmdPanel, .shPanel, .toast {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: none;
+}
+.card, .hero { border-width: 1px 0 1px 0; border-radius: 0; background: transparent; }
+.card { padding-left: 0; padding-right: 0; }
+.statCard { background: transparent; border-width: 0 0 0 1px; border-radius: 0; padding-left: 16px; }
+.statCard::before, .statCard::after { display: none; }
+
+/* ---------- header and tabs ---------- */
+.header { background: var(--bg); border-bottom: 1px solid var(--line); padding: 14px 32px; }
+.brandMark {
+  width: 30px; height: 30px; border-radius: 0; background: var(--ink); color: var(--bg);
+  box-shadow: none; font-family: var(--serif); font-size: 21px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; line-height: 1;
+}
+.brandName { font-family: var(--serif); font-size: 19px; font-weight: 600; letter-spacing: -.01em; }
+.brandTag { letter-spacing: .02em; }
+.tabs { background: var(--bg); border-bottom: 1px solid var(--line); }
+.tab { font-size: 12px; letter-spacing: .02em; font-weight: 500; }
+.tab.active { color: var(--ink); border-bottom-color: var(--accent); }
+
+/* ---------- controls ---------- */
+.runBtn, .ldEnter, .ldNavEnter, .errorStateBtn {
+  background: var(--accent); color: #11100E; border: 1px solid var(--accent);
+  border-radius: var(--radius); box-shadow: none; font-weight: 600; letter-spacing: 0;
+  transition: background var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
+}
+.runBtn:hover:not(:disabled), .ldEnter:hover, .ldNavEnter:hover, .errorStateBtn:hover {
+  background: #F1B454; transform: translateY(-1px); box-shadow: none;
+}
+.ldDive, .ldNavCmd, .ldNavGh, .toolBtn {
+  background: transparent; border: 1px solid var(--line-bright); border-radius: var(--radius);
+  color: var(--ink-2); box-shadow: none;
+}
+.ldDive:hover, .ldNavCmd:hover, .ldNavGh:hover, .toolBtn:hover { color: var(--ink); border-color: var(--ink-3); }
+.segmented, .daySelect { border-radius: var(--radius); background: transparent; }
+.segmented button { background: transparent; }
+.segmented button.active { background: var(--accent); color: #11100E; }
+.field input[type="range"] { accent-color: var(--accent); }
+.kbd { border-radius: 2px; background: transparent; border: 1px solid var(--line-bright); color: var(--ink-2); font-family: var(--mono); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- tables read like a journal ---------- */
+.matrix th, .matrix td, .runsTable th, .runsTable td { border-color: var(--line); }
+.matrix thead th, .runsTable th {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink-3); font-weight: 500; opacity: 1;
+}
+
+/* ---------- landing ---------- */
+.ldNav { background: transparent; }
+.ldNav.isStuck { background: var(--bg); }
+.ldNavBrand { font-family: var(--serif); font-size: 19px; font-weight: 600; letter-spacing: -.01em; }
+.ldNavDot { display: none; }
+.ldNavLink { font-size: 11.5px; letter-spacing: .04em; }
+.ldNavLink.isActive { color: var(--accent); }
+.ldProgress { background: var(--accent); }
+
+.ldHero {
+  display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: clamp(32px, 5vw, 76px);
+  align-items: center; place-items: initial; text-align: left;
+  max-width: 1240px; margin: 0 auto; padding: 104px clamp(20px, 4vw, 40px) 72px;
+  min-height: 0;
+}
+.ldHeroCopy { max-width: none; text-align: left; margin: 0; }
+.ldKicker {
+  display: block; padding: 0 0 14px; margin-bottom: 26px; border: 0; border-bottom: 1px solid var(--line);
+  border-radius: 0; background: none; text-align: left; line-height: 1.5;
+}
+.ldTitle {
+  font-size: clamp(34px, 4.6vw, 60px); line-height: 1.06; font-weight: 400; letter-spacing: -.012em; word-spacing: .04em;
+  text-align: left; margin: 0 0 22px; font-variation-settings: "opsz" 144;
+  background: none; -webkit-text-fill-color: currentColor; color: var(--ink);
+}
+.ldTitle em { font-style: italic; color: var(--accent); }
+.ldTitle .lit { color: inherit; }
+.ldLede { font-size: 16.5px; line-height: 1.7; color: var(--ink-2); max-width: 54ch; text-align: left; margin: 0 0 30px; }
+
+.ldLedger { margin: 0 0 32px; padding: 0; max-width: 480px; border-top: 1px solid var(--line); }
+.ldLedgerRow { display: flex; justify-content: space-between; align-items: baseline; gap: 20px;
+  padding: 8px 0; border-bottom: 1px solid var(--line); }
+.ldLedger dt { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); letter-spacing: .02em; }
+.ldLedger dd { margin: 0; font-size: 24px; font-weight: 400; letter-spacing: -.02em; color: var(--ink); }
+.ldActions { justify-content: flex-start; }
+.ldHint { text-align: left; }
+
+.ldHeroFig { min-width: 0; }
+.nightFig { margin: 0; padding: 22px 20px 16px; border: 1px solid var(--line); background: var(--surface); }
+.nightFig svg { display: block; width: 100%; height: auto; overflow: visible; }
+.nightFig figcaption { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line);
+  font-family: var(--mono); font-size: 11px; line-height: 1.6; color: var(--ink-3); }
+.nfRule { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
+.nfTick { fill: var(--ink-3); font: 500 13px var(--mono); }
+.nfUnit { fill: var(--ink-3); font: 500 11.5px var(--mono); letter-spacing: .08em; }
+.nfLine { fill: none; stroke: var(--ink); stroke-width: 2.25; stroke-linejoin: round; stroke-linecap: round; }
+.nfDraw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: nfDraw 1.6s var(--ease-out) .4s forwards; }
+@keyframes nfDraw { to { stroke-dashoffset: 0; } }
+.nfGap { stroke: var(--accent); stroke-width: 1.5; }
+.nfRef { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 3 3; }
+.nfDotArrive { fill: var(--bg); stroke: var(--ink); stroke-width: 2; }
+.nfDotClean { fill: var(--accent); stroke: var(--bg); stroke-width: 2; }
+.nfNote { fill: var(--ink-2); font: 500 13px var(--mono); }
+.nfNoteClean { fill: var(--accent); font: 600 13px var(--mono); }
+.nfGapLabel { fill: var(--accent); font: italic 500 16px var(--serif); }
+
+.ldSection { max-width: 1000px; }
+.ldH2 { font-size: clamp(26px, 3.2vw, 38px); font-weight: 400; letter-spacing: -.02em; line-height: 1.15; }
+.ldH2.ruleIn::after, .ldH2::after { background: var(--accent); height: 1px; }
+.ldCols p, .ldSection p { color: var(--ink-2); }
+
+@media (max-width: 900px) {
+  .ldHero { grid-template-columns: 1fr; padding-top: 104px; }
+  .ldHeroFig { order: 2; }
+}
+@media (max-width: 560px) {
+  .ldLedger dd { font-size: 23px; }
+  .nightFig { padding: 14px 10px 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nfDraw { animation: none; stroke-dashoffset: 0; }
+}
+
+/* ---------- simulator masthead ---------- */
+.mastKicker { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none;
+  padding: 0 0 10px; display: flex; max-width: 44ch; }
+.mastKicker b { color: var(--ink-2); font-weight: 500; }
+.mastDot { display: none; }
+.mastTitle { font-weight: 400; letter-spacing: -.012em; word-spacing: .04em; font-variation-settings: "opsz" 144; }
+.mastTitle .lit { background: none; -webkit-text-fill-color: currentColor; color: var(--accent); font-style: italic; }
+.mastFactVal { font-weight: 400; font-size: 26px; }
+.runBtn { background: var(--accent); color: #11100E; border-radius: var(--radius); box-shadow: none; }
+.runBtn:hover:not(:disabled) { filter: none; background: #F1B454; box-shadow: none; }
+.ldHeroFig { align-self: start; padding-top: 6px; }

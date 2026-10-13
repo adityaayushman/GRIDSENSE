@@ -7,8 +7,8 @@ import { usePrefersReduced, useReveal } from "./motion";
 
 const ES = "#3987e5";
 const DE = "#d95926";
-const GRID = "#202A36";
-const INK3 = "#5F6C7B";
+const GRID = "#2C2823";
+const INK3 = "#8C8576";
 
 function Panel({ children }: { children: React.ReactNode }) {
   const reduced = usePrefersReduced();
