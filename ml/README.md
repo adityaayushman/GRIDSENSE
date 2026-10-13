@@ -7,7 +7,7 @@ claimed benefit survives contact with that data.
 ## Data
 
 [ENTSO-E Spain, 2015-2018](https://www.kaggle.com/datasets/nicholasjhana/energy-consumption-generation-prices-and-weather)
-(Kaggle, CC0). 35,064 hourly rows: generation by 20 fuel types, actual and
+(Energy-Charts republication, CC BY 4.0; the Kaggle copy is wrong on days 1-12 of every month, see FINDINGS finding 17). 35,064 hourly rows: generation by 20 fuel types, actual and
 day-ahead load, day-ahead solar/wind forecasts, day-ahead and settled prices.
 
 Carbon intensity is not a column in the dataset — it is derived in
@@ -27,18 +27,18 @@ Real Spanish grid intensity is **lowest at midday** (solar) and **highest in the
 early morning**. The synthetic curve in `data_sources.py` peaks at 19:00 and
 troughs at 13:00 — roughly the opposite shape.
 
-Backtesting the real optimizer over all 1,444 complete overnight windows
+Backtesting the real optimizer over all 1,448 complete overnight windows
 (`backtest.py`, 18:00→07:00, 80 EVs):
 
 | | CO2 reduction vs naive |
 | --- | --- |
 | Claimed by the demo (synthetic curve) | **32.4%** |
-| Real data, median night | **3.3%** |
-| Real data, mean night | 9.6% |
-| Real data, fleet total across 4 years | **10.4%** |
+| Real data, median night | **2.0%** |
+| Real data, mean night | 6.4% |
+| Real data, fleet total across 4 years | **6.6%** |
 
-The saving is real but long-tailed: **38% of nights save under 1%**, 57% save
-under 5%, while 17% save over 20%. On 33% of nights the cleanest hour in the
+The saving is real but long-tailed: **41% of nights save under 1%**, 61% save
+under 5%, while 9% save over 20%. On 36% of nights the cleanest hour in the
 window is 18:00 — the arrival hour — so naive charging is already near-optimal.
 
 ## Forecasting
@@ -96,7 +96,7 @@ live API now serves. Two details there are load-bearing:
   the API's figures would stop matching this backtest.
 - **The shipped subset is sampled along the saving distribution, not by date.**
   Taking every Nth calendar date pulled the retained median to 1.0% against the
-  true 3.3%, because saving is not evenly spread through the year. Sampling
+  true median, because saving is not evenly spread through the year. Sampling
   systematically along the sorted distribution preserves the median and both
   tails by construction. Nothing is dropped for looking bad — and the default
   night is the median, not the best.
