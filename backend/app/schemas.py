@@ -30,6 +30,12 @@ class ScenarioRequest(BaseModel):
         description="ISO date of the measured charging night to simulate "
                     "(18:00 that day to 07:00 the next). Defaults to the median-saving night.",
     )
+    signal: str = Field(
+        "average", pattern="^(average|marginal)$",
+        description="Carbon signal to schedule on and report in. 'marginal' is an estimated proxy "
+                    "(see /api/marginal) for the Spanish 2018-era nights; it is not MOER and "
+                    "ignores use_forecast.",
+    )
     use_forecast: bool = Field(
         False,
         description="Schedule against the day-ahead forecast instead of the measured "
@@ -116,3 +122,4 @@ class ScenarioResponse(BaseModel):
     gate_reason: str | None = None
     run_id: int | None = None
     era: str = "2018"
+    signal: str = "average"
