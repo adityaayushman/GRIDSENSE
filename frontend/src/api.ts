@@ -224,3 +224,27 @@ export async function fetchRuns(limit = 10): Promise<RunRow[]> {
     return [];
   }
 }
+
+export interface IndiaLiveDay {
+  day: string;
+  age_days: number;
+  fresh: boolean;
+  mean_carbon_intensity: number;
+  cleanest_hour: number;
+  dirtiest_hour: number;
+  hourly: { hour: number; label: string; carbon_intensity: number; demand_met_mw: number; renewable_share_pct: number }[];
+  checks: { solar_zero_at_night: boolean; fuels_sum_to_total: boolean; median_closure_gap_pct: number | null; plausible: boolean };
+  source: string;
+  note: string;
+}
+
+/** Newest Indian grid day from Grid-India via the API. Needs no key. */
+export async function fetchIndiaLive(): Promise<IndiaLiveDay> {
+  const res = await fetch(`${API_BASE}/api/india/live`);
+  if (!res.ok) {
+    let why = `HTTP ${res.status}`;
+    try { why = (await res.json()).detail ?? why; } catch { /* keep status */ }
+    throw new Error(why);
+  }
+  return res.json();
+}

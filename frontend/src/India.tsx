@@ -5,6 +5,7 @@ import {
 import india from "./data/india.json";
 import carbon from "./data/india_carbon.json";
 import { usePrefersReduced, useReveal, useCountUp } from "./motion";
+import IndiaLive from "./IndiaLive";
 
 const DUMB = "#d95926";
 const COORD = "#3987e5";
@@ -128,6 +129,8 @@ export default function India() {
           overwhelmingly <strong>scooters and rickshaws</strong>.
         </div>
       </section>
+
+      <IndiaLive />
 
       <Panel>
         <div className="chartHeader">
