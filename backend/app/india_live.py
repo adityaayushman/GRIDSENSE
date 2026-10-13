@@ -18,11 +18,12 @@ implausible is refused, not served.
 
 from __future__ import annotations
 
-import io
+import json
 import threading
 import time
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
 import httpx
 
@@ -228,7 +229,7 @@ def latest_day(now: date | None = None, client: httpx.Client | None = None) -> I
                     files += _listing(client, m)
                 except httpx.HTTPError as e:
                     if back == 0:
-                        raise IndiaLiveError(f"Grid-India listing unreachable: {type(e).__name__}") from e
+                        raise IndiaLiveError(f"Grid-India listing unreachable: {type(e).__name__}: {str(e)[:120]}") from e
                 if files:
                     break
             if not files:
@@ -246,7 +247,36 @@ def latest_day(now: date | None = None, client: httpx.Client | None = None) -> I
             _latest = (time.time(), stamp, path)
             return _days[stamp]
     except httpx.HTTPError as e:
-        raise IndiaLiveError(f"Grid-India request failed: {type(e).__name__}") from e
+        raise IndiaLiveError(f"Grid-India request failed: {type(e).__name__}: {str(e)[:120]}") from e
     finally:
         if own:
             client.close()
+
+
+# ------------------------------------------------------------------- fallback
+STORED = Path(__file__).parent / "data" / "india_latest.json"
+
+
+def stored_day() -> IndiaDay | None:
+    """The last day stored by ml/export_india_latest.py, for when the portal cannot be reached."""
+    if not STORED.exists():
+        return None
+    d = json.loads(STORED.read_text(encoding="utf-8"))
+    return IndiaDay(date.fromisoformat(d["day"]), d["carbon_intensity"], d["demand_met_mw"], d["renewable_share_pct"],
+                    d["checks"], d["source_file"], d.get("stored_at", ""))
+
+
+def newest() -> dict:
+    """The live day if the portal answers; otherwise the stored day, labelled as such."""
+    try:
+        s = latest_day().summary()
+        s["live"] = True
+        return s
+    except IndiaLiveError as e:
+        stored = stored_day()
+        if stored is None:
+            raise
+        s = stored.summary()
+        s.update(live=False, fresh=False, live_error=str(e),
+                 source="Stored copy of a Grid-India Daily PSP report (the live portal could not be reached)")
+        return s

@@ -226,6 +226,9 @@ export async function fetchRuns(limit = 10): Promise<RunRow[]> {
 }
 
 export interface IndiaLiveDay {
+  /** False when the portal could not be reached and a stored day is shown instead. */
+  live: boolean;
+  live_error?: string;
   day: string;
   age_days: number;
   fresh: boolean;

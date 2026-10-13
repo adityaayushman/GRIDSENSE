@@ -110,7 +110,7 @@ def test_endpoint_reports_freshness_and_the_physical_checks(monkeypatch):
     r = client.get("/api/india/live")
     assert r.status_code == 200
     b = r.json()
-    assert b["region"] == "IN" and b["age_days"] == 1 and b["fresh"] is True
+    assert b["live"] is True and b["region"] == "IN" and b["age_days"] == 1 and b["fresh"] is True
     assert len(b["hourly"]) == 24 and b["checks"]["plausible"] is True
     assert b["cleanest_hour"] == 12 and "previous day" in b["note"]
 
@@ -121,10 +121,27 @@ def test_a_stale_report_is_labelled_stale(monkeypatch):
     assert b["fresh"] is False and b["age_days"] == 9
 
 
-def test_an_unreachable_portal_is_a_502_with_a_reason(monkeypatch):
-    def boom(*a, **k):
-        raise IndiaLiveError("Grid-India listing unreachable: ConnectError")
+def _boom(*a, **k):
+    raise IndiaLiveError("Grid-India listing unreachable: ConnectError")
 
-    monkeypatch.setattr(india_live, "latest_day", boom)
+
+def test_an_unreachable_portal_with_nothing_stored_is_a_502_with_a_reason(monkeypatch):
+    monkeypatch.setattr(india_live, "latest_day", _boom)
+    monkeypatch.setattr(india_live, "stored_day", lambda: None)
     r = client.get("/api/india/live")
     assert r.status_code == 502 and "unreachable" in r.json()["detail"]
+
+
+def test_an_unreachable_portal_falls_back_to_the_stored_day_and_says_so(monkeypatch):
+    monkeypatch.setattr(india_live, "latest_day", _boom)
+    r = client.get("/api/india/live")
+    assert r.status_code == 200
+    b = r.json()
+    assert b["live"] is False and b["fresh"] is False and "ConnectError" in b["live_error"]
+    assert "Stored copy" in b["source"] and len(b["hourly"]) == 24 and b["checks"]["plausible"] is True
+
+
+def test_the_stored_day_is_physically_plausible_and_complete():
+    d = india_live.stored_day()
+    assert d is not None and d.checks["plausible"]
+    assert len(d.carbon_intensity) == 24 and min(d.carbon_intensity) > 300

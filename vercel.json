@@ -4,17 +4,33 @@
     {
       "src": "frontend/package.json",
       "use": "@vercel/static-build",
-      "config": { "distDir": "dist" }
+      "config": {
+        "distDir": "dist"
+      }
     },
     {
       "src": "backend/api/index.py",
       "use": "@vercel/python",
-      "config": { "includeFiles": "backend/app/**" }
+      "config": {
+        "includeFiles": "backend/app/**"
+      }
     }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "/backend/api/index.py" },
-    { "src": "/assets/(.*)", "dest": "/frontend/assets/$1" },
-    { "src": "/(.*)", "dest": "/frontend/index.html" }
+    {
+      "src": "/api/(.*)",
+      "dest": "/backend/api/index.py"
+    },
+    {
+      "src": "/assets/(.*)",
+      "dest": "/frontend/assets/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/frontend/index.html"
+    }
+  ],
+  "regions": [
+    "bom1"
   ]
 }

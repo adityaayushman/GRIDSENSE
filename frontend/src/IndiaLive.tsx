@@ -41,7 +41,7 @@ export default function IndiaLive() {
         <div>
           <div className="eyebrow">
             Latest Indian grid day · {day.day} · {day.age_days === 0 ? "today" : `${day.age_days} day${day.age_days === 1 ? "" : "s"} old`}
-            {!day.fresh && " · stale"}
+            {!day.live ? " · stored copy, live portal unreachable" : !day.fresh ? " · stale" : ""}
           </div>
           <div className="chartTitle">
             Mean {day.mean_carbon_intensity} g CO₂/kWh · cleanest at {hh(day.cleanest_hour)}, dirtiest at {hh(day.dirtiest_hour)}
