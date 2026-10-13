@@ -19,6 +19,7 @@ import CommandPalette, { Command as Cmd } from "./CommandPalette";
 import Shortcuts from "./Shortcuts";
 import { ToastHost, useToast } from "./toast";
 import { usePrefersReduced, useCountUp } from "./motion";
+import HeroScene from "./HeroScene";
 import "./design.css";
 import "./index.css";
 import "./ev-theme.css";
@@ -537,7 +538,9 @@ function App() {
               </div>
             </div>
           </div>
-
+          <div className="heroStage" aria-hidden="false">
+            <HeroScene reduced={prefersReduced} />
+          </div>
         </section>
       )}
 

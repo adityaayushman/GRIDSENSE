@@ -206,3 +206,9 @@ h1, h2, h3, .ldTitle, .ldH2, .heroValue, .statValue, .mastFactVal, .ldLedger dd,
 .runBtn { background: var(--accent); color: #11100E; border-radius: var(--radius); box-shadow: none; }
 .runBtn:hover:not(:disabled) { filter: none; background: #F1B454; box-shadow: none; }
 .ldHeroFig { align-self: start; padding-top: 6px; }
+
+/* ---------- the grid-to-car scene ---------- */
+.heroScene { display: block; width: 100%; height: auto; }
+.hsTick { fill: var(--ink-3); font: 500 11px var(--mono); letter-spacing: .06em; }
+.heroStage { min-width: 0; border: 1px solid var(--line); background: var(--surface); padding: 14px 16px 8px; }
+.ldScene { margin-top: 16px; border: 1px solid var(--line); background: var(--surface); padding: 14px 16px 8px; }
