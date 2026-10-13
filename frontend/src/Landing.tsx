@@ -4,6 +4,7 @@ import LandingScene from "./LandingScene";
 import { usePrefersReduced, useReveal } from "./motion";
 import { useScrollSpy } from "./useScrollSpy";
 import hosting from "./data/hosting.json";
+import results from "./data/results.json";
 import regions from "./data/regions.json";
 import mpc from "./data/mpc.json";
 
@@ -22,6 +23,8 @@ const [es, de] = regions.regions;
 // `headline_identical` is the same sweep with every car identical, which spikes
 // them all at one instant and overstates the gain roughly threefold.
 const cap = hosting.headline;
+// The 2025 forecaster's share of the achievable saving, read from the results file so it cannot go stale.
+const CAPTURED = Math.round((results as any).forecast.es2025.deployed);
 
 const SECTIONS = [
   { id: "problem", nav: "Problem" },
@@ -85,7 +88,7 @@ const FINDINGS = [
   {
     n: "06", tone: "flat", tag: "Forecast",
     head: "Forecast error only matters when there is something to gain",
-    body: "The shipped model captures 71% of the achievable saving. On nearly flat nights its " +
+    body: `The 2025 forecaster captures ${CAPTURED}% of the achievable saving. On nearly flat nights its ` +
       "error exceeds the real spread, and acting on it does worse than nothing.",
   },
   {
@@ -97,15 +100,15 @@ const FINDINGS = [
   {
     n: "08", tone: "bad", tag: "V2G",
     head: "V2G is not economic for carbon",
-    body: "Abatement through vehicle-to-grid costs €0.78–1.01 per kg CO₂ against an ETS price " +
-      "near €0.06–0.09. It shaves peak well; as a carbon lever it is ten times too expensive.",
+    body: "Abatement through vehicle-to-grid costs €0.28–0.53 per kg CO₂ against an ETS price " +
+      "near €0.06–0.09. It cuts the bill, not the peak; as a carbon lever it is three to nine times too expensive.",
   },
   {
     n: "09", tone: "bad", tag: "Control",
     head: "Rolling-horizon control loses to the one-shot LP",
-    body: `Re-solving hourly costs +${mpc.attribution_pp.rolling_commitment}pp of regret while ` +
-      `the sharper forecast buys back only ${mpc.attribution_pp.fresher_forecast}pp. ` +
-      "The control structure costs more than the information is worth.",
+    body: `Committing hourly is free (${mpc.attribution_pp.rolling_commitment}pp) but the refreshed forecast ` +
+      `adds +${mpc.attribution_pp.fresher_forecast}pp of regret. ` +
+      "Better information made the schedule worse, and I do not yet know why.",
   },
 ] as const;
 
@@ -257,8 +260,8 @@ export default function Landing({
             {[
               { v: `${cap.gain}×`, k: "hosting capacity" },
               { v: `${es.median_saving}%`, k: "median CO₂ cut" },
-              { v: "71%", k: "captured by forecast" },
-              { v: "8", k: "published claims corrected" },
+              { v: `${CAPTURED}%`, k: "captured by forecast" },
+              { v: String(results.corrections_count), k: "published claims corrected" },
             ].map((s) => (
               <div className="ldStat" key={s.k}>
                 <span className="ldStatVal">{s.v}</span>

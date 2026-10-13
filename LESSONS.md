@@ -1,6 +1,6 @@
 # What I got wrong, and how I found out
 
-GridSense went through eight material corrections while it was being built. Each
+GridSense went through nine material corrections while it was being built. Each
 change is recorded in [FINDINGS.md](FINDINGS.md) with the before and after. This
 page is the short version: what each mistake was, what caught it, and what I do
 differently now.
@@ -17,6 +17,7 @@ differently now.
 | 6 | India carbon-aware charging saves **0.05%**, on a grid at 541 g/kWh | The parser read the wrong column for **84% of days** after Grid-India changed its spreadsheet layout twice. Coal was being weighted as gas | An hour-of-day profile showing "solar" at 15 GW at midnight | 0.12% overnight, 592 g/kWh, and a daytime window worth 1.51%. Direction held, numbers did not (finding 14) |
 | 7 | **5.3×**, to one decimal place | It was one random draw of the fleet, and the best of twenty | Re-running with 20 seeds | Median about 4×, range 3.4–5.3× (finding 1) |
 | 8 | The forecaster's best inputs, the TSO's day-ahead solar, wind and load forecasts, are out of reach without an ENTSO-E token | They are republished free, without a key, by Energy-Charts | Trying one more source before filing it as blocked, when asked to unblock it | A modern-grid forecaster capturing 80.9% of the achievable saving (finding 16) |
+| 9 | The Spanish ENTSO-E record I built everything on was sound, and the 0.63 hourly correlation against a second copy was a caveat | The Kaggle copy is wrong on days 1-12 of every month: 11.1% from REE's official daily totals against 5.5% on days 13 onward. The headline savings were carried by those nights | Arbitrating the two sources against Spain's grid operator instead of leaving the disagreement as a footnote | Median night 2.0% (was 3.3%), fleet total 6.6% (was 10.4%), every Spanish figure re-run on a corrected record (finding 17) |
 
 ## What the mistakes have in common
 
@@ -25,6 +26,8 @@ and 6 are the same error three times: a derived series (a carbon curve, a
 household load, a fuel mix) was accepted because it was smooth, complete and
 numeric. None of them failed loudly. Each one was caught by asking whether the
 number could exist, not whether it parsed.
+
+**A source that disagreed was left as a caveat.** Mistake 9 sat in finding 16's caveats as a correlation of 0.63 between two copies of the same series. It was moving the headline by a third. When two sources of one quantity disagree, find a third and settle it before building on either.
 
 **One run was reported as the answer.** Mistake 7 is mistake 2 in another form:
 the figure depended on a choice (a synchronised fleet, a random seed) that I

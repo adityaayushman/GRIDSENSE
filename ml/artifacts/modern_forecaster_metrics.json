@@ -7,8 +7,8 @@
       "mae": 15.32,
       "captured_pct": 68.9,
       "worse_nights_pct": 26.6,
-      "gated_7p5_captured_pct": 67.9,
-      "gated_7p5_worse_pct": 3.6,
+      "gated_captured_pct": 73.6,
+      "gated_worse_pct": 7.8,
       "oracle_saving_pct": 7.79,
       "nights": 361
     },
@@ -16,8 +16,8 @@
       "mae": 28.49,
       "captured_pct": 40.0,
       "worse_nights_pct": 33.0,
-      "gated_7p5_captured_pct": 40.8,
-      "gated_7p5_worse_pct": 11.6,
+      "gated_captured_pct": 42.7,
+      "gated_worse_pct": 15.8,
       "oracle_saving_pct": 7.79,
       "nights": 361
     },
@@ -31,8 +31,8 @@
       "mae": 21.06,
       "captured_pct": 68.4,
       "worse_nights_pct": 16.2,
-      "gated_7p5_captured_pct": 62.8,
-      "gated_7p5_worse_pct": 5.3,
+      "gated_captured_pct": 68.3,
+      "gated_worse_pct": 7.0,
       "oracle_saving_pct": 11.81,
       "nights": 359
     },
@@ -40,8 +40,8 @@
       "mae": 15.62,
       "captured_pct": 75.9,
       "worse_nights_pct": 13.1,
-      "gated_7p5_captured_pct": 77.0,
-      "gated_7p5_worse_pct": 3.6,
+      "gated_captured_pct": 76.9,
+      "gated_worse_pct": 5.6,
       "oracle_saving_pct": 11.81,
       "nights": 359
     },
@@ -49,8 +49,8 @@
       "mae": 15.16,
       "captured_pct": 77.4,
       "worse_nights_pct": 12.0,
-      "gated_7p5_captured_pct": 78.0,
-      "gated_7p5_worse_pct": 3.1,
+      "gated_captured_pct": 78.3,
+      "gated_worse_pct": 4.7,
       "oracle_saving_pct": 11.81,
       "nights": 359
     }
@@ -63,8 +63,8 @@
           "mae": 16.01,
           "captured_pct": 73.0,
           "worse_nights_pct": 12.8,
-          "gated_7p5_captured_pct": 67.8,
-          "gated_7p5_worse_pct": 7.1,
+          "gated_captured_pct": 71.4,
+          "gated_worse_pct": 8.8,
           "oracle_saving_pct": 10.38,
           "nights": 352
         },
@@ -72,8 +72,8 @@
           "mae": 15.6,
           "captured_pct": 80.9,
           "worse_nights_pct": 10.0,
-          "gated_7p5_captured_pct": 80.7,
-          "gated_7p5_worse_pct": 2.5,
+          "gated_captured_pct": 80.9,
+          "gated_worse_pct": 4.5,
           "oracle_saving_pct": 11.81,
           "nights": 359
         },
@@ -81,8 +81,8 @@
           "mae": 15.77,
           "captured_pct": 79.7,
           "worse_nights_pct": 11.1,
-          "gated_7p5_captured_pct": 77.4,
-          "gated_7p5_worse_pct": 1.9,
+          "gated_captured_pct": 79.6,
+          "gated_worse_pct": 3.3,
           "oracle_saving_pct": 11.81,
           "nights": 359
         }
@@ -93,8 +93,8 @@
           "mae": 17.14,
           "captured_pct": 72.0,
           "worse_nights_pct": 13.6,
-          "gated_7p5_captured_pct": 68.1,
-          "gated_7p5_worse_pct": 8.0,
+          "gated_captured_pct": 72.1,
+          "gated_worse_pct": 9.1,
           "oracle_saving_pct": 10.38,
           "nights": 352
         },
@@ -102,8 +102,8 @@
           "mae": 14.65,
           "captured_pct": 78.2,
           "worse_nights_pct": 12.3,
-          "gated_7p5_captured_pct": 78.4,
-          "gated_7p5_worse_pct": 3.6,
+          "gated_captured_pct": 78.8,
+          "gated_worse_pct": 5.3,
           "oracle_saving_pct": 11.81,
           "nights": 359
         },
@@ -111,8 +111,8 @@
           "mae": 13.6,
           "captured_pct": 82.3,
           "worse_nights_pct": 9.7,
-          "gated_7p5_captured_pct": 78.3,
-          "gated_7p5_worse_pct": 1.9,
+          "gated_captured_pct": 80.5,
+          "gated_worse_pct": 2.8,
           "oracle_saving_pct": 11.81,
           "nights": 359
         }
@@ -123,8 +123,8 @@
           "mae": 16.01,
           "captured_pct": 71.6,
           "worse_nights_pct": 14.8,
-          "gated_7p5_captured_pct": 66.8,
-          "gated_7p5_worse_pct": 8.2,
+          "gated_captured_pct": 70.3,
+          "gated_worse_pct": 9.9,
           "oracle_saving_pct": 10.38,
           "nights": 352
         },
@@ -132,8 +132,8 @@
           "mae": 15.16,
           "captured_pct": 77.4,
           "worse_nights_pct": 12.0,
-          "gated_7p5_captured_pct": 78.0,
-          "gated_7p5_worse_pct": 3.1,
+          "gated_captured_pct": 78.3,
+          "gated_worse_pct": 4.7,
           "oracle_saving_pct": 11.81,
           "nights": 359
         },
@@ -141,8 +141,8 @@
           "mae": 12.79,
           "captured_pct": 80.7,
           "worse_nights_pct": 8.4,
-          "gated_7p5_captured_pct": 77.9,
-          "gated_7p5_worse_pct": 1.9,
+          "gated_captured_pct": 79.8,
+          "gated_worse_pct": 2.2,
           "oracle_saving_pct": 11.81,
           "nights": 359
         }
@@ -153,8 +153,8 @@
           "mae": 16.28,
           "captured_pct": 73.5,
           "worse_nights_pct": 15.1,
-          "gated_7p5_captured_pct": 67.5,
-          "gated_7p5_worse_pct": 8.0,
+          "gated_captured_pct": 72.0,
+          "gated_worse_pct": 9.4,
           "oracle_saving_pct": 10.38,
           "nights": 352
         },
@@ -162,8 +162,8 @@
           "mae": 15.39,
           "captured_pct": 76.7,
           "worse_nights_pct": 11.7,
-          "gated_7p5_captured_pct": 77.0,
-          "gated_7p5_worse_pct": 2.8,
+          "gated_captured_pct": 76.9,
+          "gated_worse_pct": 4.7,
           "oracle_saving_pct": 11.81,
           "nights": 359
         },
@@ -171,8 +171,8 @@
           "mae": 11.95,
           "captured_pct": 79.3,
           "worse_nights_pct": 10.3,
-          "gated_7p5_captured_pct": 76.9,
-          "gated_7p5_worse_pct": 1.9,
+          "gated_captured_pct": 78.0,
+          "gated_worse_pct": 3.1,
           "oracle_saving_pct": 11.81,
           "nights": 359
         }
@@ -183,8 +183,8 @@
           "mae": 17.6,
           "captured_pct": 69.2,
           "worse_nights_pct": 15.9,
-          "gated_7p5_captured_pct": 67.0,
-          "gated_7p5_worse_pct": 8.5,
+          "gated_captured_pct": 69.0,
+          "gated_worse_pct": 10.2,
           "oracle_saving_pct": 10.38,
           "nights": 352
         },
@@ -192,8 +192,8 @@
           "mae": 16.79,
           "captured_pct": 72.4,
           "worse_nights_pct": 14.2,
-          "gated_7p5_captured_pct": 74.0,
-          "gated_7p5_worse_pct": 3.9,
+          "gated_captured_pct": 75.4,
+          "gated_worse_pct": 5.0,
           "oracle_saving_pct": 11.81,
           "nights": 359
         },
@@ -201,8 +201,8 @@
           "mae": 11.81,
           "captured_pct": 80.5,
           "worse_nights_pct": 7.8,
-          "gated_7p5_captured_pct": 77.4,
-          "gated_7p5_worse_pct": 2.2,
+          "gated_captured_pct": 80.3,
+          "gated_worse_pct": 3.1,
           "oracle_saving_pct": 11.81,
           "nights": 359
         }
@@ -215,8 +215,8 @@
     "mae": 15.6,
     "captured_pct": 80.9,
     "worse_nights_pct": 10.0,
-    "gated_7p5_captured_pct": 80.7,
-    "gated_7p5_worse_pct": 2.5,
+    "gated_captured_pct": 80.9,
+    "gated_worse_pct": 4.5,
     "oracle_saving_pct": 11.81,
     "nights": 359,
     "blend_captured_pct": 81.6,

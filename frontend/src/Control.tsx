@@ -94,8 +94,8 @@ export default function Control() {
         <div className="heroNote">
           Grid operators re-solve as data arrives and commit only the next step, so the scheduler
           was rebuilt that way. It <strong>loses</strong>. The forecasts really do sharpen as the
-          hour approaches — that part holds — but committing hour by hour costs about{" "}
-          <strong>1.7×</strong> what the better information is worth.
+          hour approaches — that part holds — but the sharper forecast did not produce better
+          decisions, and committing hour by hour was not the cause. I do not know why.
         </div>
       </section>
 
@@ -173,19 +173,18 @@ export default function Control() {
             <tbody>
               <tr>
                 <th scope="row">One-shot → rolling, same information</th>
-                <td className="mine" style={{ color: NEG }}>+{att.rolling_commitment}pp</td>
-                <td><span className="claimBad">what committing hour by hour costs</span></td>
+                <td className="mine" style={{ color: FLAT }}>{att.rolling_commitment}pp</td>
+                <td><span className="claimGood">committing hour by hour is free</span></td>
               </tr>
               <tr>
                 <th scope="row">Rolling, static → rolling, refreshed</th>
-                <td className="mine" style={{ color: OPT }}>{att.fresher_forecast}pp</td>
-                <td><span className="claimGood">what a sharper forecast buys</span></td>
+                <td className="mine" style={{ color: NEG }}>+{att.fresher_forecast}pp</td>
+                <td><span className="claimBad">what the refreshed forecast costs</span></td>
               </tr>
               <tr className="matrixTotal">
                 <th scope="row">Net</th>
                 <td className="mine" style={{ color: NEG }}>+{att.net}pp</td>
-                <td><span className="claimBad">the control structure costs ~1.7× what
-                  the information is worth</span></td>
+                <td><span className="claimBad">fresher information made the schedule worse</span></td>
               </tr>
             </tbody>
           </table>
@@ -195,7 +194,7 @@ export default function Control() {
       <Panel>
         <div className="chartHeader">
           <div>
-            <div className="chartTitle">Why it loses: the controller waits too long</div>
+            <div className="chartTitle">Where the energy goes</div>
             <div className="chartMeta">
               Mean point in the window at which energy is delivered · 0 = 18:00, 12 = 06:00
             </div>
@@ -218,13 +217,13 @@ export default function Control() {
           </table>
         </div>
         <p className="calloutText">
-          The rolling controller that learns nothing defers <strong>hardest of all</strong> — later
-          even than perfect foresight. Each hour it weighs the hour in front of it against the{" "}
-          <em>minimum</em> of a dozen noisy forecasts, and the minimum of noisy estimates is
-          optimistically biased: some later hour nearly always looks cleaner than it will prove to
-          be. So it waits, waits again, and ends up buying whatever the remaining hours offer. The
-          one-shot LP never makes that comparison — it allocates across all thirteen hours at once,
-          and its errors partly cancel.
+          An earlier version of this analysis said the controller waits too long, because the
+          minimum of a dozen noisy forecasts is optimistically biased. On the corrected data that
+          does not hold: the refreshed controller delivers <em>earlier</em> than perfect foresight,
+          and the arm that re-solves on a static forecast matches the one-shot plan. So the
+          diagnosis was wrong, and I do not have a replacement. One untested candidate is that
+          splicing the near-horizon models onto the day-ahead model gives curves that disagree
+          from one hour to the next.
         </p>
       </Panel>
 
@@ -254,8 +253,8 @@ export default function Control() {
           destroys by waiting, was then tried at five strengths and made regret worse every time
           ({mpc.deferral_penalty.results["0.5"].mean_regret_pct}% to{" "}
           {mpc.deferral_penalty.results["2.0"].mean_regret_pct}%, against the one-shot's{" "}
-          {mpc.deferral_penalty.oneshot_regret_pct}%): the refreshed controller was not
-          over-deferring in the first place.
+          {mpc.deferral_penalty.oneshot_regret_pct}%): pushing a controller that already lands
+          early still earlier only moves energy into dirtier hours.
         </p>
       </Panel>
 

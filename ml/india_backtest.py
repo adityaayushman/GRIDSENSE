@@ -52,8 +52,27 @@ def window_hours(arrival: int, deadline: int) -> list[int]:
     return [(arrival + i) % 24 for i in range(span)]
 
 
+def stitch(curve_by_day: dict, deadline: int) -> dict:
+    """Make each day's curve a real charging night: evening of day D, morning of day D+1.
+
+    An earlier version used one calendar day's 24 values for the overnight window, so
+    the hours "after midnight" were the morning *before* the evening arrival. The
+    Spanish nights were always stitched; this brings India in line (FINDINGS finding 12).
+    """
+    days = sorted(curve_by_day)
+    out = {}
+    for today, tomorrow in zip(days, days[1:]):
+        if (tomorrow - today).days != 1:
+            continue
+        a, b = curve_by_day[today], curve_by_day[tomorrow]
+        out[today] = [b[h] if h < deadline else a[h] for h in range(24)]
+    return out
+
+
 def replay(curve_by_day: dict, arrival: int, deadline: int) -> list[float]:
-    """Percentage CO2 cut against charging on arrival, one figure per day."""
+    """Percentage CO2 cut against charging on arrival, one figure per night."""
+    if deadline < arrival:                     # the window crosses midnight
+        curve_by_day = stitch(curve_by_day, deadline)
     hours = window_hours(arrival, deadline)
     fleet = indian_fleet(FLEET_N, arrival=arrival, deadline=deadline)
     naive = naive_schedule(fleet)
@@ -114,7 +133,7 @@ def main() -> None:
     print()
     if night and day:
         print(f"  Overnight charging in India saves a median "
-              f"{night['median_cut_pct']:.2f}%, against Spain's 3.30%.")
+              f"{night['median_cut_pct']:.2f}%, against Spain's 2.0%.")
         print(f"  Moving the same fleet to a daytime window saves "
               f"{day['median_cut_pct']:.2f}% — "
               f"{day['median_cut_pct'] / max(night['median_cut_pct'], 1e-9):.1f}x more.")
@@ -123,7 +142,7 @@ def main() -> None:
               "gCO2eq/kWh.")
 
     print(f"\n  Finding 7 predicted India would save less than Spain despite being "
-          f"{h['ci'].mean() / 266.6:.1f}x dirtier.")
+          f"{h['ci'].mean() / 254.6:.1f}x dirtier.")
     print("  It does. The dirt is real; the shape is not there to exploit.")
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
@@ -144,7 +163,8 @@ def main() -> None:
         "diurnal": [{"hour": int(x), "ci": round(float(v), 1)}
                     for x, v in by_hour_mean.items()],
         "windows": results,
-        "reference": {"spain_mean_ci": 266.6, "spain_median_cut": 3.3,
+        # Spain on the corrected record (FINDINGS.md finding 17): 1,448 nights, 2015-2018.
+        "reference": {"spain_mean_ci": 254.6, "spain_median_cut": 2.0,
                       "germany_mean_ci": 358.4, "germany_median_cut": 1.0},
         "fleet": f"{FLEET_N} Indian EVs in national segment proportions",
     }, indent=1), encoding="utf-8")

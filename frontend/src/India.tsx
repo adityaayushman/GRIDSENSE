@@ -208,11 +208,11 @@ export default function India() {
             <XAxis dataKey="name" tick={{ fill: INK3, fontSize: 11 }}
               axisLine={{ stroke: GRID }} tickLine={false}
               label={{ value: "transformer rating (kVA)", position: "insideBottom",
-                offset: -2, fill: INK3, fontSize: 11 }} />
+                offset: -6, fill: INK3, fontSize: 11 }} height={44} />
             <YAxis tick={{ fill: INK3, fontSize: 11 }} axisLine={false} tickLine={false}
               width={48} />
             <Tooltip content={<CapTip />} cursor={{ fill: "rgba(255,255,255,.03)" }} />
-            <Legend wrapperStyle={{ fontSize: 11, color: INK3 }} />
+            <Legend verticalAlign="top" height={28} wrapperStyle={{ fontSize: 11, color: INK3 }} />
             <Bar dataKey="dumb" name="Charging on arrival" fill={DUMB}
               radius={[4, 4, 0, 0]} isAnimationActive={false} />
             <Bar dataKey="coordinated" name="Coordinated" fill={COORD}
@@ -280,7 +280,7 @@ export default function India() {
           <div>
             <div className="chartTitle">Capacity is not one number — it is seasonal</div>
             <div className="chartMeta">
-              {H.rating_kva} kVA unit · overnight level and window shape both taken from{" "}
+              {H.rating_kva} kVA unit · red marks the season with the least headroom · level and window shape from{" "}
               {india.demand_source.rows.toLocaleString()} measured hours,{" "}
               {india.demand_source.range}
             </div>
@@ -294,10 +294,10 @@ export default function India() {
             <YAxis tick={{ fill: INK3, fontSize: 11 }} axisLine={false} tickLine={false}
               width={48} />
             <Tooltip content={<SeasonTip />} cursor={{ fill: "rgba(255,255,255,.03)" }} />
-            <Legend wrapperStyle={{ fontSize: 11, color: INK3 }} />
+            <Legend verticalAlign="top" height={28} wrapperStyle={{ fontSize: 11, color: INK3 }} />
             <Bar dataKey="dumb" name="Charging on arrival" fill={DUMB}
               radius={[4, 4, 0, 0]} isAnimationActive={false} />
-            <Bar dataKey="coordinated" name="Coordinated" radius={[4, 4, 0, 0]}
+            <Bar dataKey="coordinated" name="Coordinated" fill={COORD} radius={[4, 4, 0, 0]}
               isAnimationActive={false}>
               {seasons.map((s) => (
                 <Cell key={s.name} fill={s.worst ? "#d03b3b" : COORD} />

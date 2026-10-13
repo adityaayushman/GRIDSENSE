@@ -1,0 +1,84 @@
+{
+ "nights": 12,
+ "vehicles": 80,
+ "rows": [
+  {
+   "objective": "emissions",
+   "mode": "charge-only",
+   "co2_kg": 1808.3,
+   "cost_eur": 959.19,
+   "mean_peak_kw": 576.5,
+   "exported_kwh": 0
+  },
+  {
+   "objective": "emissions",
+   "mode": "V2G capped 6 kWh",
+   "co2_kg": 1741.1,
+   "cost_eur": 978.28,
+   "mean_peak_kw": 579.6,
+   "exported_kwh": 3706
+  },
+  {
+   "objective": "emissions",
+   "mode": "V2G uncapped",
+   "co2_kg": 1695.2,
+   "cost_eur": 1019.62,
+   "mean_peak_kw": 579.4,
+   "exported_kwh": 8014
+  },
+  {
+   "objective": "peak",
+   "mode": "charge-only",
+   "co2_kg": 1953.3,
+   "cost_eur": 999.37,
+   "mean_peak_kw": 86.7,
+   "exported_kwh": 0
+  },
+  {
+   "objective": "peak",
+   "mode": "V2G capped 6 kWh",
+   "co2_kg": 1953.3,
+   "cost_eur": 999.37,
+   "mean_peak_kw": 86.7,
+   "exported_kwh": 0
+  },
+  {
+   "objective": "peak",
+   "mode": "V2G uncapped",
+   "co2_kg": 1953.3,
+   "cost_eur": 999.37,
+   "mean_peak_kw": 86.7,
+   "exported_kwh": 0
+  },
+  {
+   "objective": "cost",
+   "mode": "charge-only",
+   "co2_kg": 1886.4,
+   "cost_eur": 917.91,
+   "mean_peak_kw": 493.1,
+   "exported_kwh": 0
+  },
+  {
+   "objective": "cost",
+   "mode": "V2G capped 6 kWh",
+   "co2_kg": 1882.5,
+   "cost_eur": 859.81,
+   "mean_peak_kw": 585.6,
+   "exported_kwh": 3840
+  },
+  {
+   "objective": "cost",
+   "mode": "V2G uncapped",
+   "co2_kg": 1906.3,
+   "cost_eur": 812.13,
+   "mean_peak_kw": 585.7,
+   "exported_kwh": 7488
+  }
+ ],
+ "naive_co2_kg": 1950.3,
+ "naive_cost_eur": 1072.65,
+ "abatement_eur_per_kg_capped": 0.28,
+ "co2_saved_kg_capped": 67.19,
+ "abatement_eur_per_kg_uncapped": 0.53,
+ "co2_saved_kg_uncapped": 113.13
+}

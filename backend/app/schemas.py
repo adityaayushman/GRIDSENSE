@@ -42,8 +42,8 @@ class ScenarioRequest(BaseModel):
         description="Forecast gate. When scheduling on the day-ahead forecast, charge on "
                     "arrival instead unless the saving the forecast expects is at least this "
                     "many percent. Guards against the forecast's own error on flat nights, "
-                    "where scheduling on it can be worse than not scheduling. 7.5 is the "
-                    "value finding 13 settled on for Spain. Applies only with the emissions "
+                    "where scheduling on it can be worse than not scheduling. 4 is the "
+                    "value finding 13 settled on. Applies only with the emissions "
                     "objective, use_forecast, no feeder limit and no V2G; otherwise ignored "
                     "and the response says why.",
     )

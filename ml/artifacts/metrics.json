@@ -2,60 +2,60 @@
   "accuracy": [
     {
       "model": "persistence (lag 24h)",
-      "mae": 44.319,
-      "rmse": 59.984
+      "mae": 31.774,
+      "rmse": 42.549
     },
     {
       "model": "climatology (month x hour)",
-      "mae": 56.014,
-      "rmse": 68.491
+      "mae": 45.087,
+      "rmse": 56.808
     },
     {
       "model": "shipped synthetic curve",
-      "mae": 97.197,
-      "rmse": 124.64
+      "mae": 101.04,
+      "rmse": 128.203
     },
     {
       "model": "ridge",
-      "mae": 28.272,
-      "rmse": 36.016
+      "mae": 21.179,
+      "rmse": 26.411
     },
     {
       "model": "gradient boosting",
-      "mae": 28.51,
-      "rmse": 37.089
+      "mae": 20.205,
+      "rmse": 26.12
     }
   ],
   "decision_regret": [
     {
       "model": "shipped synthetic curve",
-      "captured_pct": -26.8,
-      "captured_kg": -1964.9,
-      "achievable_kg": 7330.8
+      "captured_pct": -34.03,
+      "captured_kg": -1695.5,
+      "achievable_kg": 4982.1
     },
     {
       "model": "climatology",
-      "captured_pct": 16.43,
-      "captured_kg": 1204.3,
-      "achievable_kg": 7330.8
+      "captured_pct": 55.48,
+      "captured_kg": 2764.2,
+      "achievable_kg": 4982.1
     },
     {
       "model": "persistence",
-      "captured_pct": 12.83,
-      "captured_kg": 940.8,
-      "achievable_kg": 7330.8
+      "captured_pct": 32.26,
+      "captured_kg": 1607.3,
+      "achievable_kg": 4982.1
     },
     {
       "model": "ridge",
-      "captured_pct": 68.5,
-      "captured_kg": 5021.6,
-      "achievable_kg": 7330.8
+      "captured_pct": 67.18,
+      "captured_kg": 3346.7,
+      "achievable_kg": 4982.1
     },
     {
       "model": "gradient boosting",
-      "captured_pct": 67.51,
-      "captured_kg": 4949.0,
-      "achievable_kg": 7330.8
+      "captured_pct": 69.48,
+      "captured_kg": 3461.6,
+      "achievable_kg": 4982.1
     }
   ]
 }

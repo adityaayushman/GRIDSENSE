@@ -26,7 +26,7 @@ export default function IndiaLive() {
     return (
       <section className="card">
         <div className="eyebrow">Latest Indian grid day</div>
-        <p className="calloutText">Grid-India's report could not be loaded just now ({err}). The figures below are from the stored record.</p>
+        <p className="calloutText" title={err}>Grid-India's newest report is unavailable right now. The figures below come from the stored record.</p>
       </section>
     );
   }

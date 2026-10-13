@@ -126,7 +126,7 @@ the evening before, while still scoring the result against what actually
 happened.
 
 That gap is the honest cost of not knowing tomorrow. On the default night it is
-3.8% → **2.9%**; aggregated across 2018 the forecast captures **71.0%** of the
+2.6% → **0.0%** (a nearly flat night, where the gate would hold back); aggregated across 2018 the forecast captures **68.9%** of the
 achievable saving.
 
 Predictions are precomputed per night by `ml/export_forecast_curves.py`, so
@@ -139,32 +139,31 @@ carbon chart overlays the forecast the scheduler saw against the actual curve.
 > worse than nothing. A production system should act only when the predicted
 > spread is worth acting on. `ml/spread_gate.py` measures that gate (finding 13):
 > in Spain gating on the expected saving cuts the harmful nights from 27% to 6%
-> at no cost to the total. It is wired into the API (`gate_min_saving_pct`) and
+> and raises the total slightly (τ = 4%). It is wired into the API (`gate_min_saving_pct`) and
 > the Simulator's forecast toggle.
 
 ## Rolling-horizon control — built, and measured as a negative result
 
 `ml/train_horizon.py` trains one ridge per forecast horizon, h = 1..13, so the
 question "does waiting buy better information?" is answered with a number rather
-than an assumption. It does: MAE runs **6.72 g** at one hour ahead to **26.33 g**
+than an assumption. It does: MAE runs **4.96 g** at one hour ahead to **20.49 g**
 at thirteen, monotone.
 
 `ml/mpc.py` then rebuilds the scheduler the way grid operators actually run —
 re-solve every hour on refreshed forecasts, commit only the next hour — and
 replays it over 362 held-out nights against the one-shot LP and perfect
-foresight. **It loses**, and the loss decomposes: hour-by-hour commitment costs
-**+1.361pp** of regret while the sharper forecast buys back only **−0.796pp**.
+foresight. **It loses** (regret 2.965% against the one-shot's 2.521%), and the loss
+decomposes: hour-by-hour commitment is free (**−0.022pp**) while the refreshed forecast
+makes things slightly *worse* (**+0.465pp**), for a reason I have not found.
 
-The **Rolling control** pane presents this, including the diagnosis (the
-controller over-defers, because the minimum of a dozen noisy forecasts is
-optimistically biased) and the bug that nearly inflated it — a baseline that was
+The **Rolling control** pane presents this, including the reversal of
+the earlier diagnosis and the bug that nearly inflated it — a baseline that was
 accidentally reading true intensities at long horizons. Kept as a shipped pane
 because a project that only displays its successes is a brochure.
 
 > A deferral penalty (λ × the forecast's MAE added to hours still ahead) was
-> then tried, λ from 0 to 2, and raised regret monotonically (2.6% → 5.6%, against
-> the one-shot's 2.0%): the refreshed controller was not over-deferring. See
-> finding 9.
+> then tried, λ from 0 to 2, and raised regret monotonically (3.0% → 3.9%, against
+> the one-shot's 2.5%). See finding 9.
 
 ## Infrastructure — built
 
