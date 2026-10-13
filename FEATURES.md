@@ -23,7 +23,7 @@ Current state of the repo. Findings and their reproduction steps live in
   `max_deliverable_kwh` bounds what fits under the limit and the error reports
   both numbers.
 - Naive-schedule simulator for the "before" case.
-- **59 tests** (optimizer, ENTSO-E parser and the HTTP API), including regression guards for the defects found in this
+- **105 tests** (optimizer, ENTSO-E parser and the HTTP API), including regression guards for the defects found in this
   codebase: the cost objective silently having no price curve, the LP matching
   greedy whenever no constraint couples vehicles, and every ENTSO-E parse
   failure mode that would otherwise return a plausible but wrong curve.
