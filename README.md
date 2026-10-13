@@ -1,4 +1,34 @@
-# GridSense
+<div align="center">
+
+# ⚡ GridSense
+
+**Carbon-aware EV charging optimizer: schedules home charging against real grid carbon and price data, and lets one street transformer host 5.3× more EVs.**
+
+<p>
+  <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" />
+  <img src="https://img.shields.io/badge/Linear_Programming-5C2D91?style=for-the-badge&logo=python&logoColor=white" />
+  <img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" />
+  <img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" />
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" />
+  <img src="https://img.shields.io/badge/Recharts-22B5BF?style=for-the-badge&logo=react&logoColor=white" />
+  <img src="https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white" />
+</p>
+
+<p>
+  <a href="https://gridsense-app-adityaasahoo-gmailcoms-projects.vercel.app"><img src="https://img.shields.io/badge/Live_Demo-000000?style=for-the-badge&logo=vercel&logoColor=white" /></a>
+</p>
+
+<p>
+  <img src="https://img.shields.io/github/stars/adityaayushman/GRIDSENSE?style=social" /> <img src="https://img.shields.io/github/last-commit/adityaayushman/GRIDSENSE?style=flat-square" /> <img src="https://img.shields.io/github/languages/top/adityaayushman/GRIDSENSE?style=flat-square" />
+</p>
+
+</div>
+
+---
+
+<p align="center">
+  <img src="GRIDSENSE/demo.webp" alt="GridSense demo" width="420" />
+</p>
 
 **In one line:** GridSense schedules home EV charging against real grid data and
 measures what that is worth — little for carbon, and a lot for how many EVs one
