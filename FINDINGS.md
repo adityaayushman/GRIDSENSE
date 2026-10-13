@@ -18,28 +18,36 @@ python export_hosting_capacity.py # -> frontend/src/data/hosting.json
 
 ---
 
-## 1. Coordination buys 5.3× the hosting capacity of the same transformer
+## 1. Coordination buys about 4× the hosting capacity of the same transformer
 
 `export_hosting_capacity.py` · **Grid headroom** pane
 
 200 existing homes on a measured residential baseline (89 kW peak), EVs arriving
 into them. Fleet has staggered arrivals and departures, mixed energy
-requirements and a 3.7/7/11 kW charger mix; median across 12 measured nights:
+requirements and a 3.7/7/11 kW charger mix. Capacity is the **median over fleet
+draws** (20 at the headline rating, 6 at the others), each draw taking the median
+across 12 measured nights, with the charge-on-arrival ceiling found on a step-1
+grid:
 
-| Transformer | Charging on arrival | Coordinated | Gain |
-| --- | --- | --- | --- |
-| 160 kW | 20 | 151 | 7.5× |
-| **250 kW** | **60** | **318** | **5.3×** |
-| 400 kW | 140 | 593 | 4.2× |
-| 630 kW | 250 | 998 | 4.0× |
+| Transformer | Charging on arrival | Coordinated | Gain (median) | Range across draws |
+| --- | --- | --- | --- | --- |
+| 160 kW | 25 | 148 | 5.8× | 4.0-6.9× |
+| **250 kW** | **75** | **308** | **4.1×** | **3.3-5.3×** |
+| 400 kW | 151 | 580 | 3.8× | 3.3-4.4× |
+| 630 kW | 272 | 990 | 3.7× | 3.2-3.9× |
+
+An earlier version of this table was one draw of the fleet (seed 0): 60 → 318 =
+**5.3×** at 250 kW, 7.5× at 160 kW and 4.0× at 630 kW. That draw was the most
+favourable of the twenty, which is how it went unnoticed; the sensitivity section
+below shows the spread.
 
 The mechanism is that the binding constraint moves. Charging on arrival consumes
 one or two hours of a thirteen-hour window and hits the rating on *instantaneous
 power* while most of the night sits empty. Coordinating the street spreads the
 same energy across the window until *energy* binds instead.
 
-**The gain is not one number — it falls as the transformer loosens**, from 7.5×
-on a 160 kW unit to 4.0× on a 630 kW one. Coordination is worth most where the
+**The gain is not one number — it falls as the transformer loosens**, from 5.8×
+on a 160 kW unit to 3.7× on a 630 kW one. Coordination is worth most where the
 headroom is thinnest, so quoting a single figure means quoting a rating with it.
 250 kW is the headline because 200 Spanish dwellings at a measured 0.446 kW
 coincident peak are a plausible load for a European secondary substation of that
@@ -85,7 +93,7 @@ the 7× baseline). Ranges were written down before the run and are judgement.
 | Input varied | Setting | Dumb | Coordinated | Gain |
 | --- | --- | --- | --- | --- |
 | **Base** | published | 60 | 318 | **5.3×** |
-| Fleet draw (noise) | 20 seeds | 60-90 | 298-318 | **3.4-5.3×, median 4.3×** |
+| Fleet draw (noise) | 20 seeds | 60-92 | 298-318 | **3.3-5.3×, median 4.1×** |
 | Baseline peakiness | flat / half swing | 60 | 310 / 314 | 5.2× / 5.2× |
 | | double / triple swing | 50 | 325 / 331 | 6.5× / 6.6× |
 | | evening bump 0.5 / 1.0 | 40 / 30 | 310 / 305 | 7.8× / 10.2× |
@@ -97,17 +105,17 @@ the 7× baseline). Ranges were written down before the run and are judgement.
 
 What this does and does not say:
 
-- **The published 5.3× is the best of twenty fleet draws.** Redrawing the fleet
-  from the same assumptions (seeds 0-19, nights unchanged) gives a gain between
-  **3.4× and 5.3×**, median **4.3×**; the published run is seed 0, the maximum.
-  The coordinated count barely moves (298-318 vehicles, median 309); all of the
-  spread is the charge-on-arrival ceiling, which ranges 60-92. Part of it is the
-  step-10 grid used to find that ceiling (±17% near 60); re-found on a step-1
-  grid the median is **4.1×**. **"About 4×, between 3.4× and 5.3×" is the honest
-  statement; 5.3× is the favourable end, and was the first draw rather than a
-  chosen one.**
+- **The 5.3× first published was the best of twenty fleet draws.** Redrawing the
+  fleet from the same assumptions (seeds 0-19, nights unchanged) gives a gain
+  between **3.3× and 5.3×**, median **4.1×**, with charge-on-arrival found on a
+  step-1 grid (the method the table above now uses). On the original step-10 grid
+  the range was 3.4-5.3×, median 4.3×, because a ceiling near 60 carried ±17% of
+  quantisation. The coordinated count barely moves (298-318 vehicles, median 309);
+  all of the spread is the charge-on-arrival ceiling, which ranges 60-92.
+  **"About 4×, between 3.3× and 5.3×" is the honest statement**; seed 0 happened
+  to be the favourable end.
 - **No single input pushes it below the noise floor.** The lowest non-noise move
-  is hard-early deadlines at 5.0×; every row sits inside the 3.4-5.3× band.
+  is hard-early deadlines at 5.0×; every row sits inside the 3.3-5.3× band.
 - **The "upper bound" caveat holds for vehicle counts, not for the ratio.** A
   peakier baseline cuts the coordinated count slightly (318 → 305 at the
   largest evening bump) but cuts charging-on-arrival capacity much faster
@@ -507,7 +515,7 @@ problem.
 
 > **Carbon is no longer open — see finding 12.** Grid-India's aggregate tables
 > are daily, but its Daily PSP Report carries a 15-minute generation-by-fuel
-> sheet. Finding 7's prediction has now been tested on 556 days of it: India
+> sheet. Finding 7's prediction has now been tested on 555 days of it: India
 > saves a median 0.12% overnight against Spain's 3.30%, on a grid 2.2× as dirty.
 
 ---
@@ -585,7 +593,7 @@ case that prediction deserved, and it now has measured data behind it.
 carries 96 fifteen-minute intervals of all-India generation split by fuel. It is
 free, official, and needs no account — it is the primary source Electricity Maps
 itself parses for Indian zones, so going straight to it gives finer resolution
-than their hourly export. **53,338 fifteen-minute rows across 556 days**,
+than their hourly export. **53,243 fifteen-minute rows across 555 days**,
 2025-04-01 to 2026-10-11; the hourly intensity derived from it has lag-1
 autocorrelation +0.955 and lag-24 +0.981. Carbon intensity uses the same IPCC AR5
 factors as Spain, so the two are comparable by construction rather than by
@@ -599,7 +607,7 @@ And the overnight window is the worst part of its day:
 | Window | Mean intensity | Spread | Median CO₂ cut | Days under 1% |
 | --- | --- | --- | --- | --- |
 | **Overnight 18–07** (this project's default) | 649 | 5.9% | **0.12%** | **87.0%** |
-| Daytime 09–17 | 498 | 15.6% | **1.51%** | 26.7% |
+| Daytime 09–17 | 497 | 15.6% | **1.51%** | 26.7% |
 | Afternoon 12–18 | 514 | 23.7% | **0.00%** | 99.8% |
 | Spain, overnight | 267 | — | 3.30% | 38.0% |
 
@@ -696,7 +704,7 @@ than Spain's, and the three grids are not a like-for-like forecast comparison.
   worse nights from 32% to 4%. The selection half and the reporting half do not
   look alike, which is itself the finding: a gate tuned on one stretch of a
   non-stationary grid does not transfer cleanly.
-- **India** (160 nights, on the repaired series): perfect foresight saves
+- **India** (159 nights, on the repaired series): perfect foresight saves
   **0.05%** in total, so there is almost nothing to gate toward. The saving gate
   fires on 1% of the held-out nights; ungated scheduling loses 0.08% and the
   gated schedule loses 0.05%, and the share of nights worse than charging on
@@ -744,7 +752,8 @@ sheet's own total).
 
 **The fix.** Columns are now found by their printed header, never by position,
 and a file missing a required fuel is rejected rather than filled. All cached
-workbooks were re-parsed: 556 days, 53,338 rows; closure median 0 MW.
+workbooks were re-parsed: 555 days, 53,243 rows; closure median 0 MW. Three days (2025-04-26,
+2025-07-15, 2025-08-20) then failed the new physical checks and were dropped.
 
 **Independent confirmation** that the repaired series is right, where unrelated
 sources overlap:
@@ -849,10 +858,10 @@ year, 2.80% on four). Weather here is observed, which flatters it, so the real
 effect would be no larger. A 2.4% MAPE from a ridge on lags and a holiday flag
 is the result to keep.
 
-**India carbon, 556 days** (trained on 2025-04 to 2026-03, tested on the rest).
+**India carbon, 555 days** (trained on 2025-04 to 2026-03, tested on the rest).
 Perfect foresight saves **0.06%** overnight over the test span, so there is
 nothing for a forecaster to find. Every forecaster scheduled on it makes things
-worse than charging on arrival (captured share between -59% and -173%), and
+worse than charging on arrival (captured share between -59% and -227%), and
 adding weather made the ridge worse, not better (MAE 10.2 → 11.0). The gate
 turns all of them into roughly zero, which is the right answer. The thing worth
 forecasting for Indian charging is demand, not carbon.

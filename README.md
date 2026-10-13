@@ -26,26 +26,27 @@ linear-programming optimizer, and shows the before/after impact on a live
 dashboard.
 
 **Hosting capacity.** The finding with money attached: on a 250 kW street
-transformer serving 200 homes, charging on arrival supports **60 EVs** before the
-median night exceeds the rating. Coordinating the street against the transformer
-supports **318**. That is a **5.3×** gain on the published run, which is the best of
-twenty fleet draws (median **about 4×**, range 3.4–5.3×), because the binding constraint moves
-from instantaneous power to energy: charging on arrival uses one or two hours of
-a thirteen-hour window and leaves the rest empty. That is a deferred capital
-upgrade, not a rounding error. See the **Grid headroom** pane.
+transformer serving 200 homes, charging on arrival supports about **75 EVs** before
+the median night exceeds the rating. Coordinating the street against the transformer
+supports about **308** — a median **4.1×** gain over twenty draws of the fleet
+(range 3.3–5.3×) — because the binding constraint moves from instantaneous power to
+energy: charging on arrival uses one or two hours of a thirteen-hour window and
+leaves the rest empty. That is a deferred capital upgrade, not a rounding error. See
+the **Grid headroom** pane.
 
-The gain depends on how tight the transformer is — 7.5× at 160 kW, 4.0× at
+The gain depends on how tight the transformer is — 5.8× at 160 kW, 3.7× at
 630 kW — so the rating belongs with the figure. It also rests on assumed inputs
 (baseline shape, fleet mix, homes per transformer). A one-at-a-time sweep moved it
 no lower than the noise band and *raised* it for a peakier street, but that is
 sensitivity to assumptions, not validation against a real feeder; see
 [FINDINGS.md](FINDINGS.md) finding 1.
 
-(This has been corrected twice. An earlier version claimed **14×**, on a fleet
+(This has been corrected three times. An earlier version claimed **14×**, on a fleet
 where every car arrived at exactly 18:00; staggered arrivals triple what dumb
 charging can host. It then read **6.3×**, measured against a residential baseline
-that overstated household demand sevenfold. Both are documented in
-[FINDINGS.md](FINDINGS.md).)
+that overstated household demand sevenfold, then **5.3×**, which turned out to be
+the most favourable of twenty fleet draws. All are documented in
+[FINDINGS.md](FINDINGS.md) and [LESSONS.md](LESSONS.md).)
 
 **What the data says.** Backtested over every complete overnight window in
 ENTSO-E's 2018 Spanish record, the median night saves **3.3%** of charging
