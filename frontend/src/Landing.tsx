@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from "react";
 import { ArrowRight, ChevronDown, Github, Command } from "lucide-react";
 import NightCurve from "./NightCurve";
+import HeroScene from "./HeroScene";
 import { usePrefersReduced, useReveal } from "./motion";
 import { useScrollSpy } from "./useScrollSpy";
 import hosting from "./data/hosting.json";
@@ -257,6 +258,7 @@ export default function Landing({
 
         <div className="ldHeroFig riseIn" style={{ ["--i" as string]: 3 }}>
           <NightCurve reduced={reduced} />
+          <div className="ldScene"><HeroScene reduced={reduced} /></div>
         </div>
       </section>
 
