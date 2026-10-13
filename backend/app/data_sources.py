@@ -34,11 +34,6 @@ ERA_FILES = {"2018": DATA_DIR / "grid_days.json", "2025": DATA_DIR / "grid_days_
 DEFAULT_ERA = "2018"
 DATA_FILE = ERA_FILES[DEFAULT_ERA]   # kept for importers that predate eras
 
-#: Whole-year figures for 2018 from the backtest (FINDINGS.md finding 2). The 2025 file
-#: carries its own `year_stats`.
-YEAR_STATS_2018 = {"year": 2018, "nights": 361, "median_saving_pct": 3.3, "total_saving_pct": 10.4,
-                   "under_1pct": 38, "over_20pct": 17}
-
 # Spain's PVPC bill is an hourly energy term plus access tolls, levies and
 # supplier margin that do not vary by hour. Charging can only shift the hourly
 # part, so omitting this flat component would materially overstate the bill
@@ -63,7 +58,7 @@ def _grid_data(era: str = DEFAULT_ERA) -> dict:
 
 def year_stats(era: str = DEFAULT_ERA) -> dict:
     """Whole-year saving statistics for the era, for the UI to quote beside a single night."""
-    return _grid_data(era).get("year_stats") or (YEAR_STATS_2018 if era == "2018" else {})
+    return _grid_data(era).get("year_stats") or {}
 
 
 def available_days(era: str = DEFAULT_ERA) -> list[str]:

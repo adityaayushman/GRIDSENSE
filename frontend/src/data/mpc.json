@@ -3,64 +3,64 @@
  "nights": 362,
  "window": "18:00-07:00",
  "tested_on": "after 2017-12-31, held out from forecaster training",
- "crossover_horizon": 9,
+ "crossover_horizon": 6,
  "horizon_mae": {
-  "1": 6.721,
-  "2": 11.445,
-  "3": 14.784,
-  "4": 17.187,
-  "5": 19.03,
-  "6": 20.535,
-  "7": 21.87,
-  "8": 23.001,
-  "9": 23.942,
-  "10": 24.739,
-  "11": 25.395,
-  "12": 25.92,
-  "13": 26.327
+  "1": 4.96,
+  "2": 8.7,
+  "3": 11.402,
+  "4": 13.293,
+  "5": 14.703,
+  "6": 15.857,
+  "7": 16.855,
+  "8": 17.725,
+  "9": 18.474,
+  "10": 19.106,
+  "11": 19.674,
+  "12": 20.141,
+  "13": 20.494
  },
- "day_ahead_mae": 23.704,
+ "day_ahead_mae": 15.324,
  "strategies": {
   "naive": {
    "median_cut_pct": 0.0,
    "mean_cut_pct": 0.0,
-   "mean_regret_pct": 9.981,
-   "median_regret_pct": 3.323,
+   "mean_regret_pct": 7.293,
+   "median_regret_pct": 2.478,
    "mean_position": null
   },
   "oneshot": {
    "median_cut_pct": 0.0,
-   "mean_cut_pct": 7.93,
-   "mean_regret_pct": 2.049,
-   "median_regret_pct": 0.748,
-   "mean_position": 4.83
+   "mean_cut_pct": 4.77,
+   "mean_regret_pct": 2.521,
+   "median_regret_pct": 0.861,
+   "mean_position": 5.23
   },
   "mpc_static": {
    "median_cut_pct": 0.0,
-   "mean_cut_pct": 6.57,
-   "mean_regret_pct": 3.411,
-   "median_regret_pct": 1.51,
-   "mean_position": 5.28
+   "mean_cut_pct": 4.79,
+   "mean_regret_pct": 2.499,
+   "median_regret_pct": 1.033,
+   "mean_position": 5.42
   },
   "mpc": {
    "median_cut_pct": 0.0,
-   "mean_cut_pct": 7.37,
-   "mean_regret_pct": 2.615,
-   "median_regret_pct": 0.908,
-   "mean_position": 4.52
+   "mean_cut_pct": 4.33,
+   "mean_regret_pct": 2.965,
+   "median_regret_pct": 1.238,
+   "mean_position": 4.83
   },
   "oracle": {
-   "median_cut_pct": 3.32,
-   "mean_cut_pct": 9.98,
+   "median_cut_pct": 2.48,
+   "mean_cut_pct": 7.29,
    "mean_regret_pct": 0.0,
    "median_regret_pct": 0.0,
-   "mean_position": 5.05
+   "mean_position": 5.09
   }
  },
  "attribution_pp": {
-  "rolling_commitment": 1.361,
-  "fresher_forecast": -0.796,
-  "net": 0.566
+  "rolling_commitment": -0.022,
+  "fresher_forecast": 0.465,
+  "net": 0.443
  },
  "deferral_penalty": {
   "lambdas": [
@@ -73,51 +73,51 @@
   "greedy_vs_lp_gap_pct": 0.0,
   "results": {
    "0.0": {
-    "mean_regret_pct": 2.615,
-    "vs_oneshot_pp": 0.566,
-    "mean_position": 4.52,
-    "better": 65,
-    "same": 189,
-    "worse": 108
+    "mean_regret_pct": 2.965,
+    "vs_oneshot_pp": 0.443,
+    "mean_position": 4.83,
+    "better": 96,
+    "same": 142,
+    "worse": 124
    },
    "0.5": {
-    "mean_regret_pct": 2.951,
-    "vs_oneshot_pp": 0.902,
-    "mean_position": 3.45,
-    "better": 61,
-    "same": 171,
-    "worse": 130
+    "mean_regret_pct": 3.013,
+    "vs_oneshot_pp": 0.492,
+    "mean_position": 3.69,
+    "better": 85,
+    "same": 144,
+    "worse": 133
    },
    "1.0": {
-    "mean_regret_pct": 3.675,
-    "vs_oneshot_pp": 1.626,
-    "mean_position": 2.58,
-    "better": 57,
-    "same": 158,
-    "worse": 147
+    "mean_regret_pct": 3.216,
+    "vs_oneshot_pp": 0.694,
+    "mean_position": 2.93,
+    "better": 86,
+    "same": 138,
+    "worse": 138
    },
    "1.5": {
-    "mean_regret_pct": 4.578,
-    "vs_oneshot_pp": 2.529,
-    "mean_position": 2.05,
-    "better": 58,
-    "same": 158,
-    "worse": 146
+    "mean_regret_pct": 3.634,
+    "vs_oneshot_pp": 1.113,
+    "mean_position": 2.47,
+    "better": 81,
+    "same": 137,
+    "worse": 144
    },
    "2.0": {
-    "mean_regret_pct": 5.627,
-    "vs_oneshot_pp": 3.577,
-    "mean_position": 1.66,
-    "better": 55,
-    "same": 154,
-    "worse": 153
+    "mean_regret_pct": 3.945,
+    "vs_oneshot_pp": 1.424,
+    "mean_position": 2.13,
+    "better": 75,
+    "same": 136,
+    "worse": 151
    }
   },
   "best_lambda": 0.0,
-  "oneshot_regret_pct": 2.049
+  "oneshot_regret_pct": 2.521
  },
- "mpc_closes_gap_pct": -27.6,
- "mpc_better_nights": 65,
- "mpc_tied_nights": 189,
- "mpc_worse_nights": 108
+ "mpc_closes_gap_pct": -17.6,
+ "mpc_better_nights": 96,
+ "mpc_tied_nights": 142,
+ "mpc_worse_nights": 124
 }

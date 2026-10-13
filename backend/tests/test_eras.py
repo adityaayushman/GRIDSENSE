@@ -9,10 +9,11 @@ from app.main import app
 client = TestClient(app)
 
 
-def test_both_eras_are_available_and_the_default_is_unchanged():
+def test_both_eras_are_available_and_2018_is_the_default():
     assert data_sources.eras() == ["2018", "2025"]
     d = client.get("/api/days").json()
-    assert d["era"] == "2018" and d["default"] == "2018-07-31" and d["count"] == 46
+    assert d["era"] == "2018" and d["count"] == 46
+    assert d["default"] in d["days"] and d["default"].startswith("2018-")
 
 
 def test_days_endpoint_serves_the_2025_nights_with_whole_year_statistics():
@@ -24,9 +25,11 @@ def test_days_endpoint_serves_the_2025_nights_with_whole_year_statistics():
     assert 0 <= s["under_1pct"] <= 100 and s["total_saving_pct"] > s["median_saving_pct"]
 
 
-def test_2018_statistics_are_still_quoted():
+def test_2018_whole_year_statistics_come_from_the_served_file_not_from_the_source():
     s = client.get("/api/days?era=2018").json()["year_stats"]
-    assert s["median_saving_pct"] == 3.3 and s["total_saving_pct"] == 10.4
+    assert s["year"] == 2018 and s["nights"] > 300
+    assert 0 < s["median_saving_pct"] < s["total_saving_pct"] < 20
+    assert s == data_sources.year_stats("2018")
 
 
 def test_unknown_era_is_rejected():

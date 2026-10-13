@@ -9,12 +9,10 @@ import {
 } from "lucide-react";
 import { runScenario, fetchDays, warmUp, ApiError, indianFleet, Era, ScenarioResponse, YearStats, GATE_MIN_SAVING_PCT } from "./api";
 import Runs from "./Runs";
-import Comparison from "./Comparison";
-import Hosting from "./Hosting";
 import HeroScene from "./HeroScene";
-import Regions from "./Regions";
-import Control from "./Control";
-import India from "./India";
+import { Comparison, Hosting, Regions, Control, India, Results, Pane, prefetch, prefetchAll } from "./panes";
+import results from "./data/results.json";
+import demoData from "./data/demo_scenarios.json";
 import Segmented from "./Segmented";
 import Landing from "./Landing";
 import hosting from "./data/hosting.json";
@@ -29,7 +27,7 @@ import "./landing.css";
 import "./chrome.css";
 
 type Objective = "emissions" | "cost" | "peak";
-type Tab = "simulator" | "comparison" | "hosting" | "regions" | "control" | "india";
+type Tab = "simulator" | "results" | "comparison" | "hosting" | "regions" | "control" | "india";
 
 const OPT = "#3987e5";
 const NAIVE = "#d95926";
@@ -135,7 +133,7 @@ function App() {
   const [tab, setTab] = useState<Tab>(
     () => {
       const h = window.location.hash.replace("#", "");
-      return ["comparison", "hosting", "regions", "control", "india"].includes(h)
+      return ["results", "comparison", "hosting", "regions", "control", "india"].includes(h)
         ? (h as Tab) : "simulator";
     },
   );
@@ -160,6 +158,8 @@ function App() {
     window.scrollTo({ top: 0, behavior: "auto" });
   }, []);
   const [result, setResult] = useState<ScenarioResponse | null>(null);
+  // True while the page is showing a stored example because the live API is not answering yet.
+  const [demo, setDemo] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<{ message: string; kind: ApiError["kind"] | "other" } | null>(null);
   // SMIL and rAF-driven motion sit outside the reach of the CSS media query,
@@ -195,8 +195,7 @@ function App() {
     const chosenDay = overrideDay ?? c.day;
     const chosenEra = overrideEra ?? c.era;
     try {
-      setResult(
-        await runScenario({
+      const live = await runScenario({
           ev_count: c.evCount,
           charger_kw: c.chargerKw,
           arrival_hour: 18,
@@ -211,13 +210,25 @@ function App() {
         ...(c.useForecast && c.gate ? { gate_min_saving_pct: GATE_MIN_SAVING_PCT } : {}),
         ...(c.fleetKind === "india" ? { fleet: indianFleet(c.evCount) } : {}),
         ...(c.v2g ? { allow_v2g: true } : {}),
-        }),
-      );
+      });
+      setResult(live);
+      setDemo(false);
     } catch (e) {
-      setError(e instanceof ApiError
-        ? { message: e.message, kind: e.kind }
-        : { message: e instanceof Error ? e.message : "Something went wrong", kind: "other" });
-      setResult(null);
+      // A serverless API can take seconds to wake. Opening on a real stored result, clearly
+      // labelled, beats opening on an error and an empty form.
+      const stored = e instanceof ApiError && e.kind === "unreachable" ? (demoData as any).eras[chosenEra] : null;
+      if (stored) {
+        setResult(stored.response as ScenarioResponse);
+        setDemo(true);
+        setDays((prev) => (prev.length ? prev : stored.days));
+        setDay((prev) => prev || stored.default_day);
+        setYearStats((prev) => prev ?? stored.year_stats);
+      } else {
+        setError(e instanceof ApiError
+          ? { message: e.message, kind: e.kind }
+          : { message: e instanceof Error ? e.message : "Something went wrong", kind: "other" });
+        setResult(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -283,6 +294,7 @@ function App() {
 
   const TABS: { key: Tab; label: string }[] = [
     { key: "simulator", label: "Simulator" },
+    { key: "results", label: "Results" },
     { key: "comparison", label: "Existing vs GridSense" },
     { key: "hosting", label: "Grid headroom" },
     { key: "regions", label: "Two grids" },
@@ -349,7 +361,7 @@ function App() {
 
       const k = e.key.toLowerCase();
       if (e.key === "?") { e.preventDefault(); setHelpOpen(true); return; }
-      if (k >= "1" && k <= "6") {
+      if (k >= "1" && k <= "7") {
         const t2 = TABS[Number(k) - 1];
         if (t2) { setEntered(true); selectTab(t2.key); }
         return;
@@ -401,6 +413,26 @@ function App() {
       await run(undefined, next);
     }
   }, [run]);
+
+  // Roving tabindex: arrow keys move between tabs, Home and End jump to the ends. The active
+  // tab is also kept in view, since seven tabs overflow a phone and scroll sideways.
+  const tabsRef = useRef<HTMLElement>(null);
+  const onTabKey = (e: React.KeyboardEvent) => {
+    const i = TABS.findIndex((x) => x.key === tab);
+    const next = e.key === "ArrowRight" ? (i + 1) % TABS.length
+      : e.key === "ArrowLeft" ? (i - 1 + TABS.length) % TABS.length
+      : e.key === "Home" ? 0 : e.key === "End" ? TABS.length - 1 : -1;
+    if (next < 0) return;
+    e.preventDefault();
+    selectTab(TABS[next].key);
+    document.getElementById(`tab-${TABS[next].key}`)?.focus();
+  };
+  useEffect(() => {
+    document.getElementById(`tab-${tab}`)?.scrollIntoView({
+      inline: "center", block: "nearest", behavior: prefersReduced ? "auto" : "smooth",
+    });
+  }, [tab, prefersReduced]);
+  useEffect(() => { prefetchAll(); }, []);
 
   const head = result ? headline(result, objective) : null;
 
@@ -477,19 +509,17 @@ function App() {
         </div>
       </header>
 
-      <nav className="tabs">
-        <button className={`tab ${tab === "simulator" ? "active" : ""}`}
-          onClick={() => selectTab("simulator")}>Simulator</button>
-        <button className={`tab ${tab === "comparison" ? "active" : ""}`}
-          onClick={() => selectTab("comparison")}>Existing vs GridSense</button>
-        <button className={`tab ${tab === "hosting" ? "active" : ""}`}
-          onClick={() => selectTab("hosting")}>Grid headroom</button>
-        <button className={`tab ${tab === "regions" ? "active" : ""}`}
-          onClick={() => selectTab("regions")}>Two grids</button>
-        <button className={`tab ${tab === "control" ? "active" : ""}`}
-          onClick={() => selectTab("control")}>Rolling control</button>
-        <button className={`tab ${tab === "india" ? "active" : ""}`}
-          onClick={() => selectTab("india")}>India</button>
+      <nav className="tabs" role="tablist" aria-label="Analysis panes" ref={tabsRef} onKeyDown={onTabKey}>
+        {TABS.map((tb) => (
+          <button key={tb.key} id={`tab-${tb.key}`} role="tab" type="button"
+            className={`tab ${tab === tb.key ? "active" : ""}`}
+            aria-selected={tab === tb.key} aria-controls={`panel-${tb.key}`}
+            tabIndex={tab === tb.key ? 0 : -1}
+            onClick={() => selectTab(tb.key)}
+            onMouseEnter={() => prefetch(tb.key)} onFocus={() => prefetch(tb.key)}>
+            {tb.label}
+          </button>
+        ))}
       </nav>
 
       {tab === "simulator" && (
@@ -510,7 +540,7 @@ function App() {
             </p>
             <div className="mastFacts">
               <div className="mastFact">
-                <span className="mastFactVal">1,444</span>
+                <span className="mastFactVal">{(results as any).savings[0].nights.toLocaleString()}</span>
                 <span className="mastFactKey">nights backtested</span>
               </div>
               <div className="mastFact">
@@ -521,8 +551,8 @@ function App() {
                 <span className="mastFactKey">hosting capacity</span>
               </div>
               <div className="mastFact">
-                <span className="mastFactVal">71%</span>
-                <span className="mastFactKey">captured by forecast</span>
+                <span className="mastFactVal">{Math.round((results as any).forecast.es2025.deployed)}%</span>
+                <span className="mastFactKey">captured by the 2025 forecaster</span>
               </div>
             </div>
           </div>
@@ -534,14 +564,21 @@ function App() {
       )}
 
       <main className="main">
-        {tab === "comparison" && <div key="cmp" className="paneEnter"><Comparison /></div>}
-        {tab === "hosting" && <div key="hst" className="paneEnter"><Hosting /></div>}
-        {tab === "regions" && <div key="rgn" className="paneEnter"><Regions /></div>}
-        {tab === "control" && <div key="ctl" className="paneEnter"><Control /></div>}
-        {tab === "india" && <div key="ind" className="paneEnter"><India /></div>}
+        {tab !== "simulator" && (
+          <div key={tab} className="paneEnter" role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} tabIndex={-1}>
+            <Pane>
+              {tab === "comparison" && <Comparison />}
+              {tab === "hosting" && <Hosting />}
+              {tab === "regions" && <Regions />}
+              {tab === "control" && <Control />}
+              {tab === "results" && <Results />}
+              {tab === "india" && <India />}
+            </Pane>
+          </div>
+        )}
 
         {tab === "simulator" && (
-        <>
+        <div role="tabpanel" id="panel-simulator" aria-labelledby="tab-simulator" tabIndex={-1}>
         <section className="card">
           <div className="eyebrow" style={{ marginBottom: 14 }}>Scenario</div>
           <div className="controls">
@@ -687,7 +724,13 @@ function App() {
         )}
 
         {result && head && (
-          <>
+          <div className={`holdWrap${loading ? " isHolding" : ""}`} aria-busy={loading}>
+            {demo && (
+              <div className="demoNotice" role="status">
+                <span>Showing a stored example from the real solver. The live API is waking up.</span>
+                <button type="button" onClick={() => run()} disabled={loading}>Try live</button>
+              </div>
+            )}
             <section className="hero">
               <div className="heroMain">
                 <div className="eyebrow">Night of {result.day}</div>
@@ -872,10 +915,10 @@ function App() {
                 </LineChart>
               </ResponsiveContainer>
             </section>
-          </>
+          </div>
         )}
 
-        </>
+        </div>
         )}
 
         {tab === "simulator" && <Runs refreshKey={result?.run_id} />}
@@ -910,7 +953,7 @@ function App() {
                 moves. The residential baseline is the one remaining synthetic input, since ENTSO-E
                 reports system-wide load that cannot be scaled to a single feeder without an
                 assumption. Objectives genuinely conflict: the cheapest hour and the cleanest hour
-                coincide on only 14% of nights, so optimizing cost can raise emissions. Those are
+                coincide on only 18% of nights, so optimizing cost can raise emissions. Those are
                 shown as increases rather than hidden.
               </p>
             </>

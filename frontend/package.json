@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "lint": "eslint src"
+    "lint": "eslint src && node scripts/check-figures.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.446.0",

@@ -1,14 +1,17 @@
 # GridSense — findings
 
 Every number here is reproducible from the scripts named beside it, against
-measured ENTSO-E Spanish grid data (Kaggle, CC0) with IPCC AR5 lifecycle
-emission factors. Nothing is hand-tuned or assumed.
+measured ENTSO-E grid data with IPCC AR5 lifecycle emission factors. The Spanish
+record is the Energy-Charts republication of ENTSO-E (CC BY 4.0), checked against
+Spain's own grid operator; the Kaggle copy this project was first built on is wrong
+on a third of nights (finding 17). Nothing is hand-tuned or assumed.
 
 Regenerate everything:
 
 ```bash
 cd ml
-python backtest.py                # 1,444-night replay      -> data/backtest_nightly.csv
+python make_corrected_energy_dataset.py  # corrected Spanish record -> data/raw/energy_dataset.csv
+python backtest.py                # 1,448-night replay      -> data/backtest_nightly.csv
 python train.py                   # first-pass forecaster   -> artifacts/metrics.json
 python train_v2.py                # tuned sweep + weather   -> artifacts/metrics_v2.json
 python export_forecaster.py       # deployable ridge        -> artifacts/ridge_forecaster.json
@@ -136,55 +139,70 @@ What this does and does not say:
 
 `backtest.py` · **Existing vs GridSense** pane
 
-Replaying the optimizer over all 1,444 complete overnight windows:
+Replaying the optimizer over all 1,448 complete overnight windows of the corrected
+record (finding 17):
 
 | | CO₂ reduction vs charging on arrival |
 | --- | --- |
-| Median night | **3.3%** |
-| Mean night | 9.6% |
-| Fleet total across four years | **10.4%** |
+| Median night | **2.0%** |
+| Mean night | 6.4% |
+| Fleet total across four years | **6.6%** |
 
-**38% of nights save under 1%.** 57% save under 5%. 17% save over 20%. On 33% of
-nights the cleanest hour in the window is 18:00 — the arrival hour — so charging
-on arrival is already near-optimal.
+**41% of nights save under 1%.** 61% save under 5%. 9% save over 20%. On 36% of
+nights the cleanest hour in the window is 18:00, the arrival hour, so charging on
+arrival is already near-optimal. By season the mean cut is 10.3% in winter, 7.8% in
+autumn, 4.8% in spring and 2.7% in summer.
 
 A single headline percentage hides both tails, which is why the dashboard reports
 the distribution.
 
-## 3. The synthetic curve was not merely inaccurate — it was inverted
+> These figures replaced 3.3% (median) and 10.4% (fleet total). Both were computed
+> on an input record that was wrong for the first twelve days of every month, and
+> the wrong nights carried most of the saving: nights starting on days 1-12 showed
+> a 15.1% fleet saving on the old record against 6.3% on the same nights of the
+> corrected one. Finding 17 has the evidence.
 
-`train.py` · **Existing vs GridSense** pane
+## 3. The synthetic curve was not merely inaccurate: it was inverted
+
+`train.py`, `train_v2.py` · **Existing vs GridSense** pane
 
 Real Spanish grid intensity is *lowest* at midday (solar) and *highest* in the
 early morning. The synthetic curve originally shipped in `data_sources.py` peaked
-at 19:00 and troughed at 13:00 — roughly the opposite shape.
+at 19:00 and troughed at 13:00, roughly the opposite shape.
 
-Evaluated by **decision regret** — schedule on the forecast, score against what
-actually happened, compare to perfect foresight:
+Evaluated by **decision regret** (schedule on the forecast, score against what
+actually happened, compare to perfect foresight), on the held-out 2018 year of the
+corrected record:
 
 | Forecast | MAE | % of achievable saving captured |
 | --- | --- | --- |
-| Synthetic curve | 97.20 | **−26.8%** |
-| Persistence (lag 24h) | 44.32 | 12.8% |
-| Climatology (month × hour) | 56.01 | 16.4% |
-| Gradient boosting | 28.51 | 67.5% |
-| **Ridge (deployed)** | **23.70** | **71.0%** |
-| Ridge + GBM blend (not shipped) | 22.61 | 72.8% |
+| Synthetic curve | 101.04 | **−34.0%** |
+| Persistence (lag 24h) | 31.77 | 32.3% |
+| Climatology (month × hour) | 45.09 | 55.5% |
+| Ridge, first pass | 21.18 | 67.2% |
+| Gradient boosting, first pass | 20.20 | 69.5% |
+| **Ridge, tuned (deployed)** | **15.32** | **68.9%** |
+| Ridge + GBM blend (not shipped) | 14.05 | 73.1% |
 
 The synthetic curve scores **negative**: scheduling against it is worse than not
 optimizing at all. A demo driving real chargers that way would increase emissions.
 
-The blend is the strongest candidate but is **not** what ships: it needs
-scikit-learn at inference, while ridge exports as a coefficient vector scored
-with a dot product and keeps the serverless bundle free of ML dependencies.
-Ridge gives up 1.8pp of captured saving for that, which is the right trade for a
-function that already carries a CBC solver binary. The export is verified
-bit-exact against sklearn.
+**The forecaster's edge is smaller than first reported.** On the old record the
+simple baselines looked hopeless (persistence 12.8%, climatology 16.4%), which made the
+ridge model's 71% look like the difference between failing and succeeding. On the
+corrected record climatology alone captures 55.5%, so the model adds about 13 points
+over the simplest sensible forecast, not 55. The corrupted early-month nights had
+made every naive forecast look worse than it is.
 
-`train_v2.py` improved ridge from MAE 28.27 / 68.5% to 23.70 / 71.0% — a 16% cut
-in error — through richer features (more lags, rolling min/max/std, week-over-week
-drift, renewable share) and a 48-config hyperparameter search under blocked
-time-series CV. No new data was involved.
+The blend is the strongest candidate but is **not** what ships: it needs
+scikit-learn at inference, while ridge exports as a coefficient vector scored with a
+dot product and keeps the serverless bundle free of ML dependencies. Ridge gives up
+4.2pp of captured saving for that. The export is verified bit-exact against sklearn.
+
+`train_v2.py` improved ridge from MAE 21.18 / 67.2% to 15.32 / 68.9%, a 28% cut in
+error, through richer features (more lags, rolling min/max/std, week-over-week drift,
+renewable share) and a 48-config hyperparameter search under blocked time-series CV.
+No new data was involved.
 
 ## 4. The optimizer only earns its keep under a coupling constraint
 
@@ -208,218 +226,220 @@ solvable by greedy.
 
 ## 5. Cost and carbon genuinely conflict
 
-`export_grid_days.py`
+`export_grid_days.py`, `v2g_study.py`
 
-The cheapest hour and the cleanest hour coincide on only **14.4%** of nights
-(correlation 0.41). Optimizing for cost can raise emissions — on the default
-night it raises them 18.7% — and optimizing for emissions can raise peak. The
-dashboard shows those as increases rather than hiding them.
+The cheapest hour and the cleanest hour of a night coincide on only **18.0%** of
+nights, and across a night the two curves barely correlate (mean within-night
+correlation 0.15). Measured over twelve nights with 80 vehicles, minimizing cost
+leaves emissions 4.3% above the emissions optimum (1,886 against 1,808 kg), and
+minimizing emissions leaves the bill 4.5% above the cost optimum (€959 against €918).
+Optimizing for emissions can also raise peak: 1,953 kg when minimizing peak against
+1,808 kg when minimizing carbon. The dashboard shows those as increases rather than
+hiding them.
 
 ## 6. Forecast error only matters when there is something to gain
 
-`export_forecast_curves.py` · **Simulator**, Carbon signal toggle
+`export_forecast_curves.py`, `corrected_stats.py` · **Simulator**, Carbon signal toggle
 
-Scheduling on the day-ahead forecast and scoring against actuals, per night:
+Scheduling on the day-ahead forecast and scoring against actuals, on the served
+nights:
 
-| Night | Perfect foresight | On forecast | Captured |
-| --- | --- | --- | --- |
-| 2018-01-19 | 38.5% | 37.8% | 98% |
-| 2018-02-11 | 31.1% | 28.9% | 93% |
-| 2018-02-02 | 26.0% | 24.0% | 92% |
-| 2018-02-12 | 6.5% | **−9.4%** | −145% |
-| 2018-02-15 | 2.1% | **−2.4%** | −114% |
+| Night | Perfect foresight | On forecast |
+| --- | --- | --- |
+| 2018-01-19 | 37.8% | 37.0% |
+| 2018-02-13 | 31.5% | 28.6% |
+| 2018-10-13 | 26.6% | 22.5% |
+| 2018-06-23 | 0.0% | **−6.9%** |
+| 2018-06-12 | 0.0% | **−5.7%** |
+| 2018-12-03 | 0.5% | **−4.4%** |
 
-When the curve has real structure the forecast finds it, capturing 92-98%. When
-the night is nearly flat, forecast error exceeds the differences being chased and
-scheduling on it is worse than not scheduling at all. Aggregated by total mass
-across 2018 the forecast captures 71.0%, which hides this split.
+When the curve has real structure the forecast finds most of it. When the night is
+nearly flat, forecast error exceeds the differences being chased and scheduling on it
+is worse than not scheduling at all: 10 of the 46 served nights end up worse than
+charging on arrival. Aggregated by total mass across 2018 the forecast captures 68.9%,
+which hides this split.
 
 The operational reading: act only when the *predicted* spread is large enough to
 survive the model's own error. That gate is built and measured in finding 13.
 
-## 7. A dirtier, more variable grid is not a better one to shift in
+## 7. A dirtier, more variable grid saves less on a typical night and more on its best
 
-`export_regions.py` · **Two grids** pane · Spain (ENTSO-E 2015-2018) vs Germany/Luxembourg (2023-2026)
+`export_regions.py` · **Two grids** pane · Spain (ENTSO-E 2015-2018, corrected) vs Germany/Luxembourg (2023-2026)
 
-| Grid | Mean intensity | Std | Median night saving | Nights under 1% |
-| --- | --- | --- | --- | --- |
-| Spain | 266.6 gCO₂eq/kWh | 81.4 | **3.3%** | 38.0% |
-| Germany | **358.4** | **135.0** | **1.0%** | **50.1%** |
+| Grid | Mean intensity | Std | Median night saving | Mean night saving | Nights under 1% | Nights over 20% |
+| --- | --- | --- | --- | --- | --- | --- |
+| Spain | 254.7 gCO₂eq/kWh | 74.6 | **2.0%** | 6.4% | 41.4% | 9.1% |
+| Germany | **358.4** | **135.0** | **1.0%** | **8.1%** | **50.1%** | **16.6%** |
 
-Germany's grid is dirtier and swings harder, so it looked like the better place
-to shift load. It is worse: half its nights offer under 1%.
+Germany's grid is dirtier and swings harder, so it looked like the better place to
+shift load. On a typical night it is worse: the median saving is half of Spain's and
+half its nights offer under 1%. But its tail is fatter, so across the whole record it
+saves more in total (8.2% against 6.6%). Dirtiness and variability predict the *best*
+nights, not the typical one.
 
-**My first explanation for this was wrong** and is worth recording. I claimed
-Germany's overnight hours "sit flat on lignite", so there was less within-night
-shape to exploit. Measuring it directly refuted that: Germany's median spread
-*inside the charging window* is **25.5%**, wider than Spain's 21.3%. More
-within-window variation, less saving.
+**My first explanation for the typical-night result was wrong** and is worth recording.
+I claimed Germany's overnight hours "sit flat on lignite", so there was less
+within-night shape to exploit. Measuring it directly refuted that: Germany's median
+spread *inside the charging window* is **25.5%**, wider than Spain's 17.0%. More
+within-window variation, less typical saving.
 
-The actual reason is what the default behaviour already achieves. Averaged over
-every night, 18:00 — the hour everyone plugs in — is the **cleanest** hour of
-the window in both grids, and Germany's advantage there is larger:
+What explains the typical night is what the default behaviour already achieves.
+Averaged over every night, 18:00, the hour everyone plugs in, is the **cleanest** hour
+of the window in both grids, and Germany's advantage there is larger:
 
 | | Arrival hour vs that grid's night mean |
 | --- | --- |
-| Spain | −2.8% |
+| Spain | −2.7% |
 | Germany | **−7.4%** |
 
-Charging on arrival is landing on the best hour by accident, and it lands there
-harder in Germany. The optimizer is measured against that baseline, so the
-better the accident, the less there is left to win. Three separate statistics —
-mean intensity, standard deviation, and within-window spread — all point the
-opposite way.
+Charging on arrival is landing on the best hour by accident, and it lands there harder
+in Germany. The optimizer is measured against that baseline, so the better the
+accident, the less there is left to win on an ordinary night.
 
-The practical reading: the value of carbon-aware charging is set by how good
-the *unmanaged* behaviour already is, not by how carbon-intensive or how
-volatile the grid is. See the **Two grids** pane, which plots both shapes.
+The practical reading: the typical value of carbon-aware charging is set by how good
+the *unmanaged* behaviour already is, not by how carbon-intensive or how volatile the
+grid is. Volatility buys a longer tail of big-saving nights on top of that. See the
+**Two grids** pane, which plots both shapes.
 
 The German data was screened with `screen_dataset.py` before use (lag-1
 autocorrelation 0.92-0.99 across generation, load and price).
 
-## 8. V2G is worth it for peak, not for carbon — and not at all for capacity
+> On the old Spanish record this finding read "a dirtier, more variable grid is not a
+> better one to shift in", because Spain's median looked like 3.3% and its mean 9.6%.
+> The corrected record narrows the gap on the median and reverses it on the mean.
 
-`optimize_schedule(allow_v2g=True)` · **Simulator**, vehicle-to-grid toggle
+## 8. V2G buys a cheaper bill, not carbon or peak
 
-Letting vehicles discharge back to the grid improves whichever objective is
-selected and quietly damages the others. On the default night, 80 vehicles. The
-export cap is a policy dial, so both settings are shown: **capped** is the
-shipped default of 6 kWh per vehicle per night, **uncapped** removes the limit.
+`v2g_study.py`, `optimize_schedule(allow_v2g=True)` · **Simulator**, vehicle-to-grid toggle
 
-| | CO₂ kg | Cost € | Peak kW | Exported |
-| --- | --- | --- | --- | --- |
-| Charge-only, min CO₂ | 216.1 | 98.93 | 782.8 | 0 |
-| V2G capped, min CO₂ | 198.5 | 112.71 | 823.3 | 480 kWh |
-| **V2G uncapped, min CO₂** | **161.1** | 154.26 | 863.1 | 1,858 kWh |
-| Charge-only, min peak | 246.2 | 92.29 | 320.0 | 0 |
-| **V2G, min peak** | 258.6 | 91.19 | **277.7** | 93 kWh |
-| Charge-only, min cost | 266.6 | 87.20 | 741.1 | 0 |
-| V2G capped, min cost | 310.7 | 85.11 | 741.1 | 480 kWh |
-| **V2G uncapped, min cost** | 349.5 | **83.61** | 741.1 | 936 kWh |
+Letting vehicles discharge back to the grid improves whichever objective is selected
+and quietly damages the others. Measured over twelve nights (every fourth served night)
+with 80 vehicles, summed. The export cap is a policy dial, so both settings are shown:
+**capped** is the shipped default of 6 kWh per vehicle per night, **uncapped** removes the
+limit.
 
-The min-peak row is identical under both settings because the cap never binds
-there — shaving the evening peak needs only 93 kWh, well inside the 480 kWh the
-default allows.
+| Objective | Mode | CO₂ kg | Bill € | Mean peak kW | Exported kWh |
+| --- | --- | --- | --- | --- | --- |
+| Min CO₂ | Charge-only | 1,808.3 | 959.19 | 576.5 | 0 |
+| | V2G capped | 1,741.1 | 978.28 | 579.6 | 3,706 |
+| | V2G uncapped | **1,695.2** | 1,019.62 | 579.4 | 8,014 |
+| Min cost | Charge-only | 1,886.4 | 917.91 | 493.1 | 0 |
+| | V2G capped | 1,882.5 | 859.81 | 585.6 | 3,840 |
+| | V2G uncapped | 1,906.3 | **812.13** | 585.7 | 7,488 |
+| Min peak | all three | 1,953.3 | 999.37 | 86.7 | 0 |
 
-Uncapped, minimising carbon with V2G pushes peak back to the *naive* level
-(863.1 against 863.08) and raises the bill 56%. Under the shipped cap the same
-objective still lands at 823 kW, above the charge-only 783, for a 14% higher
-bill. Minimising cost raises emissions 31% against the charge-only cost optimum.
+(Charging on arrival: 1,950.3 kg and €1,072.65.)
 
-**Carbon abatement through V2G costs €0.78/kg CO₂ capped and €1.01/kg uncapped**,
-against an EU ETS price around €0.06–0.09/kg — roughly ten times too expensive at
-either setting, which is what makes the conclusion robust to where the dial is
-set. As a way to cut carbon it is not economic; as a way to shave peak it works,
-cutting the peak a further 13% below the charge-only optimum at a slightly
-*lower* bill.
+- **Carbon.** Minimizing carbon with V2G cuts emissions a further 3.7% capped and 6.3%
+  uncapped, and raises the bill 2.0% and 6.3%. **Carbon abatement through V2G costs
+  €0.28/kg capped and €0.53/kg uncapped**, against an EU ETS price around €0.06-0.09/kg:
+  three to five times too expensive capped, six to nine uncapped. As a way to cut
+  carbon it is not economic, though it is closer than the "ten times" reported before.
+- **Cost.** This is where V2G pays: under the cost objective the bill falls 6.3% capped
+  and 11.5% uncapped, with emissions roughly unchanged (-0.2% and +1.1%).
+- **Peak.** V2G does nothing. Minimizing peak already flattens the fleet to 86.7 kW,
+  which is the residential baseline's own shape, so there is nothing left to discharge
+  against. The earlier finding that V2G trims peak a further 13% was measured on a
+  baseline that overstated household demand (finding 11) and does not survive its
+  correction.
+- **Capacity.** V2G adds no energy, only moves import around and loses ~10% in the round
+  trip, so hosting capacity, which is bound by energy, should not move. That was verified
+  on the earlier baseline and has not been re-run on the recalibrated one.
 
-**It does nothing for hosting capacity.** The 1,250 kW transformer supports 988
-vehicles whether V2G is on or off, capped or uncapped. Hosting capacity is bound
-by *energy* — the fleet must still net-import what it needs, and V2G adds no
-energy, it only moves import around and loses ~10% in the round trip. Peak and
-capacity are different constraints, and V2G addresses only the first.
+> **On the export cap.** Uncapped, the schedule cycles packs repeatedly: it prices
+> carbon and money but not battery wear, and a battery that costs nothing to use is worth
+> cycling until the arbitrage runs out. `max_export_kwh` caps throughput, as real V2G
+> programmes do. The default is 6 kWh per vehicle per night. Degradation is out of scope
+> for this project, so the cap stands in for it rather than modelling it.
 
-> **On the export cap.** Uncapped, the schedule cycles packs repeatedly: it
-> prices carbon and money but not battery wear, and a battery that costs nothing
-> to use is worth cycling until the arbitrage runs out. `max_export_kwh` caps
-> throughput, as real V2G programmes do. The default is 6 kWh per vehicle per
-> night. Degradation is out of scope for this project, so the cap stands in for
-> it rather than modelling it.
-
-> Round-trip loss (~10%) is charged entirely to the discharge leg. Splitting it
-> across both legs is more physically faithful but would move every previously
-> published figure by ~5% while changing nothing about V2G's economics, since
-> only the round trip matters.
+> Round-trip loss (~10%) is charged entirely to the discharge leg. Splitting it across
+> both legs is more physically faithful but would move every published figure by ~5%
+> while changing nothing about V2G's economics, since only the round trip matters.
+>
+> The single-night table that stood here before depended on the night chosen: on the
+> median night of the corrected record V2G changes nothing for carbon at all, because that
+> night has no spread of clean hours to arbitrage.
 
 ---
 
-## 9. Rolling-horizon control loses to the one-shot LP, and the loss splits cleanly
+## 9. Rolling-horizon control loses to the one-shot LP
 
 `ml/mpc.py`, `ml/train_horizon.py` · **Rolling control** pane
 
-Grid operators do not decide a whole night in advance; they re-solve as data
-arrives and commit only the imminent step. Rebuilding the scheduler that way is
-a harder and more defensible engineering claim than a static LP, so it was
-built: 362 held-out nights, re-solving every hour, committing one hour at a
-time.
+Grid operators do not decide a whole night in advance; they re-solve as data arrives
+and commit only the imminent step. Rebuilding the scheduler that way is a harder and
+more defensible engineering claim than a static LP, so it was built: 362 held-out
+nights, re-solving every hour, committing one hour at a time.
 
-It is worse. Mean regret against perfect foresight rises from **2.049%** to
-**2.615%** — MPC gives back 28% of what the one-shot LP had already won. It is
-better on 65 nights, identical on 189, worse on 108.
+It is worse. Mean regret against perfect foresight rises from **2.521%** to **2.965%**,
+so MPC's regret is 18% higher than the one-shot plan's. It is better on 96 nights,
+identical on 142, worse on 124.
 
-The interesting part is that the loss decomposes. A third arm re-solves every
-hour but is fed only the static day-ahead forecast, so it gains no information
-by waiting. It differs from each neighbour in exactly one thing:
+A third arm re-solves every hour but is fed only the static day-ahead forecast, so it
+gains no information by waiting. It differs from each neighbour in exactly one thing:
 
 | | mean regret | mean position |
 | --- | --- | --- |
-| One-shot LP | 2.049% | 4.83 |
-| Rolling, static forecast | 3.411% | 5.28 |
-| Rolling, refreshed forecast | 2.615% | 4.52 |
-| Perfect foresight | 0% | 5.05 |
+| One-shot LP | 2.521% | 5.23 |
+| Rolling, static forecast | 2.499% | 5.42 |
+| Rolling, refreshed forecast | 2.965% | 4.83 |
+| Perfect foresight | 0% | 5.09 |
 
 *Position* is the mean hour-index at which energy lands, 0 = 18:00, 12 = 06:00.
 
-- **Committing hour by hour costs +1.361pp.**
-- **Refreshing the forecast buys −0.796pp.**
-- **Net +0.566pp**, so the control structure costs about 1.7× what the better
-  information is worth.
+- **Committing hour by hour costs -0.022pp**, which is nothing.
+- **Refreshing the forecast costs +0.465pp**: the better information made the schedule
+  slightly worse.
+- **Net +0.443pp.**
 
-The mechanism is visible in the position column. Rolling-with-static-info defers
-hardest of all — 5.28, later even than perfect foresight at 5.05. At each hour
-it compares the hour in front of it against the *minimum* of a dozen noisy
-forecasts, and the minimum of noisy estimates is optimistically biased: some
-later hour almost always looks cleaner than it will turn out to be. So the
-controller waits, waits again, and is eventually forced to buy whatever the
-remaining hours offer. The one-shot LP never faces that comparison, because it
-allocates across all thirteen hours at once and its errors partly average out.
+**This reverses the earlier diagnosis.** On the old Spanish record, commitment cost
++1.361pp and the refreshed forecast bought back 0.796pp, and the explanation was that
+the minimum of a dozen noisy forecasts is optimistically biased, so the controller waits
+too long. On the corrected record the static arm is fine and the *refreshed* controller
+lands earlier than perfect foresight (4.83 against 5.09), so over-deferral does not
+describe it. I do not have an explanation for why fresher information hurts. One
+candidate, untested, is that splicing the near-horizon lag models onto the day-ahead
+model at the crossover (horizon 6) gives inconsistent curves from hour to hour.
 
-Forecast quality does improve with proximity, and by a lot — MAE runs from
-**6.72 g at one hour ahead to 26.33 g at thirteen**, monotone, measured in
-`train_horizon.py`. The premise of rolling control holds. What fails is the
-assumption that better information per decision outweighs making thirteen
-irreversible decisions instead of one.
+Forecast quality does improve with proximity, and by a lot: MAE runs from **4.96 g at
+one hour ahead to 20.49 g at thirteen**, monotone, measured in `train_horizon.py`, and the
+day-ahead model (MAE 15.32) beats the lag models from h=6 out. The premise of rolling
+control holds. What fails is the assumption that better information per decision
+outweighs making thirteen irreversible decisions instead of one, and on this data the
+two effects no longer even point the way they did.
 
-> **Two ways this comparison could have been rigged, and what was done about
-> them.** The shipped day-ahead model (MAE 23.70) beats the lag models from h=9
-> out, so a controller could be flattered by handing its baseline the weaker
-> forecast at long horizons. Both arms use the better model at every horizon,
-> with the crossover recorded. Separately, an early version let the baseline read
-> the *true* intensity for horizons past the crossover, which handed the one-shot
-> LP perfect foresight of 03:00–06:00 — the cleanest stretch of a Spanish night.
-> That bug made MPC look 238% worse; fixing it moved the answer to 28%. The sign
-> did not change, but nearly all of the magnitude did.
+> **Two ways this comparison could have been rigged, and what was done about them.**
+> The shipped day-ahead model beats the lag models from h=6 out, so a controller could be
+> flattered by handing its baseline the weaker forecast at long horizons. Both arms use
+> the better model at every horizon, with the crossover recorded. Separately, an early
+> version let the baseline read the *true* intensity for horizons past the crossover,
+> which handed the one-shot LP perfect foresight of 03:00-06:00, the cleanest stretch of
+> a Spanish night. That bug made MPC look 238% worse; fixing it moved the answer
+> substantially. The sign did not change, but nearly all of the magnitude did.
 
-> **The obvious repair was tried, and made it worse.** The diagnosis points at
-> pricing the optionality the controller destroys by waiting, so a deferral
-> penalty was added: λ × the forecast's own MAE at that horizon is added to every
-> forecast hour still ahead, which makes distant, uncertain hours look dirtier and
-> removes the optimistic bias of the minimum. Same 362 nights, same controller, λ
-> from 0 to 2 (`mpc.py`; the greedy solver used for the sweep reproduces the LP
-> controller to 0.0000%):
+> **The obvious repair was tried, and made it worse.** A deferral penalty adds
+> λ × the forecast's own MAE at that horizon to every forecast hour still ahead, which
+> prices the optionality of waiting. Same 362 nights, same controller, λ from 0 to 2
+> (`mpc.py`; the greedy solver used for the sweep reproduces the LP controller to
+> 0.0000%):
 >
 > | λ | Mean regret | vs one-shot | Mean position |
 > | --- | --- | --- | --- |
-> | 0 (unmodified) | 2.615% | +0.566pp | 4.52 |
-> | 0.5 | 2.951% | +0.902pp | 3.45 |
-> | 1.0 | 3.675% | +1.626pp | 2.58 |
-> | 1.5 | 4.578% | +2.529pp | 2.05 |
-> | 2.0 | 5.627% | +3.577pp | 1.66 |
+> | 0 (unmodified) | 2.965% | +0.443pp | 4.83 |
+> | 0.5 | 3.013% | +0.492pp | 3.69 |
+> | 1.0 | 3.216% | +0.694pp | 2.93 |
+> | 1.5 | 3.634% | +1.113pp | 2.47 |
+> | 2.0 | 3.945% | +1.424pp | 2.13 |
 >
-> Regret rises monotonically with the penalty; no λ beats the one-shot LP's
-> 2.049%. The reason is in the position column. The over-deferral diagnosis
-> describes the *static* arm (position 5.28, later than perfect foresight's 5.05).
-> The refreshed controller that is actually compared sits at 4.52, *earlier* than
-> the oracle, so it was not over-deferring on average, and pushing it earlier still
-> only moves energy into dirtier hours. The penalty repairs a failure this
-> controller does not have. This closes the question for this formulation: a
-> deferral penalty does not rescue rolling control here. A terminal cost shaped
-> differently, or a controller with the true value of waiting, remains untested.
+> Regret rises monotonically with the penalty and no λ beats the one-shot LP's 2.521%.
+> Pushing a controller that already lands early (4.83) earlier still only moves energy
+> into dirtier hours. This closes the question for this formulation. A terminal cost
+> shaped differently, or a controller with the true value of waiting, remains untested.
 
-Time-consistency is pinned by `test_optimizer_is_time_consistent`, and the
-backtest re-checks it every run: fed perfect forecasts, the rolling machinery
-reproduces the one-shot optimum to 0.0000% on every sampled night. The loss is
-a property of forecasting under commitment, not an implementation artefact.
+Time-consistency is pinned by `test_optimizer_is_time_consistent`, and the backtest
+re-checks it every run: fed perfect forecasts, the rolling machinery reproduces the
+one-shot optimum to 0.0000% on every sampled night. The loss is a property of
+forecasting under commitment, not an implementation artefact.
 
 ---
 
@@ -580,14 +600,16 @@ not to this one.
 
 `ml/fetch_india_psp.py`, `ml/india_carbon.py`, `ml/india_backtest.py` · **India** pane
 
-Finding 7 predicted that a dirtier grid is not a better one to shift load in,
-because value follows a grid's *shape* rather than its level. India is the test
+Finding 7 found that a dirtier grid is not a better one to shift load in on a typical
+night, because value follows a grid's *shape* rather than its level. India is the test
 case that prediction deserved, and it now has measured data behind it.
 
-> **Corrected.** This finding was first written on a mislabelled series; the
-> numbers below are recomputed on the repaired one (finding 14). The direction
-> held and the magnitudes did not: the overnight window saves 0.12% rather than
-> 0.05%, and the daytime window turns out to be worth something.
+> **Corrected twice.** First on a mislabelled series (finding 14): the overnight
+> window saves more than the 0.05% first reported, and the daytime window turns out
+> to be worth something. Then again when the backtest was found to score overnight
+> windows on a single calendar day instead of stitching 18:00 to 07:00 across
+> midnight: 0.12% became **0.09%** and the share of days under 1% rose from 87% to
+> **92.3%**. The Spanish comparison figures were also restated (finding 17).
 
 **The data.** Grid-India publishes a Daily PSP Report whose `TimeSeries` sheet
 carries 96 fifteen-minute intervals of all-India generation split by fuel. It is
@@ -599,29 +621,29 @@ autocorrelation +0.955 and lag-24 +0.981. Carbon intensity uses the same IPCC AR
 factors as Spain, so the two are comparable by construction rather than by
 assertion. Two independent sources agree with it where they overlap (finding 14).
 
-**India runs at 592 gCO₂eq/kWh** against Spain's 267 — about 2.2× as dirty, on a
+**India runs at 592 gCO₂eq/kWh** against Spain's 255 — about 2.3× as dirty, on a
 25.1% wind, solar and hydro share of generation.
 
 And the overnight window is the worst part of its day:
 
 | Window | Mean intensity | Spread | Median CO₂ cut | Days under 1% |
 | --- | --- | --- | --- | --- |
-| **Overnight 18–07** (this project's default) | 649 | 5.9% | **0.12%** | **87.0%** |
+| **Overnight 18–07** (this project's default) | 649 | 5.9% | **0.09%** | **92.3%** |
 | Daytime 09–17 | 497 | 15.6% | **1.51%** | 26.7% |
 | Afternoon 12–18 | 514 | 23.7% | **0.00%** | 99.8% |
-| Spain, overnight | 267 | — | 3.30% | 38.0% |
+| Spain, overnight | 255 | — | 2.00% | 41.4% |
 
 Intensity sits at about 650-660 from 18:00 through the small hours and peaks at
 **660 at 03:00-05:00**, then falls to a trough of **472 at midday**, where the
 solar is. India's clean hours are the middle of the day. A European charging
 habit points Indian drivers at precisely the wrong end of the clock, and
-scheduling inside that window recovers a median of **0.12%** — about 27× less
-than Spain, on a grid twice as dirty. Finding 7 holds.
+scheduling inside that window recovers a median of **0.09%** — about 22× less
+than Spain, on a grid more than twice as dirty. Finding 7 holds.
 
 **Where there is a saving, it is in the daytime window**: 1.51% median, 1.74% mean,
 and only 27% of days under 1% — twelve times the overnight figure. That is the
 charging a workplace or a depot does, not the habit this project was built around,
-and it is still modest next to Spain's overnight 3.3%.
+and it is still modest.
 
 **The afternoon row is the sharper lesson, and it corrects finding 7.** That
 window has the *widest* spread of the three — 23.7% against the overnight
@@ -637,7 +659,7 @@ gap larger, not smaller.
 Carbon-aware charging is the wrong intervention for overnight India. Capacity
 coordination is the right one: the same fleet on the same transformer is worth
 3.5× in hosting capacity (finding 10), a real and large number, while the
-overnight carbon saving rounds to a tenth of a percent. A project that exists to
+overnight carbon saving rounds to under a tenth of a percent. A project that exists to
 schedule charging against carbon has measured its way to the conclusion that in
 India it should not, at night.
 
@@ -662,34 +684,42 @@ India it should not, at night.
 Finding 6 left a gap: scheduling on a forecast is worse than charging on arrival
 on flat nights, and the remedy ("act only when the predicted spread is large")
 was named but not built. The gate here computes, at 18:00, the saving it
-*expects* — forecast-optimal against charge-on-arrival, both scored on the
-forecast — and acts only if that is at least τ; below τ it charges on arrival.
+*expects* (forecast-optimal against charge-on-arrival, both scored on the
+forecast) and acts only if that is at least τ; below τ it charges on arrival.
 Everything is scored against what actually happened.
 
-**Spain**, deployed ridge forecaster, 361 held-out 2018 nights. The ungated row
-reproduces the published 71.0% of achievable saving, which is the check that the
-harness measures the same thing as finding 3:
+**Spain**, deployed ridge forecaster, 361 held-out 2018 nights of the corrected
+record. The ungated row reproduces the 68.9% of achievable saving in finding 3, which
+is the check that the harness measures the same thing:
 
 | Gate τ (expected saving) | Nights acted on | Fleet-total saving | Share of oracle | Nights worse than nothing |
 | --- | --- | --- | --- | --- |
-| none | 100% | 7.83% | 71.0% | **27.4%** |
-| 2% | 58% | 8.12% | 73.6% | 16.6% |
-| 5% | 48% | 8.08% | 73.3% | 10.2% |
-| **7.5%** | **41%** | **8.18%** | **74.2%** | **5.8%** |
-| 15% | 27% | 6.88% | 62.4% | 3.0% |
+| none | 100% | 5.37% | 68.9% | **26.6%** |
+| 1% | 57% | 5.48% | 70.3% | 15.2% |
+| 2% | 52% | 5.58% | 71.6% | 11.9% |
+| 3% | 49% | 5.67% | 72.7% | 9.7% |
+| **4%** | **47%** | **5.74%** | **73.6%** | **7.8%** |
+| 5% | 42% | 5.65% | 72.4% | 5.0% |
+| 7.5% | 36% | 5.29% | 67.9% | 3.6% |
+| 15% | 12% | 3.53% | 45.3% | 1.1% |
 
-Perfect foresight saves 11.03%. A moderate gate *removes four in five of the
-harmful nights and slightly raises the total*, because the nights it skips are
-the ones that were losing. Push τ too high (15%+) and it starts discarding real
-savings. τ was chosen on the first 180 held-out nights and scored on the other
-181 so the figure is not tuned on its own test: ungated 7.91% with 27.1% worse
-nights, gated at 7.5% **8.16% with 4.4% worse**, acting on 41%.
+Perfect foresight saves 7.79%. A moderate gate *removes about three in four of the
+harmful nights and slightly raises the total*, because the nights it skips are the
+ones that were losing. Push τ too high and it starts discarding real savings. τ was
+chosen on the first 180 held-out nights and scored on the other 181 so the figure is
+not tuned on its own test: ungated 6.08% with 25.4% worse nights, gated at τ=4%
+**6.32% with 6.1% worse**, acting on 49%.
+
+> The earlier version of this table put the optimum at 7.5%. That was a property of the
+> wrong record, which had larger, easier savings. On the corrected one the curve peaks at
+> 4% and 7.5% already gives savings back. The shipped threshold is 4%, and the Simulator
+> uses the same value.
 
 **The expected saving is the right thing to gate on; the window spread is not.**
-Gating on the forecast's (max-min)/mean — the wording in finding 6 — chose τ=15%,
-acted on 62% of nights, cut worse nights only to 12.7% and *lowered* the total to
-7.50%. A wide predicted spread does not mean a profitable shift: a spread can sit
-in hours the charger cannot reach.
+Gating on the forecast's (max-min)/mean, the wording in finding 6, never improved
+on the ungated total in this sweep and needed a far larger τ to cut harm. A wide
+predicted spread does not mean a profitable shift: a spread can sit in hours the
+charger cannot reach.
 
 **Germany and India are a weaker test, and the result is more mixed.** Neither has
 a deployed forecaster, so each uses a plain lag ridge (24-168 h lags, previous-day
@@ -698,29 +728,27 @@ than Spain's, and the three grids are not a like-for-like forecast comparison.
 
 - **Germany** (341 nights): the plain forecaster is actively harmful ungated, a
   net **-1.23%** over the held-out span with 35% of nights worse than nothing. The
-  gate turns that to roughly zero (+0.06%) by acting on 6% of nights at τ=20%,
+  gate turns that to roughly zero (+0.06%) by acting on very few nights at τ=20%,
   but the half it was scored on happened to be a good one for the ungated schedule
-  (+1.45%), so out of sample the gate gave up total saving (1.45% → 0.38%) to cut
-  worse nights from 32% to 4%. The selection half and the reporting half do not
-  look alike, which is itself the finding: a gate tuned on one stretch of a
-  non-stationary grid does not transfer cleanly.
+  (+1.45%), so out of sample the gate gave up total saving (1.45% to 0.38%) to cut
+  worse nights from 32% to 4%. A gate tuned on one stretch of a non-stationary grid
+  does not transfer cleanly.
 - **India** (159 nights, on the repaired series): perfect foresight saves
-  **0.05%** in total, so there is almost nothing to gate toward. The saving gate
-  fires on 1% of the held-out nights; ungated scheduling loses 0.08% and the
-  gated schedule loses 0.05%, and the share of nights worse than charging on
-  arrival falls from 7.5% to 1.2%. This is finding 12 seen from the
-  controller's side — on that grid, overnight, the right decision is almost
-  always "charge on arrival".
+  **0.05%** in total, so there is almost nothing to gate toward. Ungated scheduling
+  loses 0.05% and the gated schedule gives up nothing, with the share of nights worse
+  than charging on arrival falling from 7.5% to under 1% (out of sample, 7.5% to 1.2%).
+  This is finding 12 seen from the controller's side: on that grid, overnight, the
+  right decision is almost always "charge on arrival".
 
 **What this does and does not establish.** The gate is a safety measure for a
 scheduler that is driven by an imperfect forecast. In Spain it is close to free;
 elsewhere it mainly stops the scheduler doing damage. It does not make carbon
-scheduling a large lever — the oracle ceiling is still 11% in Spain and 0.05% in
-India. The Spanish result uses the project's one real forecaster; the German and
-Indian results use throwaway ones, and a better German forecaster would change
-that row. All grids use one identical-vehicle fleet (9.2 kWh at 7 kW), for which
-a greedy fill equals the LP (cross-checked to 1e-16 on 12 nights per grid), so the
-Indian fleet's real mix of scooters and rickshaws is not represented.
+scheduling a large lever: the oracle ceiling is 7.8% in Spain and 0.05% in India. The
+Spanish result uses the project's one real forecaster; the German and Indian results
+use throwaway ones, and a better German forecaster would change that row. All grids use
+one identical-vehicle fleet (9.2 kWh at 7 kW), for which a greedy fill equals the LP
+(cross-checked to 1e-16 on 12 nights per grid), so the Indian fleet's real mix of
+scooters and rickshaws is not represented.
 
 ---
 
@@ -796,7 +824,7 @@ exist at that hour is.
 
 `ml/learning_curve.py`, `ml/train_long.py`, `ml/train_india.py`
 
-The obvious fix for a forecaster that captures 71% of the achievable saving is
+The obvious fix for a forecaster that captures 69% of the achievable saving is
 more training data. Four experiments say it is the wrong place to look.
 
 **Spain, the deployed model, 2018 test year** (`learning_curve.py`). Ridge trained
@@ -804,11 +832,13 @@ on 1, 2 and 3 years before 2018:
 
 | Training | Rows | MAE | Share of saving captured |
 | --- | --- | --- | --- |
-| 2017 only | 8,760 | 26.90 | 72.8% |
-| 2016-2017 | 17,544 | 23.40 | 71.0% |
-| 2015-2017 | 26,114 | 23.70 | 71.0% |
+| 2017 only | 8,760 | 15.47 | 68.9% |
+| 2016-2017 | 17,544 | 15.31 | 68.3% |
+| 2015-2017 | 26,114 | 15.32 | 68.9% |
 
-Error falls from one year to two, then stops. The model is not data-starved.
+Three years of history do no better than one. On the old record error fell from one year
+to two before flattening; on the corrected one it is flat from the start. The model is
+not data-starved.
 
 **Spain, eleven years, tested on 2025** (`train_long.py`). The Spanish record was
 extended from 2015-2018 to 2015-2026 (103,006 hourly rows, Energy-Charts, free,
@@ -836,12 +866,12 @@ matters for a night-time window has survived the transition.
 **What does matter: the day-ahead inputs.** Moving the *same* 2015-2017 → 2018
 split onto the new source, which has lags and calendar but **none of the TSO
 day-ahead solar, wind and load forecasts** the deployed model uses, drops
-the captured saving from **71.0% to 40.6%** (MAE 23.7 → 28.5). On that split those three
-inputs are worth about thirty points of decision quality; a decade of extra
+the captured saving from **68.9% to 40.6%** (MAE 15.3 → 28.5). On that split those three
+inputs are worth about twenty-eight points of decision quality; a decade of extra
 history is worth about two. The extended record alone cannot supply them for Spain.
 They turned out to be obtainable without a token (Energy-Charts republishes them),
 and finding 16 uses them: on the 2025 grid they are worth about eight points rather
-than thirty, because solar has made the daily shape regular enough for lags to do
+than twenty-eight, because solar has made the daily shape regular enough for lags to do
 much of the work.
 
 **India demand, 46,728 hours** (`train_india.py`; tested on the final 12 months):
@@ -886,18 +916,20 @@ series for Spain, and the day-ahead market price, back to 2015, free and without
 (CC BY 4.0). 103,294 hourly rows, 99.6-100% complete. With them the model was rebuilt
 on the grid as it is now.
 
-**A. The new source reproduces the old result.** The deployed split (train 2015-2017,
-test 2018) on the new data, with the day-ahead forecasts:
+**A. The corrected record reproduces the deployed result, and shows what the old one hid.**
+The deployed split (train 2015-2017, test 2018) on the new data, with the day-ahead
+forecasts:
 
 | | MAE | Share of saving captured |
 | --- | --- | --- |
-| Deployed model (Kaggle record) | 23.70 | **71.0%** |
-| New source, with day-ahead forecasts | 15.32 | **68.9%** |
-| New source, lags and calendar only | 28.49 | 40.0% |
+| Old Kaggle record (superseded) | 23.70 | 71.0% |
+| Corrected record, with day-ahead forecasts (deployed) | 15.32 | **68.9%** |
+| Corrected record, lags and calendar only | 28.49 | 40.0% |
 
-The decision metric agrees within about two points. The MAE does not, and is not
-comparable across sources: the two intensity series are built from slightly different
-generation tables, so their variance differs. Captured saving is the number to trust.
+The old record's error was much higher (23.7 against 15.3) because a third of its nights
+were wrong inputs the model could not fit. The decision metric moved by only two points
+because the wrong nights were wrong in both the inputs and the targets the model was
+scored on. Finding 17 has the diagnosis.
 
 **B. What the day-ahead inputs are worth depends on the grid.** Train 2022-2024, test
 2025, ridge:
@@ -908,10 +940,10 @@ generation tables, so their variance differs. Captured saving is the number to t
 | + day-ahead solar, wind, load | 15.62 | 75.9% |
 | + day-ahead price | 15.16 | 77.4% |
 
-On the 2018 grid the forecasts were worth about thirty points (40% to 71%). On the
+On the 2018 grid the forecasts were worth about twenty-nine points (40% to 69%). On the
 2025 grid they are worth about eight, because lags alone already do well: solar has
-made the daily shape regular enough that yesterday predicts today. Finding 15's
-"thirty points" is true of the 2018 split and should not be carried to the modern grid.
+made the daily shape regular enough that yesterday predicts today. The 2018 figure should
+not be carried to the modern grid.
 
 **C. Training window**, chosen on 2024 and scored on 2025 (ridge with forecasts and price):
 
@@ -931,27 +963,80 @@ not help the model that can be served without scikit-learn.
 
 **D. The deployed model**: ridge on the 2024 data alone, scored on 2025, which it has
 never seen: **MAE 15.6, 80.9% of an achievable 11.81% saving**. Behind the forecast
-gate (finding 13) at 7.5% it captures 80.7% and the nights worse than charging on arrival
-fall from 10.0% to 2.5%. A ridge+GBM blend reaches 81.6% and is not shipped, for the
+gate (finding 13) at 4% it captures 80.9% and the nights worse than charging on arrival
+fall from 10.0% to 4.5%. A ridge+GBM blend reaches 81.6% and is not shipped, for the
 same reason as before: it needs scikit-learn at inference.
 
 **The grid itself.** Across all 361 nights of 2025 (perfect foresight): median saving
 **2.7%**, fleet total **11.8%**, 44% of nights under 1%, 22% over 20%. Against 2018's
-3.3%, 10.4%, 38% and 17%: a smaller typical night and a longer tail, as a grid with
-much more solar would produce. 46 of those nights are served (`era: "2025"`), with the
+2.0%, 6.6%, 41% and 9%: a slightly larger typical night and a much longer tail, as a grid
+with much more solar would produce. 46 of those nights are served (`era: "2025"`), with the
 median-saving night as the default.
 
-**Caveats.** The two copies of the 2015-2018 record are not identical hour by hour. Every
-fuel's mean matches to the unit, and 64% of hours match exactly, but the remaining hours
-differ in a way I did not run to ground: on the hourly carbon series the correlation is
-only 0.63 (mean absolute difference 41 g/kWh, no time shift, same in every month). The
-decision metric agrees within two points (A above), but the sources are not
-interchangeable, and a live ENTSO-E pull would show which one is closer to the truth.
-One test year. The Energy-Charts archive labels these series day-ahead, but
+**Caveats.** The two copies of the 2015-2018 record disagreed, and finding 17 settles
+which was right: Energy-Charts. This finding's 2025 numbers never touched the Kaggle copy
+and are unaffected. One test year. The Energy-Charts archive labels these series day-ahead, but
 that they are the forecasts as originally issued, and never revised afterwards, cannot be
 verified from here; a live ENTSO-E pull would settle it. The flat tariff component added
 to the price (EUR 0.062/kWh) is the 2018 approximation, reused for 2025. And 80.9% was
 reached on a model chosen with 2025 in view, though its window was fixed on 2024.
+
+---
+
+## 17. The Spanish record this project started on is wrong on a third of its nights
+
+`ml/make_corrected_energy_dataset.py`, `ml/fetch_spain_ec.py`, `ml/corrected_stats.py`
+
+Finding 16 left a loose end: the Kaggle copy of the 2015-2018 Spanish ENTSO-E record and
+the Energy-Charts copy of the same series agreed on every fuel's mean but only matched
+exactly in 64% of hours. The hourly carbon correlation between them was 0.63. I assumed
+the difference was a rounding or aggregation artefact. It was not.
+
+**The evidence.** Spain's own grid operator (REE, REData API) publishes official daily
+generation. Taking the median gap between each source's daily total and REE's:
+
+| Days of the month | Kaggle vs REE | Energy-Charts vs REE |
+| --- | --- | --- |
+| 1-12 | **11.1%** | 7.2% |
+| 13-end | 5.5% | 7.1% |
+
+Energy-Charts is steady across the month, about 7% under REE, which is cogeneration the
+public series does not include. Kaggle is as good as Energy-Charts on days 13 onward and
+twice as far from REE on days 1-12. The first twelve days of each month in the Kaggle file are wrong; the
+cause I do not know.
+
+**What it did to the published numbers.** Nights starting on days 1-12 carried most of the
+saving: 15.1% fleet-wide on the old record, 6.3% on the same nights of the corrected one.
+
+| | Old record | Corrected |
+| --- | --- | --- |
+| Median night saving | 3.3% | **2.0%** |
+| Fleet total | 10.4% | **6.6%** |
+| Nights under 1% | 38% | 41% |
+| Forecaster share of saving captured | 71.0% | 68.9% |
+| Climatology baseline captured | 16.4% | 55.5% |
+| MPC regret vs one-shot | +1.36pp commitment cost | commitment free, refresh +0.47pp |
+| V2G abatement cost vs ETS | ten times too dear | three to nine times too dear |
+
+**What was rebuilt.** `make_corrected_energy_dataset.py` writes the Kaggle schema from
+Energy-Charts generation and day-ahead series (the original is kept as
+`energy_dataset_kaggle.csv`), and every Spanish number in this document was re-run on it:
+the backtest, both forecasters, the gate, the learning curve, rolling control, the V2G
+study, the cost-versus-carbon comparison, the Germany comparison and the served nights.
+
+**What it did not touch.** Hosting capacity (finding 1) runs on the feeder and charger
+model and never used Spanish carbon. Germany, India and the 2025 era come from other
+sources. Findings 4, 10, 11 and 14 are unaffected.
+
+**What I did not establish.** Why the early-month days are wrong: it looks like a join or
+aggregation error in the Kaggle build, but I have not seen the build. Whether Energy-Charts
+has errors of its own: it is 7% under REE throughout, which fits cogeneration, and
+consistent, but I only checked totals, not hourly shape. And the dataset the Kaggle copy
+came from is widely used, so other work built on it carries the same problem.
+
+**Lesson.** A source that agrees on means and fails on correlation is not agreeing. I saw
+the 0.63 correlation in finding 16 and wrote it down as a caveat rather than chasing it.
+That caveat was moving the headline by a third.
 
 ---
 
@@ -1046,8 +1131,8 @@ synchronisation effect is real but small; the coordination gap is the large one.
 shipped `weather_features.csv` — hourly cloud cover, wind speed and temperature
 for five Spanish cities — unused by the first pass. Cloud cover drives solar and
 wind speed drives wind, so it looked like the obvious lever. Measured across a
-full re-run with 40 features instead of 25, it is worth **−0.19pp** of captured
-saving: very slightly *worse*. The reason is clean — the dataset already carries
+full re-run with 40 features instead of 25, it is worth **−0.6pp** of captured
+saving at the same MAE: very slightly *worse*. The reason is clean — the dataset already carries
 the TSO's day-ahead solar and wind forecasts, which are themselves produced from
 weather models, so the signal was already present and the raw columns added
 redundancy and dimensionality. Both variants are reported in
@@ -1066,8 +1151,8 @@ by construction. Houses already exist; EVs arrive into them.
 
 - **Average, not marginal, carbon intensity.** The derived series is the
   emissions of the average kWh; load shifting responds to the *next* kWh.
-  `src/carbon.py` estimates a system marginal rate (228 vs 267 gCO₂eq/kWh
-  average) but the served series is the average. Closing this needs MOER data.
+  `src/carbon.py` estimates a system marginal rate (see `src/carbon.py` for the marginal
+  estimate against the 255 gCO₂eq/kWh average) but the served series is the average. Closing this needs MOER data.
 - **The residential baseline is the one remaining synthetic input.** ENTSO-E
   reports system-wide load, which cannot be scaled to a single feeder without an
   assumption.

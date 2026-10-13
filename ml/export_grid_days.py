@@ -83,12 +83,15 @@ def main() -> None:
     fleet = [Vehicle("agg", ENERGY_KWH * EV_COUNT, CHARGER_KW * EV_COUNT, ARRIVAL, DEADLINE)]
     naive = naive_schedule(fleet)
     cuts = {}
+    tot_n = tot_o = 0.0
     for key, payload in days.items():
         c = payload["carbon"]
         opt = optimize_schedule(fleet, c, objective="emissions")
         e_n = sum(naive[h] * c[h] for h in range(24))
         e_o = sum(opt[h] * c[h] for h in range(24))
         cuts[key] = (1 - e_o / e_n) * 100 if e_n else 0.0
+        tot_n += e_n
+        tot_o += e_o
 
     # Thin *after* scoring. Taking every Nth calendar date drifts the retained
     # median well off the true one (1.0% vs 3.3% at stride 4) because saving is
@@ -98,6 +101,15 @@ def main() -> None:
     # nothing is dropped for looking bad.
     full = pd.Series(cuts)
     full_median = full.median()
+    # Whole-year statistics over EVERY night, before thinning, so the UI can quote the year
+    # beside the single night it shows.
+    year_stats = {
+        "year": YEAR, "nights": int(len(full)),
+        "median_saving_pct": round(float(full.median()), 1),
+        "total_saving_pct": round((1 - tot_o / tot_n) * 100, 1),
+        "under_1pct": int(round((full < 1).mean() * 100)),
+        "over_20pct": int(round((full > 20).mean() * 100)),
+    }
     kept = sorted(list(full.sort_values().index)[::STRIDE])
     days = {k: days[k] for k in kept}
     cuts = {k: cuts[k] for k in kept}
@@ -123,13 +135,16 @@ def main() -> None:
             "region": "ES",
             "timezone": "Europe/Madrid",
             "units": {"carbon": "gCO2eq/kWh", "price": "EUR/kWh"},
-            "source": "ENTSO-E via kaggle: "
-                      "nicholasjhana/energy-consumption-generation-prices-and-weather",
+            "source": "ENTSO-E via Energy-Charts (Fraunhofer ISE, CC BY 4.0), corrected: the Kaggle "
+                      "copy this was first built from is wrong on the first twelve days of every "
+                      "month (FINDINGS.md finding 17)",
+            "era": str(YEAR),
             "carbon_derivation": "generation mix weighted by IPCC AR5 lifecycle "
                                  "emission factors (see ml/src/carbon.py)",
             "default_day": default_day,
             "default_day_note": "median emissions saving across all exported nights, "
                                 "chosen so the demo is representative not cherry-picked",
+            "year_stats": year_stats,
             "days": days,
         },
         separators=(",", ":"),

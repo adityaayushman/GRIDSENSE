@@ -49,6 +49,9 @@ EC = HERE / "data" / "es-ec"
 OUT_JSON = HERE / "artifacts" / "modern_forecaster_metrics.json"
 OUT_MODEL = HERE / "artifacts" / "ridge_forecaster_modern.json"
 TEST_YEAR, VALID_YEAR = 2025, 2024
+#: The forecast gate threshold (finding 13): the out-of-sample optimum on the corrected 2018 record,
+#: and no loss of total saving on 2025.
+GATE_TAU = 4.0
 WINDOWS = (1, 2, 3, 5, 8)
 
 TSO = ["fc_solar_mw", "fc_wind_mw", "fc_load_mw", "renew_share", "renew_share_lag24"]
@@ -100,11 +103,11 @@ def score(model, train: pd.DataFrame, test: pd.DataFrame, cols: list[str]) -> di
     mae = float(np.abs(pred - test["ci"]).mean())
     ev = evaluate(night_curves(test["ci"], pred, "Europe/Madrid"))
     ungated = sweep(ev, "pred_saving", [-1e9])[0]
-    gated = sweep(ev, "pred_saving", [7.5])[0]
+    gated = sweep(ev, "pred_saving", [GATE_TAU])[0]
     oracle = sum(r["e_naive"] - r["e_or"] for r in ev) / sum(r["e_naive"] for r in ev) * 100
     return {"mae": round(mae, 2), "captured_pct": ungated["captured_of_oracle_pct"],
             "worse_nights_pct": ungated["worse_share_pct"],
-            "gated_7p5_captured_pct": gated["captured_of_oracle_pct"], "gated_7p5_worse_pct": gated["worse_share_pct"],
+            "gated_captured_pct": gated["captured_of_oracle_pct"], "gated_worse_pct": gated["worse_share_pct"],
             "oracle_saving_pct": round(oracle, 2), "nights": len(ev)}
 
 
@@ -163,7 +166,7 @@ def main() -> None:
     ev = evaluate(night_curves(test["ci"], pd.Series(blend_pred, index=test.index), "Europe/Madrid"))
     blend = sweep(ev, "pred_saving", [-1e9])[0]["captured_of_oracle_pct"]
     print(f"   {TEST_YEAR}: MAE {final['mae']}, captures {final['captured_pct']}% of a {final['oracle_saving_pct']}% achievable saving; "
-          f"gate at 7.5%: captures {final['gated_7p5_captured_pct']}%, worse nights {final['worse_nights_pct']}% -> {final['gated_7p5_worse_pct']}%")
+          f"gate at {GATE_TAU}%: captures {final['gated_captured_pct']}%, worse nights {final['worse_nights_pct']}% -> {final['gated_worse_pct']}%")
     print(f"   (ridge+GBM blend, not shipped: captures {blend}%)")
     res["D_deployed"] = {**final, "blend_captured_pct": blend, "train_years": best["years"]}
 

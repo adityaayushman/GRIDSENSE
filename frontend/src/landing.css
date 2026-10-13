@@ -439,3 +439,10 @@
   .ldStackRow { grid-template-columns: 1fr; }
   .ldStackTag { justify-self: start; }
 }
+
+/* Four tiles in one row on a wide screen, two by two on a narrow one; never three and an orphan. */
+.ldStats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); max-width: 760px; margin-left: auto; margin-right: auto; }
+.ldStat { min-width: 0; align-items: center; text-align: center; }
+@media (max-width: 640px) { .ldStats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* The curve's own text labels sat behind the headline and made it harder to read. */
+.lsTick { display: none; }

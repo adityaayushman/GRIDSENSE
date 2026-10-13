@@ -140,8 +140,8 @@ export interface ScenarioResponse {
   era: Era;
 }
 
-/** The threshold finding 13 settled on for Spain. */
-export const GATE_MIN_SAVING_PCT = 7.5;
+/** The threshold finding 13 settled on: the out-of-sample optimum on the corrected 2018 record, and free on 2025. */
+export const GATE_MIN_SAVING_PCT = 4;
 
 /**
  * Fire-and-forget ping to warm the API before the first real request.
@@ -198,6 +198,11 @@ export async function runScenario(req: ScenarioRequest): Promise<ScenarioRespons
   }
   if (!res.ok) {
     const detail = detailOf(await res.text());
+    // 404 and 405 mean nothing answers at this address (no API route), which is a reachability
+    // problem to the visitor. Only a 4xx with the API's own explanation is a rejected scenario.
+    if (res.status === 404 || res.status === 405) {
+      throw new ApiError("The scheduling API is not available at this address.", "unreachable", res.status);
+    }
     throw new ApiError(detail || `Request failed (${res.status})`, res.status >= 500 ? "server" : "rejected", res.status);
   }
   return res.json();
@@ -243,10 +248,19 @@ export interface IndiaLiveDay {
 
 /** Newest Indian grid day from Grid-India via the API. Needs no key. */
 export async function fetchIndiaLive(): Promise<IndiaLiveDay> {
-  const res = await fetch(`${API_BASE}/api/india/live`);
-  if (!res.ok) {
-    let why = `HTTP ${res.status}`;
-    try { why = (await res.json()).detail ?? why; } catch { /* keep status */ }
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/api/india/live`);
+  } catch {
+    throw new Error("the API did not respond");
+  }
+  // A host with no API behind it answers with its HTML page; say so in words, not a parse error.
+  const isJson = (res.headers.get("content-type") ?? "").includes("json");
+  if (!res.ok || !isJson) {
+    let why = res.ok ? "the API is not available at this address" : `HTTP ${res.status}`;
+    if (isJson) {
+      try { why = (await res.json()).detail ?? why; } catch { /* keep the status */ }
+    }
     throw new Error(why);
   }
   return res.json();

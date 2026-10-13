@@ -33,7 +33,7 @@
 **In one line:** GridSense schedules home EV charging against real grid data and
 measures what that is worth — little for carbon, and a lot for how many EVs one
 street transformer can carry (about 4× on the median draw; an estimate that rests on
-assumed inputs, stated as such below). Eight of its own published claims were wrong
+assumed inputs, stated as such below). Nine of its own published claims were wrong
 at some point; [LESSONS.md](LESSONS.md) records how each was caught.
 
 **Live:** https://gridsense-app-adityaasahoo-gmailcoms-projects.vercel.app
@@ -79,11 +79,12 @@ the most favourable of twenty fleet draws. All are documented in
 [FINDINGS.md](FINDINGS.md) and [LESSONS.md](LESSONS.md).)
 
 **What the data says.** Backtested over every complete overnight window in
-ENTSO-E's 2018 Spanish record, the median night saves **3.3%** of charging
-emissions and the fleet-wide total is **10.4%** — not the flat 30%+ a smooth
-synthetic curve suggests. The saving is long-tailed: 38% of nights save under
-1%, while 17% save over 20%. The objectives genuinely conflict, too — the
-cheapest hour and the cleanest hour coincide on only 14% of nights, so
+ENTSO-E's Spanish record (2015-2018, corrected: the widely used Kaggle copy is wrong on
+the first twelve days of every month, see finding 17), the median night saves **2.0%** of
+charging emissions and the fleet-wide total is **6.6%** — not the flat 30%+ a smooth
+synthetic curve suggests. The saving is long-tailed: 41% of nights save under
+1%, while 9% save over 20%. The objectives genuinely conflict, too — the
+cheapest hour and the cleanest hour coincide on only 18% of nights, so
 minimizing cost can *raise* emissions. The dashboard shows those as increases
 rather than hiding them. See [`ml/README.md`](ml/README.md) for the analysis.
 
@@ -92,7 +93,7 @@ rather than hiding them. See [`ml/README.md`](ml/README.md) for the analysis.
 - [FEATURES.md](FEATURES.md) — what is built, what is not, what is out of scope
 - [FINDINGS.md](FINDINGS.md) — every result with the script that reproduces it,
   including the hypotheses that failed
-- [LESSONS.md](LESSONS.md) — the eight things I got wrong, how each was caught, and
+- [LESSONS.md](LESSONS.md) — the nine things I got wrong, how each was caught, and
   what I check now
 - [ml/README.md](ml/README.md) — the analysis and how to re-run it
 
@@ -137,7 +138,7 @@ frontend/    React + TypeScript dashboard (Vite)
   > The derived series is *average* carbon intensity, not *marginal*. Load
   > shifting responds to the marginal rate; closing that gap needs MOER data
   > this dataset does not carry. `ml/src/carbon.py` estimates a system marginal
-  > rate (228 vs 267 gCO2eq/kWh average) but the served series is the average.
+  > rate but the served series is the average.
 
 ## Running locally
 

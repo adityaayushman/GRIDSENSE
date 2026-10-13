@@ -8,50 +8,50 @@
         {
           "model": "ridge+gbm blend",
           "config": "mean",
-          "mae": 22.605,
-          "rmse": 30.31,
-          "captured_pct": 72.81
+          "mae": 14.048,
+          "rmse": 18.075,
+          "captured_pct": 73.1
+        },
+        {
+          "model": "gbm",
+          "config": "{'max_iter': 800, 'learning_rate': 0.06, 'max_depth': 10, 'min_samples_leaf': 50, 'l2_regularization': 0.0}",
+          "mae": 14.645,
+          "rmse": 18.852,
+          "captured_pct": 69.16
         },
         {
           "model": "ridge",
           "config": "alpha=1.0",
-          "mae": 23.704,
-          "rmse": 31.504,
-          "captured_pct": 71.02
+          "mae": 15.324,
+          "rmse": 20.056,
+          "captured_pct": 68.88
         },
         {
           "model": "ridge",
           "config": "alpha=0.1",
-          "mae": 23.711,
-          "rmse": 31.541,
-          "captured_pct": 71.29
+          "mae": 15.33,
+          "rmse": 20.102,
+          "captured_pct": 69.01
         },
         {
           "model": "ridge",
           "config": "alpha=10.0",
-          "mae": 23.818,
-          "rmse": 31.461,
-          "captured_pct": 71.28
-        },
-        {
-          "model": "gbm",
-          "config": "{'max_iter': 400, 'learning_rate': 0.03, 'max_depth': 10, 'min_samples_leaf': 50, 'l2_regularization': 1.0}",
-          "mae": 24.126,
-          "rmse": 32.483,
-          "captured_pct": null
-        },
-        {
-          "model": "ridge",
-          "config": "alpha=100.0",
-          "mae": 24.734,
-          "rmse": 32.142,
+          "mae": 15.488,
+          "rmse": 20.044,
           "captured_pct": null
         },
         {
           "model": "random forest",
           "config": "n=300",
-          "mae": 25.226,
-          "rmse": 33.965,
+          "mae": 16.14,
+          "rmse": 21.097,
+          "captured_pct": null
+        },
+        {
+          "model": "ridge",
+          "config": "alpha=100.0",
+          "mae": 17.251,
+          "rmse": 21.771,
           "captured_pct": null
         }
       ]
@@ -63,50 +63,50 @@
         {
           "model": "ridge+gbm blend",
           "config": "mean",
-          "mae": 22.972,
-          "rmse": 30.724,
-          "captured_pct": 72.62
+          "mae": 14.008,
+          "rmse": 17.991,
+          "captured_pct": 72.45
         },
         {
           "model": "gbm",
-          "config": "{'max_iter': 400, 'learning_rate': 0.03, 'max_depth': None, 'min_samples_leaf': 50, 'l2_regularization': 1.0}",
-          "mae": 24.111,
-          "rmse": 32.596,
-          "captured_pct": 68.04
+          "config": "{'max_iter': 800, 'learning_rate': 0.03, 'max_depth': None, 'min_samples_leaf': 20, 'l2_regularization': 1.0}",
+          "mae": 14.512,
+          "rmse": 18.611,
+          "captured_pct": 68.27
         },
         {
           "model": "ridge",
           "config": "alpha=0.1",
-          "mae": 24.219,
-          "rmse": 32.041,
-          "captured_pct": 71.19
+          "mae": 15.318,
+          "rmse": 20.043,
+          "captured_pct": 68.24
         },
         {
           "model": "ridge",
           "config": "alpha=1.0",
-          "mae": 24.219,
-          "rmse": 32.013,
-          "captured_pct": 71.22
+          "mae": 15.319,
+          "rmse": 20.002,
+          "captured_pct": 67.75
         },
         {
           "model": "ridge",
           "config": "alpha=10.0",
-          "mae": 24.377,
-          "rmse": 32.038,
+          "mae": 15.521,
+          "rmse": 20.034,
           "captured_pct": null
         },
         {
           "model": "random forest",
           "config": "n=300",
-          "mae": 25.394,
-          "rmse": 34.23,
+          "mae": 16.306,
+          "rmse": 21.295,
           "captured_pct": null
         },
         {
           "model": "ridge",
           "config": "alpha=100.0",
-          "mae": 25.618,
-          "rmse": 33.084,
+          "mae": 17.468,
+          "rmse": 21.98,
           "captured_pct": null
         }
       ]
@@ -115,15 +115,15 @@
   "best_no_weather": {
     "model": "ridge+gbm blend",
     "config": "mean",
-    "mae": 22.605,
-    "rmse": 30.31,
-    "captured_pct": 72.81
+    "mae": 14.048,
+    "rmse": 18.075,
+    "captured_pct": 73.1
   },
   "best_with_weather": {
     "model": "ridge+gbm blend",
     "config": "mean",
-    "mae": 22.972,
-    "rmse": 30.724,
-    "captured_pct": 72.62
+    "mae": 14.008,
+    "rmse": 17.991,
+    "captured_pct": 72.45
   }
 }

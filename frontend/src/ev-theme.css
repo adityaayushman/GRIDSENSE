@@ -285,9 +285,9 @@
 .heroScene [data-depth="3"] { transform: translate3d(calc(var(--px,0) * 19px), calc(var(--py,0) * 10px), 0); }
 
 /* ── Tab panes arrive ─────────────────────────────────────────────────── */
-.paneEnter { animation: paneIn .42s cubic-bezier(.2,.7,.3,1) both; }
+.paneEnter { animation: paneIn var(--dur-3, 260ms) var(--ease-out, cubic-bezier(.2,.7,.3,1)) both; }
 @keyframes paneIn {
-  from { opacity: 0; transform: translateY(10px) scale(.995); }
+  from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: none; }
 }
 
