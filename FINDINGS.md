@@ -941,7 +941,13 @@ same reason as before: it needs scikit-learn at inference.
 much more solar would produce. 46 of those nights are served (`era: "2025"`), with the
 median-saving night as the default.
 
-**Caveats.** One test year. The Energy-Charts archive labels these series day-ahead, but
+**Caveats.** The two copies of the 2015-2018 record are not identical hour by hour. Every
+fuel's mean matches to the unit, and 64% of hours match exactly, but the remaining hours
+differ in a way I did not run to ground: on the hourly carbon series the correlation is
+only 0.63 (mean absolute difference 41 g/kWh, no time shift, same in every month). The
+decision metric agrees within two points (A above), but the sources are not
+interchangeable, and a live ENTSO-E pull would show which one is closer to the truth.
+One test year. The Energy-Charts archive labels these series day-ahead, but
 that they are the forecasts as originally issued, and never revised afterwards, cannot be
 verified from here; a live ENTSO-E pull would settle it. The flat tariff component added
 to the price (EUR 0.062/kWh) is the 2018 approximation, reused for 2025. And 80.9% was

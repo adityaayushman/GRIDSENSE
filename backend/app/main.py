@@ -3,7 +3,7 @@ import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from app import data_sources, store
+from app import data_sources, india_live, store
 from app.optimizer import Vehicle, run_scenario
 from app.schemas import FleetGroup, HourlySeries, ScenarioRequest, ScenarioResponse
 
@@ -51,6 +51,19 @@ def forecast_info(era: str = "2018"):
         return data_sources.forecast_meta(era)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.get("/api/india/live")
+def india_live_day():
+    """The newest day of Indian grid carbon intensity, from Grid-India. No key needed.
+
+    The publisher releases yesterday's report each morning, so `age_days` and `fresh`
+    say how current this is. A report that fails the physical checks is refused (502).
+    """
+    try:
+        return india_live.latest_day().summary()
+    except india_live.IndiaLiveError as e:
+        raise HTTPException(status_code=502, detail=str(e))
 
 
 @app.get("/api/days")

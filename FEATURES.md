@@ -200,6 +200,12 @@ because a project that only displays its successes is a brochure.
 - **A modern grid era.** The Simulator's Grid switch serves 46 nights of 2025 beside the
   original 2018 record (`era` on the API), with a day-ahead forecaster trained on
   2024 that captures 80.9% of the achievable saving on a year it never saw (finding 16).
+- **A keyless live feed for India.** `GET /api/india/live` returns the newest day of
+  Indian grid carbon intensity from Grid-India's daily report (no account, no key, about
+  2.5 s uncached, cached after), shown in the India pane with its age. Columns are found by
+  header, and a report that fails the physical checks is refused. `ml/live_check_india.py`
+  tests it end to end against the real portal in one command: reachable, fresh,
+  plausible, two independent parsers agree to 0.00 g/kWh, and fast.
 - **A one-command live check of the ENTSO-E client** (`ml/live_check_entsoe.py`), which
   needs only a token; `backend/ENTSOE.md` has the signup steps and a ready-to-send email.
 

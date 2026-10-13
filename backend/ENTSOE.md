@@ -1,5 +1,9 @@
 # Getting an ENTSO-E token, and what it unlocks
 
+**You do not need this for India, which is the project's main focus.** The Indian live
+feed (`GET /api/india/live`, `ml/live_check_india.py`) reads Grid-India's own daily report
+and needs no key. The token only matters for the optional *Spanish* live path below.
+
 The live carbon-intensity path (`app/entsoe.py`, `USE_LIVE_DATA=true`) needs a free
 ENTSO-E Transparency Platform security token. It has been tested against recorded
 XML fixtures but **never against the real endpoint**, because no token has been
