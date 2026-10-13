@@ -61,7 +61,7 @@ def india_live_day():
     say how current this is. A report that fails the physical checks is refused (502).
     """
     try:
-        return india_live.latest_day().summary()
+        return india_live.newest()
     except india_live.IndiaLiveError as e:
         raise HTTPException(status_code=502, detail=str(e))
 
