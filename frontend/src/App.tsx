@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import { runScenario, fetchDays, warmUp, ApiError, indianFleet, Era, ScenarioResponse, YearStats, GATE_MIN_SAVING_PCT } from "./api";
 import Runs from "./Runs";
-import HeroScene from "./HeroScene";
 import { Comparison, Hosting, Regions, Control, India, Results, Pane, prefetch, prefetchAll } from "./panes";
 import results from "./data/results.json";
 import demoData from "./data/demo_scenarios.json";
@@ -25,14 +24,15 @@ import "./index.css";
 import "./ev-theme.css";
 import "./landing.css";
 import "./chrome.css";
+import "./identity.css";
 
 type Objective = "emissions" | "cost" | "peak";
 type Tab = "simulator" | "results" | "comparison" | "hosting" | "regions" | "control" | "india";
 
 const OPT = "#3987e5";
 const NAIVE = "#d95926";
-const GRID = "#202A36";
-const INK3 = "#5F6C7B";
+const GRID = "#2C2823";
+const INK3 = "#8C8576";
 
 const OBJECTIVES: { key: Objective; label: string }[] = [
   { key: "emissions", label: "Min. CO₂" },
@@ -165,21 +165,6 @@ function App() {
   // SMIL and rAF-driven motion sit outside the reach of the CSS media query,
   // so the preference is read in JS and threaded through.
   const prefersReduced = usePrefersReduced();
-  const stage = useRef<HTMLDivElement>(null);
-
-  const onStageMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (prefersReduced) return;
-    const el = stage.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    // -1..1 from the centre, so layers can lean either way.
-    el.style.setProperty("--px", String(((e.clientX - r.left) / r.width - 0.5) * 2));
-    el.style.setProperty("--py", String(((e.clientY - r.top) / r.height - 0.5) * 2));
-  };
-  const onStageLeave = () => {
-    stage.current?.style.setProperty("--px", "0");
-    stage.current?.style.setProperty("--py", "0");
-  };
   const [days, setDays] = useState<string[]>([]);
   const [day, setDay] = useState<string>(() => PARAMS.get("day") ?? "");
 
@@ -465,15 +450,11 @@ function App() {
 
   return (
     <div className="page">
-      <div className="gridOverlay" />
-      <div className="evFloor" aria-hidden="true" />
 
       <header className="header">
         <button className="brand brandHome" onClick={leave}
           title="Back to the overview">
-          <div className="brandMark">
-            <Zap size={17} color="#fff" strokeWidth={2.4} />
-          </div>
+          <div className="brandMark" aria-hidden="true">G</div>
           <div>
             <div className="brandName">GridSense</div>
             <div className="brandTag">carbon-aware charge scheduling · Spanish grid</div>
@@ -556,10 +537,7 @@ function App() {
               </div>
             </div>
           </div>
-          <div className="heroStage" ref={stage}
-            onMouseMove={onStageMove} onMouseLeave={onStageLeave}>
-            <HeroScene reduced={prefersReduced} />
-          </div>
+
         </section>
       )}
 

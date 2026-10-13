@@ -8,8 +8,8 @@ import { usePrefersReduced, useReveal } from "./motion";
 
 const OPT = "#3987e5";
 const NEG = "#d03b3b";
-const GRID = "#202A36";
-const INK3 = "#5F6C7B";
+const GRID = "#2C2823";
+const INK3 = "#8C8576";
 
 type Verdict = "yes" | "no" | "na";
 

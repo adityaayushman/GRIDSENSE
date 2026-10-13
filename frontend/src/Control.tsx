@@ -7,9 +7,9 @@ import { usePrefersReduced, useReveal, useCountUp } from "./motion";
 
 const OPT = "#3987e5";
 const NEG = "#d95926";
-const FLAT = "#5F6C7B";
-const GRID = "#202A36";
-const INK3 = "#5F6C7B";
+const FLAT = "#8C8576";
+const GRID = "#2C2823";
+const INK3 = "#8C8576";
 
 type Strat = { mean_regret_pct: number; mean_cut_pct: number; mean_position: number | null };
 const S = mpc.strategies as Record<string, Strat>;

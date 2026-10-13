@@ -11,8 +11,8 @@ const DUMB = "#d95926";
 const UNCO = "#199e70";
 const COORD = "#3987e5";
 const LIMIT = "#d03b3b";
-const GRID = "#202A36";
-const INK3 = "#5F6C7B";
+const GRID = "#2C2823";
+const INK3 = "#8C8576";
 
 const SERIES = [
   { key: "dumb_kw", name: "Charging on arrival", colour: DUMB, cap: "dumb" },
