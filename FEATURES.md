@@ -197,6 +197,12 @@ because a project that only displays its successes is a brochure.
 - **Physical sanity checks in the India fetcher**, so a mislabelled fuel column is
   rejected at the door (finding 14).
 
+- **A modern grid era.** The Simulator's Grid switch serves 46 nights of 2025 beside the
+  original 2018 record (`era` on the API), with a day-ahead forecaster trained on
+  2024 that captures 80.9% of the achievable saving on a year it never saw (finding 16).
+- **A one-command live check of the ENTSO-E client** (`ml/live_check_entsoe.py`), which
+  needs only a token; `backend/ENTSOE.md` has the signup steps and a ready-to-send email.
+
 ## Not yet built
 
 Blocked on something outside the code (each was attempted):
@@ -208,9 +214,8 @@ Blocked on something outside the code (each was attempted):
   is the right open source for the baseline shape, but a search found the
   methodology documents and not a downloadable file; fetching it needs the exact
   REE/e-sios URL or a token.
-- **Spanish day-ahead forecasts for a modern grid** (finding 15 shows these, not
-  more history, are what limit accuracy). Needs a free ENTSO-E API token.
-- **A live test of the ENTSO-E client.** Same token.
+- **A live test of the ENTSO-E client**, which has run only against fixtures. Needs a
+  free ENTSO-E token that only the account holder can request (`backend/ENTSOE.md`).
 - **Marginal rather than average carbon intensity.** Needs MOER data this
   project does not have; an estimate built from the generation mix would be a
   modelling exercise of its own, not the measurement the limitation asks for.

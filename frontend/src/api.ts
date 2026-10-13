@@ -29,6 +29,8 @@ export interface ScenarioRequest {
   region: string;
   /** ISO date of the measured charging night; omit for the representative default. */
   day?: string;
+  /** Which grid to schedule against; defaults to 2018 server-side. */
+  era?: Era;
   /** Shared transformer limit in kW. Omit for an unconstrained feeder. */
   feeder_capacity_kw?: number;
   /** Schedule against the day-ahead forecast instead of the measured curve. */
@@ -84,11 +86,25 @@ export interface HourlyPoint {
   price: number;
 }
 
+export type Era = "2018" | "2025";
+
+export interface YearStats {
+  year: number;
+  nights: number;
+  median_saving_pct: number;
+  total_saving_pct: number;
+  under_1pct: number;
+  over_20pct: number;
+}
+
 export interface DaysResponse {
   days: string[];
   default: string;
   count: number;
   region: string;
+  era: Era;
+  eras: Era[];
+  year_stats: YearStats | null;
 }
 
 export interface ScenarioResponse {
@@ -121,6 +137,7 @@ export interface ScenarioResponse {
   gate_expected_saving_pct: number | null;
   gate_reason: string | null;
   run_id: number | null;
+  era: Era;
 }
 
 /** The threshold finding 13 settled on for Spain. */
@@ -140,8 +157,8 @@ export function warmUp(): void {
   });
 }
 
-export async function fetchDays(): Promise<DaysResponse> {
-  const res = await fetch(`${API_BASE}/api/days`);
+export async function fetchDays(era: Era = "2018"): Promise<DaysResponse> {
+  const res = await fetch(`${API_BASE}/api/days?era=${era}`);
   if (!res.ok) throw new Error(`Could not load available days (${res.status})`);
   return res.json();
 }

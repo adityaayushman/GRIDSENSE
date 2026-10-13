@@ -19,6 +19,12 @@ class ScenarioRequest(BaseModel):
     energy_per_vehicle_kwh: float = Field(9.2, ge=1.0, le=100.0)
     objective: str = Field("emissions", pattern="^(emissions|cost|peak)$")
     region: str = Field("ES")
+    era: str = Field(
+        "2018", pattern="^(2018|2025)$",
+        description="Which grid to schedule against: 2018 (the original record) or 2025 "
+                    "(the grid as it is now: roughly half the carbon intensity and three "
+                    "times the solar).",
+    )
     day: str | None = Field(
         None,
         description="ISO date of the measured charging night to simulate "
@@ -109,3 +115,4 @@ class ScenarioResponse(BaseModel):
     gate_expected_saving_pct: float | None = None
     gate_reason: str | None = None
     run_id: int | None = None
+    era: str = "2018"

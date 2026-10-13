@@ -1,6 +1,6 @@
 # What I got wrong, and how I found out
 
-GridSense went through seven material corrections while it was being built. Each
+GridSense went through eight material corrections while it was being built. Each
 change is recorded in [FINDINGS.md](FINDINGS.md) with the before and after. This
 page is the short version: what each mistake was, what caught it, and what I do
 differently now.
@@ -16,6 +16,7 @@ differently now.
 | 5 | Rolling-horizon control is **238%** worse than a one-shot plan | The baseline was accidentally reading true intensities for far-ahead hours, handing it perfect foresight | Checking what each controller was allowed to see | 28% worse. The sign survived; almost all of the magnitude did not (finding 9) |
 | 6 | India carbon-aware charging saves **0.05%**, on a grid at 541 g/kWh | The parser read the wrong column for **84% of days** after Grid-India changed its spreadsheet layout twice. Coal was being weighted as gas | An hour-of-day profile showing "solar" at 15 GW at midnight | 0.12% overnight, 592 g/kWh, and a daytime window worth 1.51%. Direction held, numbers did not (finding 14) |
 | 7 | **5.3×**, to one decimal place | It was one random draw of the fleet, and the best of twenty | Re-running with 20 seeds | Median about 4×, range 3.4–5.3× (finding 1) |
+| 8 | The forecaster's best inputs, the TSO's day-ahead solar, wind and load forecasts, are out of reach without an ENTSO-E token | They are republished free, without a key, by Energy-Charts | Trying one more source before filing it as blocked, when asked to unblock it | A modern-grid forecaster capturing 80.9% of the achievable saving (finding 16) |
 
 ## What the mistakes have in common
 

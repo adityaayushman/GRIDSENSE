@@ -7,7 +7,7 @@ import {
   ChevronDown, Zap, Github, AlertTriangle,
   Command, Link2, Download, Keyboard,
 } from "lucide-react";
-import { runScenario, fetchDays, warmUp, ApiError, indianFleet, ScenarioResponse, GATE_MIN_SAVING_PCT } from "./api";
+import { runScenario, fetchDays, warmUp, ApiError, indianFleet, Era, ScenarioResponse, YearStats, GATE_MIN_SAVING_PCT } from "./api";
 import Runs from "./Runs";
 import Comparison from "./Comparison";
 import Hosting from "./Hosting";
@@ -120,6 +120,9 @@ function App() {
   // stays off by default so the plain forecast result remains visible.
   const [gate, setGate] = useState(() => flag("gate"));
   const [v2g, setV2g] = useState(() => flag("v2g"));
+  // Which grid: the original 2018 record, or Spain as it is now.
+  const [era, setEra] = useState<Era>(() => (PARAMS.get("era") === "2025" ? "2025" : "2018"));
+  const [yearStats, setYearStats] = useState<YearStats | null>(null);
   // "cars": identical cars (the default). "india": scooters, rickshaws and cars in the FADA mix.
   const [fleetKind, setFleetKind] = useState<"cars" | "india">(() => (PARAMS.get("fleet") === "india" ? "india" : "cars"));
   const [objective, setObjective] = useState<Objective>(() => {
@@ -182,14 +185,15 @@ function App() {
 
   // Keep the latest control values addressable from the mount effect without
   // making it re-run (and re-fire a request) on every slider nudge.
-  const latest = useRef({ evCount, chargerKw, feederKw, objective, day, useForecast, gate, v2g, fleetKind });
-  latest.current = { evCount, chargerKw, feederKw, objective, day, useForecast, gate, v2g, fleetKind };
+  const latest = useRef({ evCount, chargerKw, feederKw, objective, day, useForecast, gate, v2g, fleetKind, era });
+  latest.current = { evCount, chargerKw, feederKw, objective, day, useForecast, gate, v2g, fleetKind, era };
 
-  const run = useCallback(async (overrideDay?: string) => {
+  const run = useCallback(async (overrideDay?: string, overrideEra?: Era) => {
     setLoading(true);
     setError(null);
     const c = latest.current;
     const chosenDay = overrideDay ?? c.day;
+    const chosenEra = overrideEra ?? c.era;
     try {
       setResult(
         await runScenario({
@@ -200,6 +204,7 @@ function App() {
           energy_per_vehicle_kwh: 9.2,
           objective: c.objective,
           region: "ES",
+          era: chosenEra,
           ...(chosenDay ? { day: chosenDay } : {}),
           ...(c.feederKw > 0 ? { feeder_capacity_kw: c.feederKw } : {}),
         ...(c.useForecast ? { use_forecast: true } : {}),
@@ -231,12 +236,13 @@ function App() {
     if (useForecast && gate) p.set("gate", "1");
     if (v2g) p.set("v2g", "1");
     if (fleetKind === "india") p.set("fleet", "india");
+    if (era !== "2018") p.set("era", era);
     if (day) p.set("day", day);
     const qs = p.toString();
     window.history.replaceState(
       null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}#${tab}`,
     );
-  }, [entered, evCount, chargerKw, feederKw, objective, useForecast, gate, v2g, fleetKind, day, tab]);
+  }, [entered, evCount, chargerKw, feederKw, objective, useForecast, gate, v2g, fleetKind, era, day, tab]);
 
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -371,13 +377,29 @@ function App() {
   // dead first impression, and the default night is already representative.
   useEffect(() => {
     warmUp();
-    fetchDays()
+    fetchDays(latest.current.era)
       .then((d) => {
         setDays(d.days);
         setDay(d.default);
-        return run(d.default);
+        setYearStats(d.year_stats);
+        return run(d.default, d.era);
       })
       .catch(() => run());
+  }, [run]);
+
+  // Switching grids swaps the whole set of nights, so reload them and land on the new default.
+  const changeEra = useCallback(async (next: Era) => {
+    if (next === latest.current.era) return;
+    setEra(next);
+    try {
+      const d = await fetchDays(next);
+      setDays(d.days);
+      setDay(d.default);
+      setYearStats(d.year_stats);
+      await run(d.default, next);
+    } catch {
+      await run(undefined, next);
+    }
   }, [run]);
 
   const head = result ? headline(result, objective) : null;
@@ -581,6 +603,20 @@ function App() {
               </div>
             )}
             <div className="field">
+              <label>Grid</label>
+              <Segmented
+                options={[
+                  { key: "2018", label: "Spain 2018" },
+                  { key: "2025", label: "Spain 2025" },
+                ]}
+                value={era}
+                onChange={(x) => changeEra(x as Era)}
+              />
+              <div className="fieldValue">
+                <em>{era === "2025" ? "today's grid: half the carbon, three times the solar" : "the original measured record"}</em>
+              </div>
+            </div>
+            <div className="field">
               <label>Fleet</label>
               <Segmented
                 options={[
@@ -682,10 +718,16 @@ function App() {
                 )}
               </div>
               <div className="heroNote">
-                This is the <strong>median</strong> night of 2018, not the best one. Across the
-                full year the median saving is <strong>3.3%</strong> and the fleet-wide total{" "}
-                <strong>10.4%</strong> — but <strong>38% of nights save under 1%</strong> while
-                17% save over 20%. Pick a different night above to see the spread.
+                This is the <strong>median</strong> night of {result.era}, not the best one.
+                {yearStats && (
+                  <>
+                    {" "}Across the full year the median saving is <strong>{yearStats.median_saving_pct}%</strong>{" "}
+                    and the fleet-wide total <strong>{yearStats.total_saving_pct}%</strong> — but{" "}
+                    <strong>{yearStats.under_1pct}% of nights save under 1%</strong> while{" "}
+                    {yearStats.over_20pct}% save over 20%.
+                  </>
+                )}{" "}
+                Pick a different night above to see the spread.
               </div>
             </section>
 
@@ -878,7 +920,11 @@ function App() {
       </main>
 
       <footer className="footer">
-        <span>ENTSO-E Spain 2018 · generation mix + day-ahead prices · emission factors IPCC AR5</span>
+        <span>
+          {era === "2025"
+            ? "ENTSO-E Spain 2025 via Energy-Charts (CC BY 4.0)"
+            : "ENTSO-E Spain 2018"} · generation mix + day-ahead prices · emission factors IPCC AR5
+        </span>
         <a href="https://github.com/adityaayushman/GRIDSENSE" className="footerLink"
           target="_blank" rel="noreferrer">
           <Github size={14} /> Source
