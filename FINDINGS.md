@@ -1102,6 +1102,47 @@ arrival exceeds every rating modelled, so the avoided cost cannot be priced from
 
 ---
 
+## 20. Training the forecaster for the decision does not beat the plain ridge
+
+`ml/train_decision_aware.py`, `ml/bootstrap_blend.py`
+
+The deployed forecaster minimises squared error over all 24 hours, but the scheduler only uses the overnight
+window and only cares about the ordering of hours inside it. Four changes aimed at that were tried, selected on
+2024 and reported on 2025, scored by the share of the achievable saving captured (finding 3):
+
+| Variant | 2024 valid (train 2023) | 2025 (train 2024) | 2025 (train 2022-24) | 2018 (train 2015-17) |
+| --- | --- | --- | --- | --- |
+| Ridge (deployed) | 73.0% | **80.9%** | 77.4% | 70.6% |
+| Overnight hours only | 73.4% | 79.7% | 74.9% | 70.0% |
+| One ridge per hour | 73.9% | 78.9% | 77.8% | 69.4% |
+| Per hour + residual load | 73.2% | 78.0% | 77.7% | 68.3% |
+| Ridge + residual load | 73.3% | 81.0% | 77.2% | 69.5% |
+| Gradient boosting | 73.1% | 80.2% | 81.2% | 69.8% |
+| Blend: per-hour ridge + gradient boosting | **75.9%** | 80.7% | 80.6% | 72.0% |
+
+Nothing moves the result by more than the noise between folds. Training on the window hours, one model per
+hour, and adding the day-ahead residual load (load minus solar minus wind) each did no better than the plain
+ridge and sometimes worse. The blend is the only variant at or above the ridge on three of four folds, so it was
+tested properly with a paired bootstrap over nights (2,000 resamples):
+
+| Fold | Ridge | Blend | Difference | 95% interval |
+| --- | --- | --- | --- | --- |
+| 2018 (train 2015-17) | 70.6% | 72.0% | +1.4pp | -2.5 to +5.4 |
+| 2025 (train 2024) | 80.9% | 80.7% | -0.2pp | -2.6 to +2.2 |
+| 2025 (train 2022-24) | 77.4% | 80.6% | +3.2pp | +0.4 to +6.4 |
+
+Only one of three intervals excludes zero, and that is the fold with the longest, dirtiest history, where
+finding 16 already showed the ridge does worst. **So the deployed ridge stays.** The forecaster is limited by what
+the inputs say about tomorrow, not by how it is fitted, which is what finding 15 said about data volume and
+finding 16 about the day-ahead inputs. The blend is not worth giving up a model that serves as a coefficient
+vector for a gain this size.
+
+Caveats: one test year per fold and about 360 nights each, so the intervals are wide; one feature set and one
+hyperparameter choice per model family; and the 2018 ridge here (70.6%) differs from finding 3's 68.9% because
+the feature set includes the day-ahead price, which finding 3's deployed model did not.
+
+---
+
 ## Datasets evaluated and rejected
 
 Screened with `screen_dataset.py`, which any candidate must pass before it is
