@@ -76,6 +76,8 @@ def india() -> dict:
         "licence": "published figure only; raw data not public", "homes_in_panel": d["published"]["households_metered"],
         "street_homes": d["homes"],
         "published": d["published"],
+        "synthetic": d["synthetic"],
+        "model_profile_225_kw": d["model_profile_225_kw"],
         "hosting": {"rating_kva": d["rating_kva"], "rows": d["rows"],
                     "model": {"dumb": model["dumb"], "coordinated": model["coordinated"], "gain": model["gain"]},
                     "published_gain_range": [min(r["gain"] for r in d["rows"][1:]), max(r["gain"] for r in d["rows"][1:])]},

@@ -178,6 +178,14 @@ function IndiaRegion({ r }: { r: any }) {
   const reduced = usePrefersReduced();
   const rows = r.hosting.rows as any[];
   const [lo, hi] = r.hosting.published_gain_range;
+  const synth = (r.synthetic ?? []) as any[];
+  const byLabel = (k: string, sc: string) => synth.find((x) => x.shape_source === k && x.scaling === sc);
+  const synthProfile = Array.from({ length: 24 }, (_, i) => ({
+    hour: hh(i),
+    model: r.model_profile_225_kw[i] / r.street_homes,
+    spain: byLabel("spain", "Pune peak 225 W")?.profile_kw[i] / r.street_homes,
+    uk: byLabel("uk", "Pune peak 225 W")?.profile_kw[i] / r.street_homes,
+  }));
   const bars = rows.map((x) => ({ name: x.label.replace("Scaled to Pune published ", "Pune ").replace(" (Delhi consumption)", ""), dumb: x.dumb, coord: x.coordinated, gain: x.gain }));
   return (
     <>
@@ -217,6 +225,45 @@ function IndiaRegion({ r }: { r: any }) {
           What would validate India properly: household or feeder smart-meter data for a city whose consumption
           resembles the model's. Prayas's eMARC project is the closest, and its raw data is not public; asking them
           is the realistic next step. Until then India stays a modelled result with this one cross-check.
+        </p>
+      </Panel>
+      <Panel>
+        <Head title="Predicted Indian baselines, from real household shapes"
+          meta="Synthetic: real Spanish and UK evening-peaking profiles rescaled to Indian demand · not validation" />
+        <ResponsiveContainer width="100%" height={240}>
+          <LineChart data={synthProfile} margin={{ top: 8, right: 20, left: 0, bottom: 4 }}>
+            <CartesianGrid stroke={GRID} vertical={false} />
+            <XAxis dataKey="hour" interval={2} tick={{ fill: INK3, fontSize: 11 }} axisLine={{ stroke: GRID }} tickLine={false} />
+            <YAxis tick={{ fill: INK3, fontSize: 11 }} axisLine={false} tickLine={false} width={44}
+              domain={[0, "auto"]} tickCount={5} tickFormatter={(v: number) => v.toFixed(2)} />
+            <Tooltip content={<Tip />} cursor={{ stroke: GRID }} />
+            <Legend wrapperStyle={{ fontSize: 11, color: INK3 }} />
+            <Line type="monotone" dataKey="model" name="Model shape" stroke={MODEL} strokeWidth={2.25} dot={false} strokeDasharray="6 3" isAnimationActive={!reduced} />
+            <Line type="monotone" dataKey="spain" name="Spanish real shape" stroke={REAL} strokeWidth={2.25} dot={false} isAnimationActive={!reduced} />
+            <Line type="monotone" dataKey="uk" name="UK real shape" stroke="#7fb4f5" strokeWidth={2.25} dot={false} strokeDasharray="2 3" isAnimationActive={!reduced} />
+          </LineChart>
+        </ResponsiveContainer>
+        <div className="matrixWrap">
+          <table className="matrix">
+            <thead><tr><th /><th>Peak per home</th><th>On arrival</th><th>Coordinated</th><th className="mine">Gain</th></tr></thead>
+            <tbody>
+              {synth.map((x: any) => (
+                <tr key={x.label}>
+                  <th scope="row">{x.label}</th>
+                  <td>{kw(x.peak_kw_per_home)} at {hh(x.peak_hour)}</td>
+                  <td>{x.dumb}</td><td>{x.coordinated}</td>
+                  <td className="mine">{x.dumb < 10 ? "n/m" : `${x.gain}×`}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="calloutText">
+          At Pune's published level, evening-peaking shapes give <strong>3.5–3.7×</strong>, so the gain is robust to shape. At
+          Delhi's higher consumption they leave the unit almost full when cars arrive (5 EVs on arrival for the UK shape), and
+          the ratio explodes to a number that is mostly a tiny denominator, marked n/m. What is stable is the{" "}
+          <strong>coordinated</strong> capacity, 115–219 vehicles. These are predictions from borrowed shapes: they show
+          what India might look like, and cannot confirm it.
         </p>
       </Panel>
       <p className="provenance">
