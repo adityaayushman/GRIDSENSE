@@ -1172,6 +1172,12 @@ only the baseline. Regions are kept apart because the evidence differs.
   absolute capacity (35 to 54-63 on arrival on a 100 kVA unit) and leaves the gain at 3.2-3.3× against 3.5×.
   The model's India baseline also peaks at 11:00 where real evening peaks sit at 21:00, which is the same shape
   error Spain's had.
+- **India, predicted baselines.** To go beyond one assumed shape, the real Spanish and UK evening-peaking profiles were
+  rescaled to Indian demand and run on the 100 kVA unit. At Pune's published level they give **3.5-3.7×**, so the
+  gain does not depend on the shape. At Delhi's higher consumption they nearly fill the unit before any car arrives
+  (5 vehicles on arrival for the UK shape), so the ratio is a tiny-denominator artefact and is marked n/m; the
+  coordinated capacity stays at 115-219 vehicles throughout. These are predictions from borrowed shapes and cannot
+  confirm India.
 - **Street-to-street variation is small.** Winter peak per home across random streets of 200 homes spans 0.39-0.48 kW
   in Spain and 0.74-0.87 kW in the UK, so a single random street is a fair stand-in for the region.
 
