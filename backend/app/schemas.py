@@ -20,7 +20,7 @@ class ScenarioRequest(BaseModel):
     objective: str = Field("emissions", pattern="^(emissions|cost|peak)$")
     region: str = Field("ES")
     era: str = Field(
-        "2018", pattern="^(2018|2025)$",
+        "2018", pattern="^(2018|2025|IN)$",
         description="Which grid to schedule against: 2018 (the original record) or 2025 "
                     "(the grid as it is now: roughly half the carbon intensity and three "
                     "times the solar).",

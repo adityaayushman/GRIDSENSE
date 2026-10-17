@@ -30,7 +30,8 @@ DATA_DIR = Path(__file__).parent / "data"
 #: The grid in two eras. 2018 is the original served year, backed by the Kaggle ENTSO-E
 #: record. 2025 is the grid as it is now (mean intensity roughly half of 2018's, solar
 #: roughly three times), built by ml/export_grid_days_modern.py.
-ERA_FILES = {"2018": DATA_DIR / "grid_days.json", "2025": DATA_DIR / "grid_days_2025.json"}
+ERA_FILES = {"2018": DATA_DIR / "grid_days.json", "2025": DATA_DIR / "grid_days_2025.json",
+             "IN": DATA_DIR / "grid_days_in.json"}
 DEFAULT_ERA = "2018"
 DATA_FILE = ERA_FILES[DEFAULT_ERA]   # kept for importers that predate eras
 
@@ -83,7 +84,7 @@ def resolve_day(day: str | None, era: str = DEFAULT_ERA) -> str:
 
 def get_carbon_intensity(region: str = "ES", day: str | None = None, era: str = DEFAULT_ERA) -> list[float]:
     """Measured grid carbon intensity, gCO2eq/kWh, for each hour 0-23."""
-    if USE_LIVE_DATA and ENTSOE_TOKEN:
+    if USE_LIVE_DATA and ENTSOE_TOKEN and era != "IN":
         return _fetch_live(region)
     return list(_grid_data(era)["days"][resolve_day(day, era)]["carbon"])
 
@@ -108,8 +109,19 @@ def get_price(region: str = "ES", day: str | None = None, era: str = DEFAULT_ERA
     Day-ahead wholesale price plus the flat PVPC access component — see
     `PVPC_FIXED_EUR_PER_KWH`.
     """
-    hourly = _grid_data(era)["days"][resolve_day(day, era)]["price"]
+    data = _grid_data(era)
+    hourly = data["days"][resolve_day(day, era)]["price"]
+    if data.get("price_includes_fixed"):          # the Indian curve is already a full tariff
+        return [round(p, 5) for p in hourly]
     return [round(p + PVPC_FIXED_EUR_PER_KWH, 5) for p in hourly]
+
+
+def currency(era: str = DEFAULT_ERA) -> str:
+    return _grid_data(era).get("currency", CURRENCY)
+
+
+def region_of(era: str = DEFAULT_ERA) -> str:
+    return _grid_data(era).get("region", "ES")
 
 
 #: Mean Spanish system load by local hour, normalised to a mean of 1.0.
@@ -129,7 +141,7 @@ SPAIN_LOAD_SHAPE = [
 SPAIN_DAILY_KWH_PER_HOME = 3487 / 365
 
 
-def get_residential_baseline_kw(household_count: int = 1) -> list[float]:
+def get_residential_baseline_kw(household_count: int = 1, era: str = DEFAULT_ERA) -> list[float]:
     """Residential feeder demand (kW), measured in both shape and magnitude.
 
     This curve was previously a pair of hand-drawn Gaussians. Its shape was the
@@ -149,6 +161,9 @@ def get_residential_baseline_kw(household_count: int = 1) -> list[float]:
     read as an upper bound. Closing that needs metered feeder data, which no
     open Spanish source publishes.
     """
+    own = _grid_data(era).get("residential_baseline_kw_per_home")
+    if own:                                      # an era that ships its own baseline (India)
+        return [round(household_count * v, 3) for v in own]
     scale = SPAIN_DAILY_KWH_PER_HOME / sum(SPAIN_LOAD_SHAPE)
     return [round(household_count * s * scale, 3) for s in SPAIN_LOAD_SHAPE]
 

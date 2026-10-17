@@ -39,7 +39,11 @@ def main() -> None:
                  "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "eras": {}}
     for era in data_sources.eras():
         day = data_sources.default_day(era)
-        r = client.post("/api/scenario", json={**DEFAULTS, "era": era, "day": day})
+        payload = {**DEFAULTS, "era": era, "day": day}
+        if era == "IN":                       # India's default fleet is its own vehicle mix, as the page sends
+            payload["fleet"] = [{"count": c, "energy_per_vehicle_kwh": e, "charger_kw": k}
+                                for c, e, k in ((45, 1.8, 0.9), (28, 6.5, 1.9), (7, 9.2, 3.3))]
+        r = client.post("/api/scenario", json=payload)
         r.raise_for_status()
         body = r.json()
         body["run_id"] = None
