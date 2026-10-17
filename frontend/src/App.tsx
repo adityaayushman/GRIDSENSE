@@ -54,12 +54,16 @@ function deltaColor(pct: number) {
 
 /** The headline follows whatever is being optimized, so the hero number is
  *  always the metric the user actually asked the scheduler to improve. */
+const sym = (c: string) => (c === "INR" ? "₹" : "€");
+
+const eraName = (e: string) => (e === "IN" ? "India 2025-26" : e === "2025" ? "Spain 2025" : "Spain 2018");
+
 function headline(r: ScenarioResponse, objective: Objective) {
   if (objective === "cost") {
     return {
       pct: r.cost_reduction_pct,
       label: "lower charging cost",
-      sub: `€${r.cost_naive} → €${r.cost_optimized} · ${r.ev_count} vehicles`,
+      sub: `${sym(r.currency)}${r.cost_naive} → ${sym(r.currency)}${r.cost_optimized} · ${r.ev_count} vehicles`,
     };
   }
   if (objective === "peak") {
@@ -120,10 +124,10 @@ function App() {
   const [gate, setGate] = useState(() => flag("gate"));
   const [v2g, setV2g] = useState(() => flag("v2g"));
   // Which grid: the original 2018 record, or Spain as it is now.
-  const [era, setEra] = useState<Era>(() => (PARAMS.get("era") === "2025" ? "2025" : "2018"));
+  const [era, setEra] = useState<Era>(() => (PARAMS.get("era") === "2025" ? "2025" : PARAMS.get("era") === "IN" ? "IN" : "2018"));
   const [yearStats, setYearStats] = useState<YearStats | null>(null);
   // "cars": identical cars (the default). "india": scooters, rickshaws and cars in the FADA mix.
-  const [fleetKind, setFleetKind] = useState<"cars" | "india">(() => (PARAMS.get("fleet") === "india" ? "india" : "cars"));
+  const [fleetKind, setFleetKind] = useState<"cars" | "india">(() => (PARAMS.get("fleet") === "india" || (PARAMS.get("era") === "IN" && PARAMS.get("fleet") !== "cars") ? "india" : "cars"));
   const [objective, setObjective] = useState<Objective>(() => {
     const o = PARAMS.get("obj");
     return o === "cost" || o === "peak" || o === "emissions" ? o : "emissions";
@@ -233,6 +237,7 @@ function App() {
     if (useForecast && gate) p.set("gate", "1");
     if (v2g) p.set("v2g", "1");
     if (fleetKind === "india") p.set("fleet", "india");
+    else if (era === "IN") p.set("fleet", "cars");
     if (era !== "2018") p.set("era", era);
     if (day) p.set("day", day);
     const qs = p.toString();
@@ -391,6 +396,9 @@ function App() {
   const changeEra = useCallback(async (next: Era) => {
     if (next === latest.current.era) return;
     setEra(next);
+    // Each grid has its own natural fleet: Indian two- and three-wheelers for India, cars for Spain.
+    if (next === "IN") setFleetKind("india");
+    else if (latest.current.era === "IN") setFleetKind("cars");
     try {
       const d = await fetchDays(next);
       setDays(d.days);
@@ -511,7 +519,7 @@ function App() {
           <div>
             <span className="mastKicker">
               <span className="mastDot" aria-hidden="true" />
-              Measured grid data · <b>ENTSO-E Spain</b>
+              Measured grid data · <b>{era === "IN" ? "Grid-India" : "ENTSO-E Spain"}</b>
             </span>
             <h1 className="mastTitle">
               Charge when the grid is{" "}
@@ -630,12 +638,14 @@ function App() {
                 options={[
                   { key: "2018", label: "Spain 2018" },
                   { key: "2025", label: "Spain 2025" },
+                  { key: "IN", label: "India" },
                 ]}
                 value={era}
                 onChange={(x) => changeEra(x as Era)}
               />
               <div className="fieldValue">
-                <em>{era === "2025" ? "today's grid: half the carbon, three times the solar" : "the original measured record"}</em>
+                <em>{era === "IN" ? "Grid-India 15-minute data · Indian fleet, rupees · price illustrative"
+                  : era === "2025" ? "today's grid: half the carbon, three times the solar" : "the original measured record"}</em>
               </div>
             </div>
             <div className="field">
@@ -746,7 +756,7 @@ function App() {
                 )}
               </div>
               <div className="heroNote">
-                This is the <strong>median</strong> night of {result.era}, not the best one.
+                This is the <strong>median</strong> night of {eraName(result.era)}, not the best one.
                 {yearStats && (
                   <>
                     {" "}Across the full year the median saving is <strong>{yearStats.median_saving_pct}%</strong>{" "}
@@ -788,7 +798,7 @@ function App() {
                   <div className="statValue" style={{ color: deltaColor(result.cost_reduction_pct) }}>
                     <CountPct pct={result.cost_reduction_pct} reduced={prefersReduced} />
                   </div>
-                  <div className="statSub">€{result.cost_naive} → €{result.cost_optimized}</div>
+                  <div className="statSub">{sym(result.currency)}{result.cost_naive} → {sym(result.currency)}{result.cost_optimized}</div>
                 </div>
               )}
               {objective !== "peak" && (
@@ -925,6 +935,15 @@ function App() {
                 AR5 lifecycle emission factors, and price is the day-ahead market clearing price plus
                 the flat PVPC access component.
               </p>
+              {era === "IN" && (
+                <p className="methodText">
+                  <em>India.</em> Carbon intensity is measured, from Grid-India's 15-minute Daily PSP reports. The price curve is
+                  illustrative: a flat INR 7.00/kWh with a INR 0.80 night rebate after the shape CEEW describes for Maharashtra, because
+                  most Indian homes face a flat tariff and no verified time-of-day schedule was found. The residential baseline is
+                  predicted, not measured: a real household shape rescaled to Pune's published evening peak (see Validation).
+                  Overnight carbon scheduling saves almost nothing on this grid (finding 12); the feeder limit is where the value is.
+                </p>
+              )}
               <p className="methodText">
                 The feeder limit models a shared street transformer, and it is the only constraint
                 coupling vehicles to one another. Without it the problem separates — each vehicle
@@ -949,9 +968,11 @@ function App() {
 
       <footer className="footer">
         <span>
-          {era === "2025"
-            ? "ENTSO-E Spain 2025 via Energy-Charts (CC BY 4.0)"
-            : "ENTSO-E Spain 2018"} · generation mix + day-ahead prices · emission factors IPCC AR5
+          {era === "IN"
+            ? "Grid-India Daily PSP reports 2025-26 · generation mix · emission factors IPCC AR5 · price illustrative"
+            : era === "2025"
+              ? "ENTSO-E Spain 2025 via Energy-Charts (CC BY 4.0) · generation mix + day-ahead prices · emission factors IPCC AR5"
+              : "ENTSO-E Spain 2018 · generation mix + day-ahead prices · emission factors IPCC AR5"}
         </span>
         <a href="https://github.com/adityaayushman/GRIDSENSE" className="footerLink"
           target="_blank" rel="noreferrer">

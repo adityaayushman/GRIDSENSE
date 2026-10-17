@@ -75,7 +75,7 @@ def days(era: str = "2018"):
             "days": available,
             "default": data_sources.default_day(era),
             "count": len(available),
-            "region": "ES",
+            "region": data_sources.region_of(era),
             "era": era,
             "eras": data_sources.eras(),
             "year_stats": data_sources.year_stats(era),
@@ -117,7 +117,7 @@ def run_scenario_endpoint(req: ScenarioRequest):
         day = data_sources.resolve_day(req.day, req.era)
         carbon = data_sources.get_carbon_intensity(req.region, day, req.era)
         price = data_sources.get_price(req.region, day, req.era)
-        baseline = data_sources.get_residential_baseline_kw(household_count=total_vehicles)
+        baseline = data_sources.get_residential_baseline_kw(household_count=total_vehicles, era=req.era)
 
         forecast = data_sources.get_carbon_forecast(req.region, day, req.era)
         if req.signal == "marginal":
@@ -171,10 +171,10 @@ def run_scenario_endpoint(req: ScenarioRequest):
         exported_kwh=result.exported_kwh,
         used_v2g=req.allow_v2g,
         cost_reduction_pct=result.cost_reduction_pct,
-        currency=data_sources.CURRENCY,
+        currency=data_sources.currency(req.era),
         energy_scheduled_kwh=round(sum(g.count * g.energy_per_vehicle_kwh for g in groups), 1),
         ev_count=total_vehicles,
-        region=req.region,
+        region=data_sources.region_of(req.era),
         day=day,
         feeder_capacity_kw=result.feeder_capacity_kw,
         naive_overload_hours=result.naive_overload_hours,

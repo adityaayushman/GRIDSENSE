@@ -10,7 +10,7 @@ client = TestClient(app)
 
 
 def test_both_eras_are_available_and_2018_is_the_default():
-    assert data_sources.eras() == ["2018", "2025"]
+    assert data_sources.eras() == ["2018", "2025", "IN"]
     d = client.get("/api/days").json()
     assert d["era"] == "2018" and d["count"] == 46
     assert d["default"] in d["days"] and d["default"].startswith("2018-")

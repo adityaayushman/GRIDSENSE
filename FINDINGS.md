@@ -1191,6 +1191,37 @@ mean day, the same representation the model uses.
 
 ---
 
+## 22. India in the simulator: the value is peak, not carbon, and the cost lever is an assumption
+
+`ml/export_grid_days_india.py` · **Simulator**, Grid = India · `era: "IN"` on the scenario API
+
+India is now a first-class simulator scenario: measured Grid-India carbon for 549 charging nights (70 served,
+18:00 to 07:00 IST), the Indian vehicle mix, rupee prices, and an Indian residential baseline. What is measured and
+what is not is stated in the page: carbon is measured; the **price curve is illustrative** (a flat INR 7.00/kWh with
+an INR 0.80 rebate 00:00-06:00, after the shape CEEW describes for Maharashtra's FY26 order; the hours and levels are
+assumptions, and no verified time-of-day schedule was found); the **baseline is predicted** (a real Spanish household
+shape rescaled to Pune's published 225 W peak, finding 21).
+
+On the median night, with 80 vehicles in the national mix:
+
+| Objective | CO₂ | Charging cost | Peak load |
+| --- | --- | --- | --- |
+| Minimise CO₂ | 0.0% | 0.0% | 0.0% |
+| Minimise cost | -4.6% | **11.4%** | 32.4% |
+| Minimise peak | -3.4% | 5.6% | **71.1%** |
+
+- **Carbon does nothing**, as finding 12 predicts: the median night saves 0.0% and 94% of nights save under 1%. The
+  scheduler leaves the fleet charging on arrival.
+- **Peak is where coordination pays**, 71% lower on this night, and a 60 kW feeder limit that charge-on-arrival breaches
+  for three hours by 70 kW is held by the scheduler. This is the capacity result of findings 10 and 21, seen
+  per night.
+- **The 11% cost saving is only as good as the assumed rebate.** It would be zero on a flat tariff, which is what most
+  Indian homes pay. It is shown so the cost objective has something to respond to, and labelled illustrative.
+- No Indian carbon forecaster is served: finding 15 showed none beats charging on arrival overnight in India, so
+  forecast mode falls back to perfect foresight.
+
+---
+
 ## Datasets evaluated and rejected
 
 Screened with `screen_dataset.py`, which any candidate must pass before it is

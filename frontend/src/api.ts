@@ -86,7 +86,7 @@ export interface HourlyPoint {
   price: number;
 }
 
-export type Era = "2018" | "2025";
+export type Era = "2018" | "2025" | "IN";
 
 export interface YearStats {
   year: number;
