@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { runScenario, fetchDays, warmUp, ApiError, indianFleet, Era, ScenarioResponse, YearStats, GATE_MIN_SAVING_PCT } from "./api";
 import Runs from "./Runs";
-import { Comparison, Hosting, Regions, Control, India, Results, Signals, Pane, prefetch, prefetchAll } from "./panes";
+import { Comparison, Hosting, Regions, Control, India, Results, Signals, Validation, Pane, prefetch, prefetchAll } from "./panes";
 import results from "./data/results.json";
 import demoData from "./data/demo_scenarios.json";
 import Segmented from "./Segmented";
@@ -28,7 +28,7 @@ import "./chrome.css";
 import "./identity.css";
 
 type Objective = "emissions" | "cost" | "peak";
-type Tab = "simulator" | "results" | "signals" | "comparison" | "hosting" | "regions" | "control" | "india";
+type Tab = "simulator" | "results" | "validation" | "signals" | "comparison" | "hosting" | "regions" | "control" | "india";
 
 const OPT = "#3987e5";
 const NAIVE = "#d95926";
@@ -134,7 +134,7 @@ function App() {
   const [tab, setTab] = useState<Tab>(
     () => {
       const h = window.location.hash.replace("#", "");
-      return ["results", "signals", "comparison", "hosting", "regions", "control", "india"].includes(h)
+      return ["results", "validation", "signals", "comparison", "hosting", "regions", "control", "india"].includes(h)
         ? (h as Tab) : "simulator";
     },
   );
@@ -281,6 +281,7 @@ function App() {
   const TABS: { key: Tab; label: string }[] = [
     { key: "simulator", label: "Simulator" },
     { key: "results", label: "Results" },
+    { key: "validation", label: "Validation" },
     { key: "comparison", label: "Existing vs GridSense" },
     { key: "hosting", label: "Grid headroom" },
     { key: "regions", label: "Two grids" },
@@ -554,6 +555,7 @@ function App() {
               {tab === "regions" && <Regions />}
               {tab === "control" && <Control />}
               {tab === "results" && <Results />}
+              {tab === "validation" && <Validation />}
               {tab === "signals" && <Signals />}
               {tab === "india" && <India />}
             </Pane>

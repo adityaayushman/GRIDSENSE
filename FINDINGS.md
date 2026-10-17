@@ -1143,6 +1143,48 @@ the feature set includes the day-ahead price, which finding 3's deployed model d
 
 ---
 
+## 21. Real streets validate the hosting-capacity headline: Spain matches, the UK is higher
+
+`ml/validation/` · **Validation** pane · `GET /api/validation`
+
+Finding 1's headline rests on a *modelled* residential baseline: system load scaled to a street. This replaces
+it with real streets, built as the sum of 200 homes drawn from public smart-meter panels, and re-runs the
+250 kW hosting-capacity search with exactly the same fleet, seed and method (finding 1's `base` row), changing
+only the baseline. Regions are kept apart because the evidence differs.
+
+| Region | Evidence | Homes | Real winter evening peak | Model baseline | Gain, model | Gain, real streets |
+| --- | --- | --- | --- | --- | --- | --- |
+| **Spain** | GoiEner (Basque Country and Navarre), raw panel, 2018, CC BY 4.0 | 7,084 | 0.43 kW/home at 22:00 | 0.45 kW at 13:00 | 5.3× | **4.9-5.0×** |
+| **UK** (the "others") | Low Carbon London, raw panel, 2013, flat tariff, CC BY 4.0 | 4,018 | 0.80 kW/home at 19:00 | 0.45 kW at 13:00 | 5.3× | **10.0-10.7×** |
+| **India** | Prayas eMARC *published figure*, not raw data | 115 metered | 0.20-0.25 kW/home at 21:00 | 0.38 kW at 11:00 | 3.5× | **3.2-3.3×** |
+
+(Real-street gains are the p10, median and p90 streets in winter, on a step-1 search grid.)
+
+- **Spain: the headline holds.** The modelled baseline peaks at 13:00; real Spanish homes peak at 22:00 and are far
+  more peaked (peak-to-trough 2.6 against 1.4). The shape was wrong, but the gain on real streets, 4.9-5.0×, sits
+  inside the model's own fleet-draw noise band (3.3-5.3×). Charge-on-arrival hosts slightly *more* on real streets
+  (70 against 60), because the evening peak falls after most cars have arrived.
+- **UK: coordination is worth about twice as much.** English homes peak at 19:00, as cars arrive, so charge-on-arrival
+  hosts only 20-30 vehicles on a 250 kW unit against 60 in the model, while coordinated charging still hosts
+  257-279. This is the direction the sensitivity sweep predicted for a peakier baseline (7.8-10.2×).
+- **India: no open household data exists**, so this is a published-figure check and is labelled that way. Setting the
+  baseline to Pune's published evening peak (a quarter to a half below the model's Delhi-based level) raises the
+  absolute capacity (35 to 54-63 on arrival on a 100 kVA unit) and leaves the gain at 3.2-3.3× against 3.5×.
+  The model's India baseline also peaks at 11:00 where real evening peaks sit at 21:00, which is the same shape
+  error Spain's had.
+- **Street-to-street variation is small.** Winter peak per home across random streets of 200 homes spans 0.39-0.48 kW
+  in Spain and 0.74-0.87 kW in the UK, so a single random street is a fair stand-in for the region.
+
+**What this validates and what it does not.** It validates the *baseline*, the input the finding itself flagged as
+the weakest. It does not validate the fleet (arrival times, energy per car, charger mix): no open charging-session
+data was obtainable without an account, and the sensitivity sweep still stands for those. The comparison is
+within each region, never across: the regions use different transformer sizes and fleets, and the UK and Spanish
+panels contain homes without EVs, to which the modelled fleet is added. Spanish data is from the north (a
+heating-dominated, cooler climate than most of the country), the UK data is from 2013, and every profile is a
+mean day, the same representation the model uses.
+
+---
+
 ## Datasets evaluated and rejected
 
 Screened with `screen_dataset.py`, which any candidate must pass before it is

@@ -239,3 +239,6 @@ analysis of grid upgrades.
   `signal: "marginal"` on the scenario API) and a rupee range for the transformer upgrade coordinated charging
   avoids (`/api/upgrade-value`). Both are labelled estimates: the first is a proxy for MOER, the second rests on
   vendor asking prices. Findings 18 and 19.
+- **Validation pane** (Spain, UK, India, Compare). The residential baseline behind the hosting-capacity headline
+  checked against real smart-meter panels (GoiEner, Low Carbon London) and, for India, a published figure.
+  `ml/validation/`, `GET /api/validation`, finding 21.

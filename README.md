@@ -68,8 +68,10 @@ The gain depends on how tight the transformer is — 5.8× at 160 kW, 3.7× at
 630 kW — so the rating belongs with the figure. It also rests on assumed inputs
 (baseline shape, fleet mix, homes per transformer). A one-at-a-time sweep moved it
 no lower than the noise band and *raised* it for a peakier street, but that is
-sensitivity to assumptions, not validation against a real feeder; see
-[FINDINGS.md](FINDINGS.md) finding 1.
+sensitivity to assumptions. It has since been checked against real streets built from
+public smart-meter data: Spain's real streets give about the same gain (4.9-5.0×), the UK's
+about twice as much, and India has only a published-figure check because no open household
+data exists. See the **Validation** pane and [FINDINGS.md](FINDINGS.md) findings 1 and 21.
 
 (This has been corrected three times. An earlier version claimed **14×**, on a fleet
 where every car arrived at exactly 18:00; staggered arrivals triple what dumb
