@@ -1,0 +1,293 @@
+{
+ "region": "spain",
+ "name": "Spain (Basque Country and Navarre)",
+ "source": "GoiEner, residential supply points without self-generation, 2018",
+ "licence": "CC BY 4.0",
+ "homes_in_panel": 7084,
+ "street_homes": 200,
+ "draws": 300,
+ "stats": {
+  "peak_kw_per_home_annual": {
+   "p5": 0.315,
+   "median": 0.342,
+   "p95": 0.384
+  },
+  "peak_kw_per_home_winter": {
+   "p5": 0.394,
+   "median": 0.428,
+   "p95": 0.48
+  },
+  "peak_to_trough_annual": {
+   "p5": 2.218,
+   "median": 2.564,
+   "p95": 2.897
+  },
+  "peak_hour_winter_mode": 22,
+  "mean_kw_per_home": 0.239
+ },
+ "streets": {
+  "p10": {
+   "annual": {
+    "peak_kw_per_home": 0.325,
+    "peak_hour": 0,
+    "mean_kw_per_home": 0.23,
+    "peak_to_trough": 2.41,
+    "peak_to_mean": 1.41,
+    "profile_kw": [
+     65.04,
+     58.7,
+     48.04,
+     37.71,
+     30.59,
+     27.28,
+     26.97,
+     28.3,
+     33.73,
+     43.59,
+     49.62,
+     51.31,
+     52.2,
+     51.66,
+     49.56,
+     49.5,
+     51.07,
+     49.56,
+     45.16,
+     43.44,
+     45.07,
+     48.91,
+     54.85,
+     62.11
+    ]
+   },
+   "winter": {
+    "peak_kw_per_home": 0.399,
+    "peak_hour": 23,
+    "mean_kw_per_home": 0.289,
+    "peak_to_trough": 2.27,
+    "peak_to_mean": 1.38,
+    "profile_kw": [
+     77.88,
+     66.41,
+     53.82,
+     44.32,
+     37.73,
+     35.17,
+     36.6,
+     39.25,
+     48.71,
+     61.76,
+     66.0,
+     65.5,
+     67.21,
+     62.22,
+     56.98,
+     61.54,
+     61.42,
+     56.37,
+     51.77,
+     52.96,
+     58.58,
+     67.63,
+     76.39,
+     79.75
+    ]
+   }
+  },
+  "median": {
+   "annual": {
+    "peak_kw_per_home": 0.345,
+    "peak_hour": 0,
+    "mean_kw_per_home": 0.235,
+    "peak_to_trough": 2.82,
+    "peak_to_mean": 1.47,
+    "profile_kw": [
+     68.97,
+     59.8,
+     47.95,
+     37.22,
+     30.32,
+     26.5,
+     24.44,
+     25.05,
+     28.16,
+     35.75,
+     43.35,
+     50.41,
+     55.1,
+     54.88,
+     52.56,
+     52.65,
+     55.41,
+     54.1,
+     50.07,
+     47.39,
+     48.24,
+     52.18,
+     59.22,
+     66.46
+    ]
+   },
+   "winter": {
+    "peak_kw_per_home": 0.428,
+    "peak_hour": 22,
+    "mean_kw_per_home": 0.287,
+    "peak_to_trough": 3.15,
+    "peak_to_mean": 1.49,
+    "profile_kw": [
+     81.64,
+     65.8,
+     49.6,
+     38.77,
+     33.12,
+     29.13,
+     27.13,
+     29.1,
+     36.08,
+     48.48,
+     55.7,
+     62.44,
+     67.35,
+     65.0,
+     61.05,
+     65.84,
+     67.72,
+     63.6,
+     60.61,
+     60.07,
+     64.43,
+     74.88,
+     85.52,
+     85.49
+    ]
+   }
+  },
+  "p90": {
+   "annual": {
+    "peak_kw_per_home": 0.391,
+    "peak_hour": 0,
+    "mean_kw_per_home": 0.275,
+    "peak_to_trough": 2.48,
+    "peak_to_mean": 1.42,
+    "profile_kw": [
+     78.2,
+     67.97,
+     57.12,
+     46.66,
+     38.94,
+     34.02,
+     32.1,
+     31.48,
+     34.95,
+     44.45,
+     54.99,
+     60.31,
+     63.6,
+     64.45,
+     58.9,
+     60.19,
+     61.13,
+     61.66,
+     56.76,
+     54.27,
+     54.22,
+     58.99,
+     68.19,
+     76.09
+    ]
+   },
+   "winter": {
+    "peak_kw_per_home": 0.471,
+    "peak_hour": 22,
+    "mean_kw_per_home": 0.33,
+    "peak_to_trough": 2.62,
+    "peak_to_mean": 1.43,
+    "profile_kw": [
+     90.87,
+     74.55,
+     58.31,
+     51.42,
+     44.52,
+     37.07,
+     35.95,
+     37.96,
+     45.69,
+     61.14,
+     67.34,
+     74.42,
+     79.02,
+     77.76,
+     67.21,
+     73.99,
+     73.04,
+     70.21,
+     63.92,
+     65.31,
+     67.92,
+     79.78,
+     94.18,
+     93.18
+    ]
+   }
+  }
+ },
+ "diversity_winter_peak": [
+  {
+   "homes": 1,
+   "median_peak_kw_per_home": 0.456
+  },
+  {
+   "homes": 5,
+   "median_peak_kw_per_home": 0.439
+  },
+  {
+   "homes": 20,
+   "median_peak_kw_per_home": 0.448
+  },
+  {
+   "homes": 50,
+   "median_peak_kw_per_home": 0.435
+  },
+  {
+   "homes": 100,
+   "median_peak_kw_per_home": 0.427
+  },
+  {
+   "homes": 200,
+   "median_peak_kw_per_home": 0.429
+  }
+ ],
+ "model": {
+  "peak_kw_per_home": 0.446,
+  "peak_hour": 13,
+  "mean_kw_per_home": 0.398,
+  "peak_to_trough": 1.42,
+  "peak_to_mean": 1.12,
+  "profile_kw": [
+   72.93,
+   68.22,
+   65.07,
+   63.58,
+   63.0,
+   63.82,
+   68.16,
+   74.8,
+   80.02,
+   84.42,
+   87.38,
+   88.49,
+   88.98,
+   89.28,
+   87.13,
+   84.96,
+   84.03,
+   84.09,
+   85.24,
+   86.89,
+   88.63,
+   89.06,
+   84.52,
+   78.0
+  ]
+ }
+}

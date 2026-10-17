@@ -10,7 +10,7 @@ import { Component, lazy, Suspense, type ReactNode } from "react";
  * that has usually already arrived. If it has not, a skeleton the same shape as the pane
  * holds the space so nothing jumps.
  */
-export type PaneKey = "comparison" | "hosting" | "regions" | "control" | "results" | "signals" | "india";
+export type PaneKey = "comparison" | "hosting" | "regions" | "control" | "results" | "validation" | "signals" | "india";
 
 const loaders: Record<PaneKey, () => Promise<unknown>> = {
   comparison: () => import("./Comparison"),
@@ -18,6 +18,7 @@ const loaders: Record<PaneKey, () => Promise<unknown>> = {
   regions: () => import("./Regions"),
   control: () => import("./Control"),
   results: () => import("./Results"),
+  validation: () => import("./Validation"),
   signals: () => import("./Signals"),
   india: () => import("./India"),
 };
@@ -27,6 +28,7 @@ export const Hosting = lazy(() => import("./Hosting"));
 export const Regions = lazy(() => import("./Regions"));
 export const Control = lazy(() => import("./Control"));
 export const Results = lazy(() => import("./Results"));
+export const Validation = lazy(() => import("./Validation"));
 export const Signals = lazy(() => import("./Signals"));
 export const India = lazy(() => import("./India"));
 

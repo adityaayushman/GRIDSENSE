@@ -212,3 +212,6 @@ h1, h2, h3, .ldTitle, .ldH2, .heroValue, .statValue, .mastFactVal, .ldLedger dd,
 .hsTick { fill: var(--ink-3); font: 500 11px var(--mono); letter-spacing: .06em; }
 .heroStage { min-width: 0; border: 1px solid var(--line); background: var(--surface); padding: 14px 16px 8px; }
 .ldScene { margin-top: 16px; border: 1px solid var(--line); background: var(--surface); padding: 14px 16px 8px; }
+
+.provenance a { color: var(--accent); text-underline-offset: 3px; }
+.provenance a:hover { color: #F1B454; }

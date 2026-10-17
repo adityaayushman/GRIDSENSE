@@ -3,7 +3,7 @@ import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from app import data_sources, india_live, marginal, store, upgrade_value
+from app import data_sources, india_live, marginal, store, upgrade_value, validation
 from app.optimizer import Vehicle, run_scenario
 from app.schemas import FleetGroup, HourlySeries, ScenarioRequest, ScenarioResponse
 
@@ -220,6 +220,25 @@ def upgrade_value_endpoint(evs: int, installed_multiplier: float | None = None):
         return upgrade_value.avoided_upgrade(evs, installed_multiplier)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
+
+
+@app.get("/api/validation")
+def validation_summary():
+    """Real-data validation of the residential baseline: one comparison row per region.
+
+    Spain and the UK are checked against raw smart-meter panels; India, which has no open household
+    data, against a published figure, and is labelled that way (`kind`).
+    """
+    return validation.summary()
+
+
+@app.get("/api/validation/{region}")
+def validation_region(region: str):
+    """One region's baseline comparison, hosting-capacity rows and 24-hour profiles."""
+    try:
+        return validation.region(region.lower())
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @app.get("/api/runs")
