@@ -25,3 +25,6 @@ ml/venv/
 .DS_Store
 ml/data/india/
 ml/data/de/
+
+# Local AI tooling
+.claude/
