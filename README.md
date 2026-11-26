@@ -23,7 +23,7 @@
 ---
 
 <p align="center">
-  <img src="GRIDSENSE/demo.webp" alt="GridSense demo" width="420" />
+  <img src="GRIDSENSE/demo.webp" alt="GridSense demo" width="640" />
 </p>
 
 **In one line:** GridSense schedules home EV charging against real grid data and
