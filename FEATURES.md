@@ -214,7 +214,9 @@ because a project that only displays its successes is a brochure.
 - **How much of the India capacity gain survives forecast error.** Finding 10's 123-vehicle
   figure assumes a perfect forecast of the street's other demand; `ml/india_robustness.py`
   prices the gap under realistic error and finds no margin up to 30% brings the overload risk
-  under target (finding 23).
+  under target (finding 23). A follow-up tests whether re-forecasting every hour instead of
+  committing once buys that back; mostly it does not — rolling control is worse in most cells,
+  by 15 points on average (`ml/india_robustness_intraday.py`, finding 24).
 
 ## Not yet built
 

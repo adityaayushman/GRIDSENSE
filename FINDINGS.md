@@ -1268,6 +1268,72 @@ a day-ahead margin, remains untested.
 
 ---
 
+## 24. Re-forecasting every hour does not rescue finding 23's margin — in most cells it is worse
+
+`ml/india_robustness_intraday.py` · follow-up to finding 23 · **India** pane
+
+Finding 23's own text left a question open: a distribution company reads its meters all night, so
+would a controller that re-forecasts every hour and corrects course, rather than committing once to
+a day-ahead margin, buy back the overload risk a static margin leaves behind? Built and measured
+on the same 100 kVA, 150-home unit and the same four margins, the answer is **no, not through this
+lever** — in 8 of the 12 error/margin cells where error is present, re-forecasting hourly overloads
+more often than committing once; 2 are tied and 2 show a fractional (3.3pp) improvement that sits
+inside this experiment's own sampling noise (one draw out of thirty) and both occur where static
+control is already failing on 100% of draws, not somewhere a real difference existed to find:
+
+| Error (sd) | Margin | Capacity | Static (commit once) | Rolling (re-forecast hourly) | Diff |
+| --- | --- | --- | --- | --- | --- |
+| 3% | 10% | 94 | 56.7% | 86.7% | +30.0pp |
+| 3% | 20% | 66 | **40.0%** | 63.3% | +23.3pp |
+| 3% | 30% | 37 | 50.0% | 70.0% | +20.0pp |
+| 10% | 10% | 94 | 63.3% | 86.7% | +23.4pp |
+| 10% | 20% | 66 | 43.3% | 76.7% | +33.4pp |
+| 10% | 30% | 37 | 60.0% | 83.3% | +23.3pp |
+| 20% | 20% | 66 | 50.0% | 76.7% | +26.7pp |
+| 20% | 30% | 37 | 80.0% | 86.7% | +6.7pp |
+
+(Full 16-row grid, including the margin-0% and sigma-0% edges, in the data file. Mean difference
+across all twelve error-bearing cells: **rolling is 15.0 percentage points worse**, worst case 33.4pp.)
+
+At zero error both controllers agree exactly — 0% overload at every margin — which is the check that
+matters here: fed a perfect forecast, the rolling machinery must reproduce the static one-shot
+schedule exactly, the same time-consistency property `test_optimizer_is_time_consistent` already
+pins for the carbon optimizer, and it does. The degradation shows up only once the forecast is wrong,
+and once it is, rolling control is reliably worse, not mixed.
+
+**The mechanism is finding 9's, in a different problem.** The static controller sees the (wrong)
+forecast for the whole night in one pass and can spread its single mistake flat across thirteen
+hours. The rolling controller commits hour by hour against a belief that keeps changing: early hours
+lock in a pace against the still-unbiased 18:00 forecast, and whatever the AR(1) correction later
+reveals about the rest of the night has to be absorbed by whatever hours are left — fewer of them, as
+the window closes. A forecast that runs hot late in the night is the worst case for exactly this
+reason: the controller has already spent the flexibility it would need to spread the correction out.
+
+**What broke before this held, and why it is worth naming.** Two implementation bugs produced this
+same symptom — rolling looking catastrophically worse — before either was caught, and a run that
+confirmed them would have shipped a false result. First, the per-hour re-solve used the project's
+existing `optimize_schedule`, whose return value is the fleet's *summed* load; every other caller
+only ever wants the total, but handed to a per-vehicle-group energy tracker it credited the *entire*
+fleet's hourly load to *each* group separately, overcommitting a single hour by roughly 10x. A local
+per-vehicle solve (`solve_step`) fixed it. Second, re-solving repeatedly against a flat carbon
+objective — harmless for finding 23's single one-shot solve, where every feasible schedule is an
+equally good answer — let the solver pick a different arbitrary tied solution at each re-solve,
+compounding into a last-minute energy crunch that had nothing to do with forecast error; minimising
+peak load instead removed it. Both were caught by the same test: a zero-error run must reproduce the
+static optimum exactly, and at first it did not. Neither bug touches finding 23, which never
+re-solves mid-night.
+
+**What this does not say.** The margin tested is fixed for the whole night; a controller that widens
+its margin as uncertainty resolves, rather than re-forecasting at a fixed one, is a different design
+and is untested. The AR(1) correction here also only ever predicts toward zero bias as the horizon
+lengthens (`rho**k * last_observed_error`), which is the same assumption the error process itself
+was built on; a correction model that could learn it is systematically wrong in one direction was not
+tried. And finding 9's own deferral-penalty sweep, tried on the carbon version of this exact problem,
+also made things worse every time it was tried — so a system that already resists being nudged
+one way may simply resist being nudged the other.
+
+---
+
 ## Datasets evaluated and rejected
 
 Screened with `screen_dataset.py`, which any candidate must pass before it is

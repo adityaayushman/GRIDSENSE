@@ -3,6 +3,7 @@ import {
   ResponsiveContainer, ReferenceLine, LabelList,
 } from "recharts";
 import robustness from "./data/india_robustness.json";
+import intraday from "./data/india_robustness_intraday.json";
 import { usePrefersReduced, useReveal } from "./motion";
 
 const OK = "#3987e5";
@@ -42,6 +43,21 @@ for (const m of MARGINS) {
 }
 const bestCapacity = R.capacity_by_margin[bestMargin as keyof typeof R.capacity_by_margin] as number;
 
+const M = intraday;
+const natlRolling = M.rows.filter((r) => r.error_sd_pct === 3 && r.margin_pct > 0);
+const rollingRows = natlRolling.map((r) => ({
+  margin: r.margin_pct,
+  static: Math.round(r.static_overload_prob * 1000) / 10,
+  rolling: Math.round(r.rolling_overload_prob * 1000) / 10,
+}));
+const nonzero = M.rows.filter((r) => r.error_sd_pct > 0);
+const meanDiffPp = nonzero.reduce((a, r) => a + (r.rolling_overload_prob - r.static_overload_prob), 0)
+  / nonzero.length * 100;
+const worstRow = nonzero.reduce((a, r) => {
+  const d = r.rolling_overload_prob - r.static_overload_prob;
+  return d > (a.rolling_overload_prob - a.static_overload_prob) ? r : a;
+}, nonzero[0]);
+
 function CapTip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
@@ -63,6 +79,21 @@ function ProbTip({ active, payload, label }: any) {
       {payload.map((p: any) => (
         <div className="tipRow" key={p.dataKey}>
           <span className="legendSwatch" style={{ background: p.stroke }} />
+          {p.name}<b>{p.value}% of draws overload</b>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function RollTip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="tip">
+      <div className="tipHour">{label}% margin held back</div>
+      {payload.map((p: any) => (
+        <div className="tipRow" key={p.dataKey}>
+          <span className="legendSwatch" style={{ background: p.fill }} />
           {p.name}<b>{p.value}% of draws overload</b>
         </div>
       ))}
@@ -175,6 +206,68 @@ export default function IndiaRobustness() {
         the 5, 10 and 20% rows are guesses bracketing that gap, not a measurement — and they only make it worse.
         Finding 10's gain is what a scheduler earns if it knows the street's other demand exactly; this is the
         price of not knowing it, and holding back margin alone does not pay it off within the range tested.
+      </p>
+
+      <div className="chartHeader">
+        <div>
+          <div className="chartTitle">Re-forecasting every hour does not buy the margin back — it mostly costs more</div>
+          <div className="chartMeta">
+            Same unit, {M.draws} draws per cell · committing once at 18:00 against{" "}
+            {natlRolling[0]?.error_sd_pct}% forecast error, the national forecaster's own accuracy
+          </div>
+        </div>
+        <div className="legend">
+          <span className="legendItem"><span className="legendSwatch" style={{ background: OK }} />Static — commit once</span>
+          <span className="legendItem"><span className="legendSwatch" style={{ background: BAD }} />Rolling — re-forecast hourly</span>
+        </div>
+      </div>
+      <ResponsiveContainer width="100%" height={220}>
+        <BarChart data={rollingRows} margin={{ top: 18, right: 16, left: 0, bottom: 4 }}>
+          <CartesianGrid stroke={GRID} vertical={false} />
+          <XAxis dataKey="margin" tick={{ fill: INK3, fontSize: 11 }} axisLine={{ stroke: GRID }} tickLine={false}
+            tickFormatter={(v: number) => `${v}%`} />
+          <YAxis domain={[0, 100]} tick={{ fill: INK3, fontSize: 11 }} axisLine={false} tickLine={false}
+            width={40} tickFormatter={(v: number) => `${v}%`} />
+          <Tooltip content={<RollTip />} cursor={{ fill: "rgba(255,255,255,.03)" }} />
+          <ReferenceLine y={TARGET_PCT} stroke={INK3} strokeDasharray="4 4"
+            label={{ value: `${TARGET_PCT}% target`, position: "insideTopLeft", fill: INK3, fontSize: 10 }} />
+          <Bar dataKey="static" name="Static" fill={OK} radius={[3, 3, 0, 0]} isAnimationActive={!reduced} />
+          <Bar dataKey="rolling" name="Rolling" fill={BAD} radius={[3, 3, 0, 0]} isAnimationActive={!reduced} />
+        </BarChart>
+      </ResponsiveContainer>
+      <details className="tableTwin">
+        <summary>Every error level, static vs rolling, every margin</summary>
+        <div className="tableWrap">
+          <table className="runsTable">
+            <thead>
+              <tr><th>Error (sd)</th><th>Margin</th><th>Capacity</th><th>Static</th><th>Rolling</th></tr>
+            </thead>
+            <tbody>
+              {M.rows.map((r) => (
+                <tr key={`${r.error_sd_pct}-${r.margin_pct}`}>
+                  <td>{r.error_sd_pct}%</td>
+                  <td>{r.margin_pct}%</td>
+                  <td>{r.capacity}</td>
+                  <td>{Math.round(r.static_overload_prob * 100)}%</td>
+                  <td>{Math.round(r.rolling_overload_prob * 100)}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
+      <p className="calloutText">
+        A distribution company reads its meters all night, so the obvious next question is whether correcting
+        the forecast hour by hour, rather than committing once, buys back what the margin gives up. It mostly
+        does not: averaged across every error level and margin tested, re-forecasting hourly overloads{" "}
+        <strong>{meanDiffPp.toFixed(1)} percentage points</strong> more often than committing once, worst at{" "}
+        <strong>+{((worstRow.rolling_overload_prob - worstRow.static_overload_prob) * 100).toFixed(1)}pp</strong>{" "}
+        ({worstRow.error_sd_pct}% error, {worstRow.margin_pct}% margin). At zero forecast error the two agree
+        exactly, which is the check that matters: fed a perfect forecast, the rolling controller must reproduce
+        the static one-shot schedule, and it does. The reason it loses once the forecast is wrong is the same
+        one finding 9 found for carbon — the static plan sees the whole night's (wrong) forecast at once and
+        spreads its one mistake flat across every hour, while the rolling controller commits hour by hour and
+        has to absorb each correction in whatever hours are still left, fewer of them as the window closes.
       </p>
     </section>
   );
