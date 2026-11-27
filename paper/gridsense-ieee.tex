@@ -233,6 +233,7 @@ Residential baseline (Spain, modeled) & ENTSO-E system load, scaled to IDAE's ho
 Residential baseline (Spain, validated) & GoiEner smart-meter panel~\cite{quesada2024goiener} \\
 Residential baseline (UK, validated) & Low Carbon London panel~\cite{tindemans2023lcl} \\
 EV mix (India) & FADA CY2025 retail registrations~\cite{fada2025} \\
+Transformer unit price (India) & MSEDCL ``Material Rates 2024-25''~\cite{msedcl2024} (100/200~kVA), blended with IndiaMART vendor listings \\
 EV charging-session distributions & Assumed (ACN-Data~\cite{leeacndata} identified as the open replacement, blocked on account access) \\
 \bottomrule
 \end{tabular}
@@ -328,6 +329,8 @@ India's EV registrations are 56\% two-wheelers, 35\% three-wheelers, and only 8\
 
 Carbon tells the opposite story. India's measured grid runs at 592~gCO$_2$eq/kWh, 2.3$\times$ Spain's, but overnight carbon-aware charging there saves a median of only 0.09\% -- about 22$\times$ smaller than Spain's 2.0\%, because the overnight window sits almost flat at India's dirtiest hours (peaking near 03:00--05:00) while the grid's actual clean period is midday solar, outside the charging window entirely. Where a saving exists, it is in a daytime charging window (median 1.51\%), which is a workplace or depot's problem, not an overnight residential one. In the full simulator scenario, coordinating an 80-vehicle Indian fleet against a 60~kW feeder cuts peak load 71.1\% and leaves carbon essentially untouched (0.0\% on the median night) -- the capacity result, not the carbon one, is what India's grid rewards.
 
+Putting a rupee figure on that capacity result needs transformer prices, and a genuine DISCOM (distribution company) schedule of rates for them is hard to find; most public listings are vendor asking prices rather than procurement benchmarks. One state utility, MSEDCL (Maharashtra), publishes exactly such a schedule -- its ``Material Rates 2024-25'' supplier-portal sheet gives a departmental procurement price of Rs.~1,43,782 for a 100~kVA and Rs.~2,58,752 for a 200~kVA 11/0.43~kV distribution transformer~\cite{msedcl2024}, which we confirmed by reading the document directly rather than a secondhand listing. At 100~kVA this undercuts every vendor asking price we found; at 200~kVA it falls inside the existing vendor range. Blending the two sources as a min/max band, a 100-vehicle neighbourhood on a 150-home transformer needs a step from 100~kVA (coordinated) to 250~kVA (charging on arrival) -- an avoided upgrade of roughly Rs.~1.43 lakh in the base case (range Rs.~0.79--2.07 lakh), about Rs.~1,429 per vehicle, with installed cost taken as 1.5$\times$ the equipment price. The two ratings this capacity analysis actually uses, 160 and 250~kVA, have no line in MSEDCL's schedule and are still extrapolated in log-log space from the 100/200~kVA anchors, and a single state's bulk procurement rate is not a national figure -- so this is an illustrative monetization of the capacity result, not an independently measured national cost.
+
 \subsection{Robustness of the capacity gain to forecast error}
 Finding 10's 123-vehicle Indian capacity figure assumes perfect knowledge of the street's other demand at the moment the schedule is committed. Holding back a feeder margin $m$ as insurance against error already costs capacity even under a perfect forecast: capacity falls from 123 ($m=0$) to 37 ($m=30\%$) -- by a 30\% margin coordination has given back nearly all of its own gain. A first, coarse sweep of $m$ at the national day-ahead demand forecaster's own measured error ($\sigma=3\%$, the AR(1) model of \eqref{eq:ar1}) over 6 margins and 60 draws each reported its best case as 35\% overload at $m=20\%$. A 6-point grid cannot rule out a better margin between grid points, and 60 draws gives no formal uncertainty bound on that number, so we re-ran the same error level on an 11-point grid (every 4 points, 0--40\%) with 100 draws per margin and a bootstrap 95\% CI (10,000 resamples) at each point. The finer grid finds a \emph{better} margin than the coarse one did: $m=28\%$, not 20\%, gives the lowest overload probability on the grid, 25.0\% (95\% CI [17\%, 34\%]) at a capacity of 42 vehicles -- still more than 3$\times$ the 5\% target even at the most favourable edge of its own confidence interval, and no margin on the 11-point grid meets the target at its 95\% CI upper bound. Margins of 36\% and above collapse capacity to 0: at that point the de-rated limit sits at or below what the houses alone draw on an unlucky forecast draw, so scheduling fails before a single vehicle is added.
 
@@ -398,6 +401,7 @@ Table~\ref{tab:repro} maps each reported result to the script that reproduces it
 \texttt{train\_horizon.py}, \texttt{mpc.py} & Rolling-horizon MPC result (\S\ref{sec:experiments}E) \\
 \texttt{india\_fleet.py}, \texttt{export\_india\_capacity.py} & Indian fleet and hosting capacity (\S\ref{sec:experiments}F) \\
 \texttt{india\_carbon.py}, \texttt{india\_backtest.py} & Indian carbon-saving result \\
+\texttt{export\_upgrade\_inputs.py} & Avoided-upgrade rupee figure (\S\ref{sec:experiments}F) \\
 \texttt{india\_robustness.py} & Margin-vs-error overload table (\S\ref{sec:experiments}G) \\
 \texttt{india\_margin\_search.py} & Fine-grained margin search and bootstrap CI (\S\ref{sec:experiments}G) \\
 \texttt{india\_robustness\_intraday.py} & Static-vs-rolling overload figure and table (\S\ref{sec:experiments}G) \\
@@ -457,6 +461,9 @@ Council on Energy, Environment and Water (CEEW), ``How can electricity tariff re
 
 \bibitem{merc2025}
 Maharashtra Electricity Regulatory Commission (MERC), Press Note on Multi-Year Tariff Order for Tata Power Company -- Distribution, 2025. [Online]. Available: https://merc.gov.in
+
+\bibitem{msedcl2024}
+Maharashtra State Electricity Distribution Co. Ltd. (MSEDCL), ``Material Rates 2024-25,'' supplier portal schedule of rates, effective 2024-11-13. [Online]. Available: https://mahadiscom.in/supplier/wp-content/uploads/2024/11/Material\_Rates.pdf
 
 \bibitem{leeacndata}
 Z. J. Lee, T. Li, and S. H. Low, ``ACN-Data: Analysis and Applications of an Open EV Charging Dataset,'' in \emph{Proc. 10th ACM Int. Conf. Future Energy Systems (e-Energy '19)}, Phoenix, AZ, USA, Jun. 2019.
