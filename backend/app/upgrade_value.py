@@ -8,8 +8,10 @@ This is an estimate with its inputs showing, not a finding. Two things limit it:
 
   * Hosting counts come from the modelled Indian fleet (`ml/export_india_capacity.py`): arrival
     times and energy per vehicle are assumed, 150 homes share the transformer.
-  * Prices are vendor asking prices for the equipment (`ml/export_upgrade_inputs.py` lists them).
-    No official schedule of rates was found. Installation is a multiplier you set.
+  * Prices blend a real DISCOM schedule of rates (MSEDCL's "Material Rates 2024-25") with vendor
+    asking prices on IndiaMART at 100 and 200 kVA (`ml/export_upgrade_inputs.py` lists both); other
+    ratings, including the 160/250 kVA this project's own tables use, are extrapolated and flagged.
+    Installation is a multiplier you set.
 
 When both methods need the same standard rating the answer is zero: coordination only saves money
 when it moves the neighbourhood across a rating boundary. The result says so rather than quoting a
@@ -78,7 +80,8 @@ def avoided_upgrade(evs: int, installed_multiplier: float | None = None) -> dict
         "price_source": inputs()["price_source_note"],
         "caveats": [
             "Hosting counts come from a modelled fleet, not measured sessions.",
-            "Prices are vendor asking prices for equipment; installation is the multiplier you set.",
+            "Prices blend a real DISCOM rate schedule (MSEDCL) with vendor asking prices for "
+            "equipment; installation is the multiplier you set.",
         ],
     }
     if coord is None:

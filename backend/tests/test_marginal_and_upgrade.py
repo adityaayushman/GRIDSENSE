@@ -48,7 +48,7 @@ def test_prices_rise_with_rating_and_base_sits_between_cases():
     for kva in (63, 100, 160, 250, 400):
         low, base, high = (upgrade_value.equipment_price(kva, c) for c in ("low", "base", "high"))
         assert low < base < high
-    assert upgrade_value.equipment_price(100, "low") == pytest.approx(170_000)
+    assert upgrade_value.equipment_price(100, "low") == pytest.approx(143_782)  # MSEDCL DISCOM rate
     assert upgrade_value.equipment_price(200, "high") == pytest.approx(450_000)
     assert upgrade_value.equipment_price(250, "base") > upgrade_value.equipment_price(100, "base")
 

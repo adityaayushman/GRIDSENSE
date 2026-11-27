@@ -8,10 +8,18 @@ disagree:
       by `export_india_capacity.py`)
     - what a transformer of each rating costs
 
-THE PRICES ARE THE WEAK PART. No CEA or DISCOM schedule of rates was found; the only public
-figures located are vendor asking prices on IndiaMART, listed below. They are asking prices, not
-procurement benchmarks, they differ in specification, and they are for the equipment, not an
-installed upgrade. So the result is a range with its inputs showing, not a measurement.
+THE PRICES ARE IMPROVED BUT STILL AN ESTIMATE. A real DISCOM schedule of rates exists:
+MSEDCL's "Material Rates 2024-25" (mahadiscom.in/supplier, effective 2024-11-13) lists its own
+departmental procurement price for 11 kV/0.43 kV distribution transformers, confirmed by reading
+the PDF directly. It gives one point each at 100 and 200 kVA -- the same two ratings the vendor
+IndiaMART listings already anchored -- and at 100 kVA it undercuts every vendor asking price found,
+which is itself worth knowing (departmental bulk rate vs. retail ask). The low/high band below is
+now the min/max of the MSEDCL rate and the vendor listings at each anchor, so the band only widens
+where MSEDCL actually falls outside the vendor spread. What is still missing: 63, 160, 250, 315,
+400 and 630 kVA have no MSEDCL line (160 and 250 kVA, the ratings this project's tables use, are
+absent from MSEDCL's schedule entirely) and are extrapolated in log-log space as before; the figure
+is the equipment price, not an installed cost; and MSEDCL's rate is one state's bulk departmental
+rate, not a national figure.
 
     python export_upgrade_inputs.py
 """
@@ -27,23 +35,46 @@ SRC = HERE.parent / "frontend" / "src" / "data" / "india.json"
 OUTS = [HERE.parent / "frontend" / "src" / "data" / "upgrade_inputs.json",
         HERE.parent / "backend" / "app" / "data" / "upgrade_inputs.json"]
 
-# Vendor asking prices, rupees, 3-phase 11 kV/433 V oil-cooled distribution transformer.
+# Vendor asking prices, rupees, 3-phase 11 kV/433 V oil-cooled distribution transformer,
+# IndiaMART listings.
+VENDOR_LISTINGS = {
+    100: [
+        {"vendor": "Prathmesh Transformers & Engineering Works", "inr": 170_000,
+         "url": "https://m.indiamart.com/prathmesh-transformers-engineering-works"},
+        {"vendor": "Virdi Electric Works", "inr": 225_000,
+         "url": "https://m.indiamart.com/impcat/distribution-transformer.html"},
+        {"vendor": "Vijom Engineering Private Limited", "inr": 350_000,
+         "url": "https://m.indiamart.com/vijom-engineering/distribution-transformer.html"}],
+    200: [
+        {"vendor": "Samtronix Power Equipments", "inr": 182_002,
+         "url": "https://m.indiamart.com/impcat/distribution-transformer.html"},
+        {"vendor": "Vijom Engineering Private Limited", "inr": 450_000,
+         "url": "https://m.indiamart.com/vijom-engineering/distribution-transformer.html"}],
+}
+
+# MSEDCL's own departmental procurement rate, "Material Rates 2024-25", distribution transformer
+# 11/0.43 kV (sr. 15 in the schedule, 100 kVA; sr. 14, 200 kVA). Confirmed 2026-11-28 by reading
+# the PDF directly: https://mahadiscom.in/supplier/wp-content/uploads/2024/11/Material_Rates.pdf
+# (effective date printed on every page, 11/13/2024). This is a real DISCOM schedule of rates, the
+# source this project previously said it could not find.
+DISCOM_RATE = {100: 143_782, 200: 258_752}
+DISCOM_SOURCE = ("MSEDCL \"Material Rates 2024-25\", distribution transformer 11/0.43 kV, "
+                  "effective 2024-11-13 "
+                  "(https://mahadiscom.in/supplier/wp-content/uploads/2024/11/Material_Rates.pdf)")
+
+# The published band is the min/max of the DISCOM rate and the vendor listings at each anchor,
+# so it only widens where the DISCOM rate actually falls outside the vendor spread (it does at
+# 100 kVA, undercutting every vendor quote; at 200 kVA it sits inside the existing vendor range).
 # Anchors only exist at 100 and 200 kVA; other ratings are extrapolated and flagged.
 ANCHORS = {
-    100: {"low": 170_000, "high": 350_000,
-          "listings": [
-              {"vendor": "Prathmesh Transformers & Engineering Works", "inr": 170_000,
-               "url": "https://m.indiamart.com/prathmesh-transformers-engineering-works"},
-              {"vendor": "Virdi Electric Works", "inr": 225_000,
-               "url": "https://m.indiamart.com/impcat/distribution-transformer.html"},
-              {"vendor": "Vijom Engineering Private Limited", "inr": 350_000,
-               "url": "https://m.indiamart.com/vijom-engineering/distribution-transformer.html"}]},
-    200: {"low": 182_002, "high": 450_000,
-          "listings": [
-              {"vendor": "Samtronix Power Equipments", "inr": 182_002,
-               "url": "https://m.indiamart.com/impcat/distribution-transformer.html"},
-              {"vendor": "Vijom Engineering Private Limited", "inr": 450_000,
-               "url": "https://m.indiamart.com/vijom-engineering/distribution-transformer.html"}]},
+    kva: {
+        "low": min(DISCOM_RATE[kva], *(x["inr"] for x in VENDOR_LISTINGS[kva])),
+        "high": max(DISCOM_RATE[kva], *(x["inr"] for x in VENDOR_LISTINGS[kva])),
+        "discom_rate_inr": DISCOM_RATE[kva],
+        "discom_source": DISCOM_SOURCE,
+        "listings": VENDOR_LISTINGS[kva],
+    }
+    for kva in (100, 200)
 }
 DEFAULT_INSTALL_MULTIPLIER = 1.5   # equipment to installed: erection, HT work, DISCOM charges. A GUESS.
 
@@ -61,9 +92,11 @@ def main() -> None:
                       "arrival and energy per vehicle are assumed, not measured.",
         "ratings": ratings,
         "price_anchors": {str(k): v for k, v in ANCHORS.items()},
-        "price_source_note": "Vendor asking prices on IndiaMART. No CEA or DISCOM schedule of rates "
-                             "was found. Equipment price, not installed cost; extrapolated away from "
-                             "100 and 200 kVA.",
+        "price_source_note": "Low/high band is the min/max of MSEDCL's \"Material Rates 2024-25\" "
+                             "departmental procurement rate and vendor asking prices on IndiaMART, "
+                             "at 100 and 200 kVA. Equipment price, not installed cost; extrapolated "
+                             "in log-log space away from those two ratings -- 160 and 250 kVA, the "
+                             "ratings this project's own tables use, have no MSEDCL line.",
         "default_install_multiplier": DEFAULT_INSTALL_MULTIPLIER,
     }
     text = json.dumps(out, indent=1)

@@ -1084,15 +1084,29 @@ elsewhere.
 
 For an Indian neighbourhood of N vehicles on one transformer (150 homes), find the smallest standard rating
 that hosts N when cars charge on arrival and the smallest that hosts N when coordinated (finding 10), and price
-the difference. At 100 vehicles that is 250 kVA against 100 kVA: **about ₹1.15 lakh avoided in the base case,
-a range of ₹24,000 to ₹2.07 lakh**, about ₹1,155 a vehicle, with installed cost taken as 1.5 times the
+the difference. At 100 vehicles that is 250 kVA against 100 kVA: **about ₹1.43 lakh avoided in the base case,
+a range of ₹0.79 lakh to ₹2.07 lakh**, about ₹1,429 a vehicle, with installed cost taken as 1.5 times the
 equipment price.
+
+> **Corrected.** This found a real DISCOM schedule of rates after this document first said none existed.
+> MSEDCL (Maharashtra) publishes a "Material Rates 2024-25" sheet on its supplier portal with its own
+> departmental procurement price for an 11/0.43 kV distribution transformer: **₹1,43,782 at 100 kVA,
+> ₹2,58,752 at 200 kVA**, effective 2024-11-13. At 100 kVA this undercuts every one of the three IndiaMART
+> vendor quotes used before (₹1.7-3.5 lakh); at 200 kVA it sits inside the existing vendor range
+> (₹1.8-4.5 lakh). The published low/high band is now the min/max of the DISCOM rate and the vendor
+> listings at each anchor, which only widens where the DISCOM rate falls outside the vendor spread — it
+> does at 100 kVA, which is why the base-case figure and the low end both moved up from the previous
+> ₹1.15 lakh / ₹24,000: a lower, better-grounded 100 kVA anchor combined with an unchanged 200 kVA anchor
+> changes the log-log slope used to extrapolate 250 kVA, which is one of the ratings still missing a real
+> anchor.
 
 Three things limit it, and the pane shows them:
 
-- **The prices are vendor asking prices** from IndiaMART listings (₹1.7-3.5 lakh for 100 kVA, ₹1.8-4.5 lakh
-  for 200 kVA). I found no CEA or DISCOM schedule of rates. Only those two ratings are anchors; the rest are
-  extrapolated.
+- **The prices blend a real DISCOM rate with vendor asking prices.** MSEDCL's schedule has no line for
+  63, 160, 250, 315 or 400 kVA — including 160 and 250 kVA, the two ratings this project's own tables
+  use — so only the 100 and 200 kVA anchors are real procurement figures; the rest are still extrapolated
+  in log-log space, and the vendor listings remain the only evidence at those two anchors besides MSEDCL.
+  MSEDCL's rate is also one state's bulk departmental rate, not a national figure.
 - **The installation multiplier is a guess**, exposed as a slider.
 - **Hosting counts come from a modelled fleet**, not measured sessions.
 

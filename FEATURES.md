@@ -223,6 +223,12 @@ because a project that only displays its successes is a brochure.
 - **Formal confidence intervals, not just ranges, on two headline numbers.** `ml/bootstrap_hosting.py`
   bootstraps finding 1's fleet-draw gain (4.1× median, 95% CI [3.73×, 4.24×] at 250 kW, tighter than
   the previously-quoted 3.3–5.3× range) and finding 26 above does the same for the India margin search.
+- **A real DISCOM schedule of rates for the transformer-upgrade price, where this document previously
+  said none existed.** MSEDCL's "Material Rates 2024-25" supplier-portal sheet gives a departmental
+  procurement price at 100 and 200 kVA (₹1,43,782 and ₹2,58,752), folded into
+  `ml/export_upgrade_inputs.py` as the min/max band against the IndiaMART vendor quotes used before;
+  it undercuts every vendor quote at 100 kVA. 160 and 250 kVA, the ratings this project's tables use,
+  still have no line in that schedule and remain extrapolated (finding 19).
 
 ## Not yet built
 
@@ -244,10 +250,6 @@ Blocked on something outside the code (each was attempted):
 - **Marginal rather than average carbon intensity.** Needs MOER data this
   project does not have; an estimate built from the generation mix would be a
   modelling exercise of its own, not the measurement the limitation asks for.
-- **The rupee value of avoided transformer upgrades.** Needs a sourced price list.
-  A search found one undated vendor quote (about Rs 2.65 lakh incl. GST for 100 kVA)
-  and tender notices without award prices, which is not enough to put a figure on
-  a headline. The route is a DISCOM letter-of-award for 100, 160 and 250 kVA units.
 
 ## Out of scope
 

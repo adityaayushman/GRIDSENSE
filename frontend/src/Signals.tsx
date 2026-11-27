@@ -272,26 +272,36 @@ export default function Signals() {
           </AreaChart>
         </ResponsiveContainer>
         <p className="calloutText">
-          The saving arrives in steps, because transformers come in standard ratings. Prices are{" "}
-          <strong>vendor asking prices for the equipment</strong>, not an official schedule of rates: no CEA or
-          DISCOM source was found. Only the 100 and 200 kVA listings are real anchors; other ratings are extrapolated.
+          The saving arrives in steps, because transformers come in standard ratings. The low/high band blends{" "}
+          <strong>MSEDCL's own departmental procurement rate</strong> ("Material Rates 2024-25") with vendor
+          asking prices on IndiaMART, at 100 and 200 kVA — the first DISCOM schedule of rates this project found,
+          after earlier saying none existed. It undercuts every vendor quote at 100 kVA. 160 and 250 kVA, the
+          ratings this project's own tables use, have no line in that schedule and are still extrapolated.
           Hosting counts come from a modelled fleet. Treat the rupees as an order of magnitude with the range showing,
           not as a measured saving.
         </p>
         <details className="tableTwin">
-          <summary>Price listings used</summary>
+          <summary>Price sources used</summary>
           <div className="tableWrap">
             <table className="runsTable">
-              <thead><tr><th>Rating</th><th>Vendor</th><th>Asking price</th></tr></thead>
+              <thead><tr><th>Rating</th><th>Source</th><th>Price</th></tr></thead>
               <tbody>
-                {Object.entries(upgrade.price_anchors).flatMap(([kva, a]) =>
-                  a.listings.map((l) => (
+                {Object.entries(upgrade.price_anchors).flatMap(([kva, a]) => [
+                  <tr key={`${kva}-discom`}>
+                    <td>{kva} kVA</td>
+                    <td><a href={a.discom_source.match(/\((https?:[^)]+)\)/)?.[1]} target="_blank" rel="noreferrer">
+                      MSEDCL Material Rates 2024-25
+                    </a></td>
+                    <td>{inr(a.discom_rate_inr)}</td>
+                  </tr>,
+                  ...a.listings.map((l) => (
                     <tr key={`${kva}-${l.vendor}`}>
                       <td>{kva} kVA</td>
-                      <td><a href={l.url} target="_blank" rel="noreferrer">{l.vendor}</a></td>
+                      <td><a href={l.url} target="_blank" rel="noreferrer">{l.vendor} (vendor)</a></td>
                       <td>{inr(l.inr)}</td>
                     </tr>
-                  )))}
+                  )),
+                ])}
               </tbody>
             </table>
           </div>
