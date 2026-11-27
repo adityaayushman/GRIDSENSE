@@ -1334,6 +1334,73 @@ one way may simply resist being nudged the other.
 
 ---
 
+## 25. The headline hosting-capacity gain has a formal confidence interval, not just a range
+
+`ml/bootstrap_hosting.py` · follow-up to finding 1
+
+Finding 1 reports "about 4×, between 3.3× and 5.3×" from 20 fleet draws at 250 kW — the full range of
+20 samples, not a confidence interval. Bootstrap-resampling those same 20 draws (10,000 resamples,
+percentile method, no new LP solves since the raw per-draw dumb/coordinated counts already exist in
+`artifacts/hosting_seeds.json`) gives:
+
+| Rating | Draws | Median gain | 95% CI |
+| --- | --- | --- | --- |
+| 160 kW | 6 | 5.77× | [4.33×, 6.84×] |
+| **250 kW** | **20** | **4.10×** | **[3.73×, 4.24×]** |
+| 400 kW | 6 | 3.85× | [3.41×, 4.28×] |
+| 630 kW | 6 | 3.68× | [3.35×, 3.84×] |
+
+The 250 kW interval is tight — [3.73×, 4.24×] is much narrower than the full 3.3–5.3× range — because
+the median of 20 draws is a more stable statistic than its extremes; the range is dominated by one or
+two unusually favourable or unfavourable seeds (the same effect that made seed 0 alone read 5.3×).
+**What this does and does not say.** This is a confidence interval on *resampling the same 20 draws*,
+not a claim that the true population gain lies in [3.73×, 4.24×] — the 20 draws themselves come from
+one fleet-generation method and one set of measured nights, so it does not cover model error, only
+sampling error within the method as built. The 160/400/630 kW intervals rest on only 6 draws each and
+are correspondingly wider.
+
+---
+
+## 26. A finer, CI-backed margin search finds a better optimum — and still misses the target by 3×
+
+`ml/india_margin_search.py` · follow-up to findings 23–24
+
+Finding 23 swept 6 discrete margins (0/5/10/15/20/30%) at the one error level backed by a real measurement
+(3%, the national day-ahead demand forecaster's own MAPE) and reported the best observed outcome as 35%
+overload at a 20% margin, from 60 draws. A 6-point grid cannot rule out a better margin between grid
+points, and 60 draws gives no formal uncertainty bound on "35%". This re-runs that one error level on an
+11-point grid (every 4 percentage points, 0–40%) with 100 draws per margin and a bootstrap 95% CI
+(10,000 resamples) on the overload probability at each point:
+
+| Margin | 0% | 4% | 8% | 12% | 16% | 20% | 24% | **28%** | 32% | 36% | 40% |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Capacity | 123 | 111 | 100 | 88 | 77 | 66 | 54 | **42** | 31 | 0 | 0 |
+| Overload | 100% | 31% | 35% | 29% | 30% | 44% | 27% | **25%** | 37% | 77% | 100% |
+| 95% CI | — | 22–40% | 26–44% | 20–38% | 21–39% | 34–54% | 19–36% | **17–34%** | 28–46% | 68–85% | — |
+
+**The finer grid found a better margin than the coarse one did.** 28% margin, not finding 23's 20%, gives
+the lowest overload probability tested: **25.0%** (95% CI 17–34%), against the 35% the 6-point grid
+reported as its best case. Capacity at 28% margin is 42 vehicles. The margin-overload relationship is not
+smooth — 20% margin is a local bump (44%, worse than both 16% and 24% either side of it) — which is
+sampling noise at 100 draws per cell, not a real non-monotonicity; the 95% CIs at adjacent margins overlap.
+
+**The target is still not reached, and now with a number on how far short.** Even at its CI's most
+favourable edge, the best margin found (28%) leaves a 17% overload probability — more than 3× the 5%
+target — and `any_margin_meets_target_at_95ci` is false everywhere on the grid. Margins of 36% and above
+collapse capacity to 0: at that point the de-rated feeder limit sits at or below what the houses alone
+draw on a bad forecast draw, so the schedule fails before a single vehicle is added, which the same
+scoring convention as finding 23 counts as a failure outright.
+
+**What this does and does not say.** Only the one measured error level (3%) is re-run at this resolution;
+finding 23's 5/10/20% rows are unmeasured brackets, and a finer grid on a guess would only be a more
+precise statement about the guess. The grid still stops at 40% margin, past which capacity approaches
+charging-on-arrival's 35 and there is nothing left for coordination to give back. This does not reopen
+finding 23's conclusion — it sharpens it: the best static margin available is now known to about ±9
+points (17–34% at its own optimum) rather than read off a 6-point grid, and it is still roughly 3-7×
+too high to meet a 5% reliability target.
+
+---
+
 ## Datasets evaluated and rejected
 
 Screened with `screen_dataset.py`, which any candidate must pass before it is

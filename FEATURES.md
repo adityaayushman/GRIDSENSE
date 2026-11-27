@@ -216,7 +216,13 @@ because a project that only displays its successes is a brochure.
   prices the gap under realistic error and finds no margin up to 30% brings the overload risk
   under target (finding 23). A follow-up tests whether re-forecasting every hour instead of
   committing once buys that back; mostly it does not — rolling control is worse in most cells,
-  by 15 points on average (`ml/india_robustness_intraday.py`, finding 24).
+  by 15 points on average (`ml/india_robustness_intraday.py`, finding 24). A finer, CI-backed
+  margin search (`ml/india_margin_search.py`) finds a better static margin than the original
+  6-point grid (28%, not 20%) but confirms the target is still missed by more than 3× at its
+  own 95% confidence interval (finding 26).
+- **Formal confidence intervals, not just ranges, on two headline numbers.** `ml/bootstrap_hosting.py`
+  bootstraps finding 1's fleet-draw gain (4.1× median, 95% CI [3.73×, 4.24×] at 250 kW, tighter than
+  the previously-quoted 3.3–5.3× range) and finding 26 above does the same for the India margin search.
 
 ## Not yet built
 
@@ -225,10 +231,14 @@ Blocked on something outside the code (each was attempted):
 - **Real inputs for the hosting-capacity figure** (charging sessions for this
   fleet, a metered feeder). `ml/sensitivity_hosting.py --feeder-csv --sessions-csv`
   re-runs the headline on them the moment they exist. ACN-Data is US cars and needs
-  a free account. Spain's regulated residential profile (REE's P2.0TD coefficients)
-  is the right open source for the baseline shape, but a search found the
-  methodology documents and not a downloadable file; fetching it needs the exact
-  REE/e-sios URL or a token.
+  a free account: confirmed directly by querying its API unauthenticated
+  (`GET /api/v1/sessions/caltech` returns HTTP 401, "Please provide proper
+  credentials"), and its registration form (`ev.caltech.edu/register`) asks for a
+  real name, institutional affiliation and job role, not just an email — account
+  creation needs the account holder, not an automated request. Spain's regulated
+  residential profile (REE's P2.0TD coefficients) is the right open source for the
+  baseline shape, but a search found the methodology documents and not a
+  downloadable file; fetching it needs the exact REE/e-sios URL or a token.
 - **A live test of the ENTSO-E client**, which has run only against fixtures. Needs a
   free ENTSO-E token that only the account holder can request (`backend/ENTSOE.md`).
 - **Marginal rather than average carbon intensity.** Needs MOER data this

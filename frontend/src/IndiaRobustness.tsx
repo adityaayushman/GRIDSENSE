@@ -4,6 +4,7 @@ import {
 } from "recharts";
 import robustness from "./data/india_robustness.json";
 import intraday from "./data/india_robustness_intraday.json";
+import marginSearch from "./data/india_margin_search.json";
 import { usePrefersReduced, useReveal } from "./motion";
 
 const OK = "#3987e5";
@@ -42,6 +43,15 @@ for (const m of MARGINS) {
   if (p < bestProb) { bestProb = p; bestMargin = m; }
 }
 const bestCapacity = R.capacity_by_margin[bestMargin as keyof typeof R.capacity_by_margin] as number;
+
+const MS = marginSearch;
+const msRows = MS.rows.map((r) => ({
+  margin: r.margin_pct,
+  prob: Math.round(r.overload_prob * 1000) / 10,
+  lo: Math.round(r.ci95_lo * 1000) / 10,
+  hi: Math.round(r.ci95_hi * 1000) / 10,
+}));
+const msBest = MS.rows.find((r) => r.margin_pct === MS.best_margin_pct)!;
 
 const M = intraday;
 const natlRolling = M.rows.filter((r) => r.error_sd_pct === 3 && r.margin_pct > 0);
@@ -82,6 +92,27 @@ function ProbTip({ active, payload, label }: any) {
           {p.name}<b>{p.value}% of draws overload</b>
         </div>
       ))}
+    </div>
+  );
+}
+
+function MarginSearchTip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  const prob = payload.find((p: any) => p.dataKey === "prob");
+  const lo = payload.find((p: any) => p.dataKey === "lo");
+  const hi = payload.find((p: any) => p.dataKey === "hi");
+  return (
+    <div className="tip">
+      <div className="tipHour">{label}% margin held back</div>
+      {prob && (
+        <div className="tipRow">
+          <span className="legendSwatch" style={{ background: OK }} />
+          Overload probability<b>{prob.value}%</b>
+        </div>
+      )}
+      {lo && hi && (
+        <div className="tipRow">95% CI<b>[{lo.value}%, {hi.value}%]</b></div>
+      )}
     </div>
   );
 }
@@ -206,6 +237,46 @@ export default function IndiaRobustness() {
         the 5, 10 and 20% rows are guesses bracketing that gap, not a measurement — and they only make it worse.
         Finding 10's gain is what a scheduler earns if it knows the street's other demand exactly; this is the
         price of not knowing it, and holding back margin alone does not pay it off within the range tested.
+      </p>
+
+      <div className="chartHeader">
+        <div>
+          <div className="chartTitle">A finer, CI-backed search finds a better margin — and still misses the target by 3×</div>
+          <div className="chartMeta">
+            {MS.margin_grid_step_pct}-point margin grid, {MS.draws_per_margin} draws each, bootstrap 95% CI
+            (10,000 resamples) · {MS.error_sd_pct}% forecast error, the national forecaster's own accuracy
+          </div>
+        </div>
+      </div>
+      <ResponsiveContainer width="100%" height={220}>
+        <LineChart data={msRows} margin={{ top: 8, right: 16, left: 0, bottom: 4 }}>
+          <CartesianGrid stroke={GRID} vertical={false} />
+          <XAxis dataKey="margin" tick={{ fill: INK3, fontSize: 11 }} axisLine={{ stroke: GRID }} tickLine={false}
+            tickFormatter={(v: number) => `${v}%`} />
+          <YAxis domain={[0, 100]} tick={{ fill: INK3, fontSize: 11 }} axisLine={false} tickLine={false}
+            width={40} tickFormatter={(v: number) => `${v}%`} />
+          <Tooltip content={<MarginSearchTip />} cursor={{ stroke: GRID }} />
+          <ReferenceLine y={TARGET_PCT} stroke={INK3} strokeDasharray="4 4"
+            label={{ value: `${TARGET_PCT}% target`, position: "insideTopLeft", fill: INK3, fontSize: 10 }} />
+          <Line type="monotone" dataKey="hi" name="95% CI upper" stroke={BAD} strokeWidth={1}
+            strokeDasharray="3 3" dot={false} isAnimationActive={false} />
+          <Line type="monotone" dataKey="prob" name="Overload probability" stroke={OK} strokeWidth={2.5}
+            dot={{ r: 3, fill: OK }} isAnimationActive={false} />
+          <Line type="monotone" dataKey="lo" name="95% CI lower" stroke={OK} strokeWidth={1}
+            strokeDasharray="3 3" dot={false} isAnimationActive={false} />
+        </LineChart>
+      </ResponsiveContainer>
+      <p className="calloutText">
+        Finding 23's original 6-point grid reported its best case as 35% overload at a 20% margin, from 60
+        draws with no uncertainty bound. This re-run — 100 draws per margin, {MS.rows.length} margins every{" "}
+        {MS.margin_grid_step_pct} points, with a bootstrap 95% CI — finds a <strong>better</strong> margin than
+        the coarse grid did: <strong>{msBest.margin_pct}%</strong>, not 20%, giving the lowest overload
+        probability on the grid, <strong>{(msBest.overload_prob * 100).toFixed(1)}%</strong> (95% CI [
+        {(msBest.ci95_lo * 100).toFixed(0)}%, {(msBest.ci95_hi * 100).toFixed(0)}%]) at a capacity of{" "}
+        {msBest.capacity} vehicles — still more than 3× the {TARGET_PCT}% target even at the most favourable
+        edge of its own confidence interval, and no margin on this grid meets the target at its 95% CI upper
+        bound. Margins past 32% collapse capacity to 0: by then the de-rated limit sits at or below what the
+        houses alone draw on an unlucky forecast draw, so scheduling fails before a single vehicle is added.
       </p>
 
       <div className="chartHeader">

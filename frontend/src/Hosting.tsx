@@ -4,6 +4,7 @@ import {
   ResponsiveContainer, ReferenceLine, ReferenceDot,
 } from "recharts";
 import hosting from "./data/hosting.json";
+import hostingBootstrap from "./data/hosting_bootstrap.json";
 import { usePrefersReduced, useReveal, useCountUp } from "./motion";
 
 // Validated dark-band trio, all-pairs clean on this surface.
@@ -178,12 +179,14 @@ export default function Hosting() {
                 <th>Charging on arrival</th>
                 <th className="mine">Coordinated</th>
                 <th>Gain</th>
+                <th>95% CI (bootstrap)</th>
                 <th>Same, identical fleet</th>
               </tr>
             </thead>
             <tbody>
               {(hosting as any).realistic.map((c: any) => {
                 const id = hosting.capacities.find((k: any) => k.rating_kw === c.rating_kw)!;
+                const boot: any = (hostingBootstrap as any).ratings[String(c.rating_kw)];
                 return (
                   <tr key={c.rating_kw}>
                     <th scope="row">{c.rating_kw} kW</th>
@@ -193,6 +196,10 @@ export default function Hosting() {
                       <span className="claimNote">solver-bisected</span>
                     </td>
                     <td><strong>{c.gain.toFixed(1)}×</strong></td>
+                    <td>
+                      [{boot.ci95_lo.toFixed(2)}×, {boot.ci95_hi.toFixed(2)}×]
+                      <span className="claimNote">{boot.n_draws} draws resampled</span>
+                    </td>
                     <td>
                       {(id.coordinated / id.dumb).toFixed(1)}×
                       <span className="claimNote">all arriving 18:00</span>
@@ -219,6 +226,19 @@ export default function Hosting() {
           published earlier, 5.3×, was the most favourable of them. The baseline shape, fleet
           mix and homes per transformer are assumed, not measured; moving each one at a time did not push the gain below that band, and a peakier street raised it. That
           is sensitivity to assumptions, not validation against a real feeder.
+        </p>
+        <p className="calloutText">
+          That full range is not a confidence interval — it is dominated by one or two unusually
+          favourable or unfavourable seeds. Bootstrap-resampling the same {" "}
+          {(hostingBootstrap as any).ratings["250"].n_draws} draws at 250 kW ({(hostingBootstrap as any).n_boot.toLocaleString()}{" "}
+          resamples) gives a 95% CI of{" "}
+          <strong>
+            [{(hostingBootstrap as any).ratings["250"].ci95_lo.toFixed(2)}×,{" "}
+            {(hostingBootstrap as any).ratings["250"].ci95_hi.toFixed(2)}×]
+          </strong>{" "}
+          — much tighter than 3.3–5.3×, because the median of 20 draws is far more stable than its
+          extremes. This bounds sampling error within the fleet-generation method as built; it does
+          not cover the method's own assumptions, which the sensitivity sweep above speaks to instead.
         </p>
       </Panel>
 
