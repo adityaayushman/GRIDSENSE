@@ -65,7 +65,7 @@ const INDIAN_SEGMENTS = [
 ];
 
 /** `n` vehicles in the national mix, by largest-remainder allocation. */
-export function indianFleet(n: number): FleetGroup[] {
+export function indianFleet(n: number, arrival = 18, deadline = 7): FleetGroup[] {
   const exact = INDIAN_SEGMENTS.map((s) => n * s.share);
   const counts = exact.map(Math.floor);
   let left = n - counts.reduce((a, b) => a + b, 0);
@@ -73,7 +73,7 @@ export function indianFleet(n: number): FleetGroup[] {
     .sort((a, b) => (exact[b] - counts[b]) - (exact[a] - counts[a]))
     .forEach((i) => { if (left > 0) { counts[i] += 1; left -= 1; } });
   return INDIAN_SEGMENTS
-    .map((s, i) => ({ count: counts[i], energy_per_vehicle_kwh: s.energy, charger_kw: s.charger }))
+    .map((s, i) => ({ count: counts[i], energy_per_vehicle_kwh: s.energy, charger_kw: s.charger, arrival_hour: arrival, deadline_hour: deadline }))
     .filter((g) => g.count > 0);
 }
 

@@ -6,6 +6,8 @@ import india from "./data/india.json";
 import carbon from "./data/india_carbon.json";
 import { usePrefersReduced, useReveal, useCountUp } from "./motion";
 import IndiaLive from "./IndiaLive";
+import IndiaRegions from "./IndiaRegions";
+import IndiaRobustness from "./IndiaRobustness";
 
 const DUMB = "#d95926";
 const COORD = "#3987e5";
@@ -346,6 +348,8 @@ export default function India() {
         </p>
       </Panel>
 
+      <IndiaRobustness />
+
       <Panel>
         <div className="chartHeader">
           <div>
@@ -472,6 +476,8 @@ export default function India() {
           depot does, not the habit this project was built around.
         </p>
       </Panel>
+
+      <IndiaRegions />
 
       <p className="provenance">
         {india.homes} homes · {india.daily_kwh_per_home} kWh/home/day (Delhi average) ·

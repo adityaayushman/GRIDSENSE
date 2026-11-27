@@ -11,6 +11,7 @@ import { runScenario, fetchDays, warmUp, ApiError, indianFleet, Era, ScenarioRes
 import Runs from "./Runs";
 import { Comparison, Hosting, Regions, Control, India, Results, Signals, Validation, Pane, prefetch, prefetchAll } from "./panes";
 import results from "./data/results.json";
+import indiaCarbon from "./data/india_carbon.json";
 import demoData from "./data/demo_scenarios.json";
 import Segmented from "./Segmented";
 import Landing from "./Landing";
@@ -127,6 +128,8 @@ function App() {
   const [era, setEra] = useState<Era>(() => (PARAMS.get("era") === "2025" ? "2025" : PARAMS.get("era") === "IN" ? "IN" : "2018"));
   const [yearStats, setYearStats] = useState<YearStats | null>(null);
   // "cars": identical cars (the default). "india": scooters, rickshaws and cars in the FADA mix.
+  // Which hours the fleet is plugged in: the evening-to-morning habit, or a daytime stop (a workplace or depot).
+  const [win, setWin] = useState<"night" | "day">(() => (PARAMS.get("win") === "day" ? "day" : "night"));
   const [fleetKind, setFleetKind] = useState<"cars" | "india">(() => (PARAMS.get("fleet") === "india" || (PARAMS.get("era") === "IN" && PARAMS.get("fleet") !== "cars") ? "india" : "cars"));
   const [objective, setObjective] = useState<Objective>(() => {
     const o = PARAMS.get("obj");
@@ -175,8 +178,8 @@ function App() {
 
   // Keep the latest control values addressable from the mount effect without
   // making it re-run (and re-fire a request) on every slider nudge.
-  const latest = useRef({ evCount, chargerKw, feederKw, objective, day, useForecast, gate, v2g, fleetKind, era });
-  latest.current = { evCount, chargerKw, feederKw, objective, day, useForecast, gate, v2g, fleetKind, era };
+  const latest = useRef({ evCount, chargerKw, feederKw, objective, day, useForecast, gate, v2g, fleetKind, era, win });
+  latest.current = { evCount, chargerKw, feederKw, objective, day, useForecast, gate, v2g, fleetKind, era, win };
 
   const run = useCallback(async (overrideDay?: string, overrideEra?: Era) => {
     setLoading(true);
@@ -188,8 +191,8 @@ function App() {
       const live = await runScenario({
           ev_count: c.evCount,
           charger_kw: c.chargerKw,
-          arrival_hour: 18,
-          deadline_hour: 7,
+          arrival_hour: c.win === "day" ? 9 : 18,
+          deadline_hour: c.win === "day" ? 17 : 7,
           energy_per_vehicle_kwh: 9.2,
           objective: c.objective,
           region: "ES",
@@ -198,7 +201,7 @@ function App() {
           ...(c.feederKw > 0 ? { feeder_capacity_kw: c.feederKw } : {}),
         ...(c.useForecast ? { use_forecast: true } : {}),
         ...(c.useForecast && c.gate ? { gate_min_saving_pct: GATE_MIN_SAVING_PCT } : {}),
-        ...(c.fleetKind === "india" ? { fleet: indianFleet(c.evCount) } : {}),
+        ...(c.fleetKind === "india" ? { fleet: indianFleet(c.evCount, c.win === "day" ? 9 : 18, c.win === "day" ? 17 : 7) } : {}),
         ...(c.v2g ? { allow_v2g: true } : {}),
       });
       setResult(live);
@@ -206,7 +209,7 @@ function App() {
     } catch (e) {
       // A serverless API can take seconds to wake. Opening on a real stored result, clearly
       // labelled, beats opening on an error and an empty form.
-      const stored = e instanceof ApiError && e.kind === "unreachable" ? (demoData as any).eras[chosenEra] : null;
+      const stored = e instanceof ApiError && e.kind === "unreachable" && c.win === "night" ? (demoData as any).eras[chosenEra] : null;
       if (stored) {
         setResult(stored.response as ScenarioResponse);
         setDemo(true);
@@ -236,6 +239,7 @@ function App() {
     if (useForecast) p.set("fc", "1");
     if (useForecast && gate) p.set("gate", "1");
     if (v2g) p.set("v2g", "1");
+    if (win === "day") p.set("win", "day");
     if (fleetKind === "india") p.set("fleet", "india");
     else if (era === "IN") p.set("fleet", "cars");
     if (era !== "2018") p.set("era", era);
@@ -244,7 +248,7 @@ function App() {
     window.history.replaceState(
       null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}#${tab}`,
     );
-  }, [entered, evCount, chargerKw, feederKw, objective, useForecast, gate, v2g, fleetKind, era, day, tab]);
+  }, [entered, evCount, chargerKw, feederKw, objective, useForecast, gate, v2g, fleetKind, era, win, day, tab]);
 
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -649,6 +653,20 @@ function App() {
               </div>
             </div>
             <div className="field">
+              <label>Charging window</label>
+              <Segmented
+                options={[
+                  { key: "night", label: "Overnight 18–07" },
+                  { key: "day", label: "Daytime 09–17" },
+                ]}
+                value={win}
+                onChange={(x) => { setWin(x as "night" | "day"); latest.current.win = x as "night" | "day"; run(); }}
+              />
+              <div className="fieldValue">
+                <em>{win === "day" ? "a workplace or depot stop, when solar is on the grid" : "the home habit this project started from"}</em>
+              </div>
+            </div>
+            <div className="field">
               <label>Fleet</label>
               <Segmented
                 options={[
@@ -756,13 +774,32 @@ function App() {
                 )}
               </div>
               <div className="heroNote">
-                This is the <strong>median</strong> night of {eraName(result.era)}, not the best one.
-                {yearStats && (
+                {win === "day" ? (
                   <>
-                    {" "}Across the full year the median saving is <strong>{yearStats.median_saving_pct}%</strong>{" "}
-                    and the fleet-wide total <strong>{yearStats.total_saving_pct}%</strong> — but{" "}
-                    <strong>{yearStats.under_1pct}% of nights save under 1%</strong> while{" "}
-                    {yearStats.over_20pct}% save over 20%.
+                    A daytime stop, 09:00 to 17:00, on {result.day}. The default day was picked as the median for the
+                    overnight window, not for this one.
+                    {result.era === "IN" ? (
+                      <>
+                        {" "}Across {indiaCarbon.windows.daytime.days} Indian days this window saves a median{" "}
+                        <strong>{indiaCarbon.windows.daytime.median_cut_pct}%</strong>, with{" "}
+                        <strong>{indiaCarbon.windows.daytime.under_1pct}%</strong> of days under 1%: about twelve times the overnight
+                        figure, because the solar hours sit inside it.
+                      </>
+                    ) : (
+                      <> Whole-year daytime statistics are computed for India only.</>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    This is the <strong>median</strong> night of {eraName(result.era)}, not the best one.
+                    {yearStats && (
+                      <>
+                        {" "}Across the full year the median saving is <strong>{yearStats.median_saving_pct}%</strong>{" "}
+                        and the fleet-wide total <strong>{yearStats.total_saving_pct}%</strong> — but{" "}
+                        <strong>{yearStats.under_1pct}% of nights save under 1%</strong> while{" "}
+                        {yearStats.over_20pct}% save over 20%.
+                      </>
+                    )}
                   </>
                 )}{" "}
                 Pick a different night above to see the spread.

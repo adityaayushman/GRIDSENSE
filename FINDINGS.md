@@ -1222,6 +1222,52 @@ On the median night, with 80 vehicles in the national mix:
 
 ---
 
+## 23. Finding 10's capacity gain assumes a perfect forecast, and no margin tested buys that back
+
+`ml/india_robustness.py` · **India** pane
+
+Finding 10's 123-vehicle figure schedules coordinated charging against the street's other demand as if that
+demand were known exactly. A distribution company schedules against a *forecast* of it and is judged on what
+the transformer actually carries. This measures the gap: hold back a margin of the rating as insurance, forecast
+the baseline with hourly error (standard deviation s, hour-to-hour correlation 0.7, since day-ahead errors
+persist) and score the result against the **true** baseline — an overload is any hour over the rating.
+
+On the 100 kVA, 150-home unit, holding back margin to buy a perfect-forecast capacity is already costly:
+
+| Margin held back | 0% | 5% | 10% | 15% | 20% | 30% |
+| --- | --- | --- | --- | --- | --- | --- |
+| Capacity, perfect forecast | **123** | 109 | 94 | 81 | 66 | 37 |
+
+(Charging on arrival hosts 35, for reference — by a 30% margin, coordination has almost given back its own gain.)
+
+Add realistic forecast error and it gets worse. **No margin from 0% to 30% brings the overload probability under
+a 5% target, at any error level tested:**
+
+| Error (sd) | 0% margin | 5% | 10% | 15% | 20% | 30% |
+| --- | --- | --- | --- | --- | --- | --- |
+| 3% — national day-ahead demand error | 100% | 50% | 40% | 53.3% | **35%** | 41.7% |
+| 5% — guessed feeder-level error | 100% | 65% | 41.7% | 43.3% | 38.3% | 40% |
+| 10% — guessed feeder-level error | 100% | 96.7% | 66.7% | 45% | 43.3% | 65% |
+| 20% — guessed feeder-level error | 100% | 100% | 95% | 61.7% | 75% | 91.7% |
+
+Even at **3%**, the national day-ahead demand forecaster's own error (`train_india.py`, MAPE 2.4-2.5%) — far
+better than any single feeder should expect — the best outcome across the whole margin range is **35% of draws
+overloading**, at a 20% margin that has already cut capacity from 123 to 66. The probabilities are not monotone
+in margin (30% does worse than 20% at every error level), which is sampling noise at 60 draws per cell rather
+than a real effect, but it does not change the conclusion: nowhere in the range tested does holding back margin
+alone deliver the 5% target.
+
+**What this does and does not say.** The 5, 10 and 20% error levels have no published Indian feeder-forecasting
+figure behind them — they are guesses bracketing plausible error, not a measurement, and only the 3% row rests on
+a real number. The margin search also stops at 30%; a large enough margin would eventually satisfy the target,
+but by then capacity is close to charging-on-arrival's 35 and coordination has nothing left to offer. This does
+not reopen finding 10's gain, which still holds under a perfect forecast — it prices what a real controller gives
+up to the forecast it does not have, and says that holding back margin is not, by itself, how it gets that back.
+A forecaster with real feeder-level error data, or a controller that corrects intraday rather than committing to
+a day-ahead margin, remains untested.
+
+---
+
 ## Datasets evaluated and rejected
 
 Screened with `screen_dataset.py`, which any candidate must pass before it is

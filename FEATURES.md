@@ -207,6 +207,14 @@ because a project that only displays its successes is a brochure.
   plausible, two independent parsers agree to 0.00 g/kWh, and fast.
 - **A one-command live check of the ENTSO-E client** (`ml/live_check_entsoe.py`), which
   needs only a token; `backend/ENTSOE.md` has the signup steps and a ready-to-send email.
+- **Five Indian grids, not one.** The India pane breaks Grid-India's daily reports out by region
+  (NR/WR/SR/ER/NER): each region's own renewable share and when its demand peaks, since an
+  evening-peaking region is where an EV plugged in at 18:00 lands on the peak and a
+  midday-peaking one does not (`ml/india_regions.py`).
+- **How much of the India capacity gain survives forecast error.** Finding 10's 123-vehicle
+  figure assumes a perfect forecast of the street's other demand; `ml/india_robustness.py`
+  prices the gap under realistic error and finds no margin up to 30% brings the overload risk
+  under target (finding 23).
 
 ## Not yet built
 
